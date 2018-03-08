@@ -268,7 +268,7 @@ namespace GitUI.CommandsDialogs
                 _heads.Insert(0, GitRef.NoHead(Module));
                 Branches.DataSource = _heads;
 
-                ComboBoxHelper.ResizeComboBoxDropDownWidth(Branches, AppSettings.BranchDropDownMinWidth, AppSettings.BranchDropDownMaxWidth);
+                Branches.ResizeComboBoxDropDownWidth(AppSettings.BranchDropDownMinWidth, AppSettings.BranchDropDownMaxWidth);
             }
         }
 

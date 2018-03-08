@@ -363,7 +363,7 @@ namespace GitCommands
         public string ResolveGitInternalPath(string relativePath)
         {
             string gitPath = RunGitCmd("rev-parse --git-path " + relativePath.Quote());
-            string systemPath = PathUtil.ToNativePath(gitPath.Trim());
+            string systemPath = gitPath.Trim().ToNativePath();
             if (systemPath.StartsWith(".git\\"))
             {
                 systemPath = Path.Combine(GetGitDirectory(), systemPath.Substring(".git\\".Length));
@@ -385,7 +385,7 @@ namespace GitCommands
                 if (_gitCommonDirectory == null)
                 {
                     var commDir = RunGitCmdResult("rev-parse --git-common-dir");
-                    _gitCommonDirectory = PathUtil.ToNativePath(commDir.StdOutput.Trim());
+                    _gitCommonDirectory = commDir.StdOutput.Trim().ToNativePath();
                     if (!commDir.ExitedSuccessfully || _gitCommonDirectory == ".git" || !Directory.Exists(_gitCommonDirectory))
                     {
                         _gitCommonDirectory = GetGitDirectory();
