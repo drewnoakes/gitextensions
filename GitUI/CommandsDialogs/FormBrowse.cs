@@ -1682,7 +1682,7 @@ namespace GitUI.CommandsDialogs
             SetWorkingDir("");
         }
 
-        public override void CancelButtonClick(object sender, EventArgs e)
+        protected override void CancelButtonClick(object sender, EventArgs e)
         {
             // If a filter is applied, clear it
             if (RevisionGrid.FilterIsApplied(false))

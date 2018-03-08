@@ -15,7 +15,7 @@ namespace GitUI
     /// <remarks>
     /// Includes support for font, hotkey, icon, translation, and position restore.
     /// </remarks></summary>
-    public class GitExtensionsForm : GitExtensionsFormBase
+    public abstract class GitExtensionsForm : GitExtensionsFormBase
     {
         internal static Icon ApplicationIcon = GetApplicationIcon(Settings.IconStyle, Settings.IconColor);
 
@@ -23,7 +23,7 @@ namespace GitUI
         private readonly bool _enablePositionRestore;
 
         /// <summary>Creates a new <see cref="GitExtensionsForm"/> without position restore.</summary>
-        public GitExtensionsForm()
+        protected GitExtensionsForm()
             : this(false)
         {
         }
@@ -31,7 +31,7 @@ namespace GitUI
         /// <summary>Creates a new <see cref="GitExtensionsForm"/> indicating position restore.</summary>
         /// <param name="enablePositionRestore">Indicates whether the <see cref="Form"/>'s position
         /// will be restored upon being re-opened.</param>
-        public GitExtensionsForm(bool enablePositionRestore)
+        protected GitExtensionsForm(bool enablePositionRestore)
         {
             _enablePositionRestore = enablePositionRestore;
 
@@ -44,7 +44,7 @@ namespace GitUI
             CancelButton = cancelButton;
         }
 
-        public virtual void CancelButtonClick(object sender, EventArgs e)
+        protected virtual void CancelButtonClick(object sender, EventArgs e)
         {
             Close();
         }
