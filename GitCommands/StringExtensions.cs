@@ -19,8 +19,7 @@ namespace System
                 return null;
             }
 
-            int idx;
-            idx = str.IndexOf(toSkip);
+            var idx = str.IndexOf(toSkip);
             if (idx != -1)
             {
                 return str.Substring(idx + toSkip.Length);
@@ -40,8 +39,7 @@ namespace System
                 return null;
             }
 
-            int idx;
-            idx = str.IndexOf(untilStr);
+            var idx = str.IndexOf(untilStr);
             if (idx != -1)
             {
                 return str.Substring(0, idx);

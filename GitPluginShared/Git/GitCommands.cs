@@ -13,8 +13,7 @@ namespace GitPluginShared.Git
         {
             try
             {
-                RegistryKey rk;
-                rk = root.OpenSubKey(subkey, false);
+                RegistryKey rk = root.OpenSubKey(subkey, false);
 
                 string value = "";
 
