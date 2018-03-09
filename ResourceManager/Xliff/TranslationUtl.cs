@@ -10,6 +10,11 @@ namespace ResourceManager.Xliff
 {
     public static class TranslationUtl
     {
+        private const BindingFlags FieldBindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.SetField;
+
+        private const BindingFlags PropertyBindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static |
+                                                          BindingFlags.NonPublic | BindingFlags.SetProperty;
+
         private static bool AllowTranslateProperty(string text)
         {
             if (text == null)
@@ -28,7 +33,7 @@ namespace ResourceManager.Xliff
             }
 
             foreach (FieldInfo fieldInfo in obj.GetType().GetFields(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.SetField))
+                FieldBindingFlags))
             {
                 if (fieldInfo.IsPublic && !fieldInfo.IsInitOnly)
                 {
@@ -45,8 +50,7 @@ namespace ResourceManager.Xliff
         {
             var propertyInfo = obj?.GetType().GetProperty(
                 propName,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static |
-                BindingFlags.NonPublic | BindingFlags.SetProperty);
+                PropertyBindingFlags);
 
             if (propertyInfo?.GetValue(obj, null) is string value && AllowTranslateProperty(value))
             {
@@ -95,8 +99,7 @@ namespace ResourceManager.Xliff
             }
 
             foreach (var propertyInfo in item.GetType()
-                .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static |
-                               BindingFlags.NonPublic | BindingFlags.SetProperty)
+                .GetProperties(PropertyBindingFlags)
                 .Where(isTranslatableItem))
             {
                 yield return propertyInfo;
@@ -207,8 +210,7 @@ namespace ResourceManager.Xliff
             }
 
             var propertyInfo = obj.GetType().GetProperty(propName,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static |
-                BindingFlags.NonPublic | BindingFlags.SetProperty);
+                PropertyBindingFlags);
             if (propertyInfo == null)
             {
                 return;
