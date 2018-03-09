@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using GitUIPluginInterfaces;
@@ -243,16 +244,16 @@ namespace GitCommands.Gpg
             }
 
             /* When _usefulTagRefs.Count > 1 */
-            string tagVerifyMessage = "";
+            var tagVerifyMessage = new StringBuilder();
 
             /* Only to populate TagVerifyMessage */
             foreach (var tagRef in usefulTagRefs)
             {
                 /* String printed in dialog box */
-                tagVerifyMessage = $"{tagVerifyMessage}{tagRef.LocalName}\r\n{GetTagVerificationMessage(tagRef, false)}\r\n\r\n";
+                tagVerifyMessage.Append($"{tagRef.LocalName}\r\n{GetTagVerificationMessage(tagRef, false)}\r\n\r\n");
             }
 
-            return tagVerifyMessage;
+            return tagVerifyMessage.ToString();
         }
 
         private IGitModule GetModule()
