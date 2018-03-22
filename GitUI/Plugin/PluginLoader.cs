@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Windows.Forms;
 
 namespace GitUI
@@ -20,10 +21,16 @@ namespace GitUI
 
                 var file = new FileInfo(Application.ExecutablePath);
 
-                FileInfo[] plugins =
-                               Directory.Exists(Path.Combine(file.Directory.FullName, "Plugins"))
-                                   ? new DirectoryInfo(Path.Combine(file.Directory.FullName, "Plugins")).GetFiles("*.dll")
-                                   : new FileInfo[] { };
+                if (file.Directory == null)
+                {
+                    return;
+                }
+
+                var pluginsPath = Path.Combine(file.Directory.FullName, "Plugins");
+
+                var plugins = Directory.Exists(pluginsPath)
+                    ? new DirectoryInfo(pluginsPath).GetFiles("*.dll")
+                    : Array.Empty<FileInfo>();
 
                 var pluginFiles = plugins.Where(pluginFile =>
                     !pluginFile.Name.StartsWith("System.") &&
@@ -40,13 +47,18 @@ namespace GitUI
                     }
                     catch (SystemException ex)
                     {
-                        string exceptionInfo = "Exception info:\r\n";
+                        var msg = new StringBuilder();
+                        msg.AppendLine($"Failed to load plugin \"{pluginFile}\".");
+                        msg.AppendLine();
+                        msg.AppendLine("Exception info:");
 
                         if (ex is ReflectionTypeLoadException rtle)
                         {
+                            msg.AppendLine(ex.Message);
+
                             foreach (var el in rtle.LoaderExceptions)
                             {
-                                exceptionInfo += el.Message + "\r\n";
+                                msg.AppendLine(el.Message);
                             }
                         }
                         else
@@ -55,7 +67,7 @@ namespace GitUI
                             Exception e = ex;
                             while (true)
                             {
-                                exceptionInfo += e.Message + "\r\n";
+                                msg.AppendLine(e.Message);
 
                                 if (e.InnerException == null)
                                 {
@@ -66,7 +78,7 @@ namespace GitUI
                             }
                         }
 
-                        MessageBox.Show(string.Format("Failed to load plugin {0} : \r\n{1}", pluginFile, exceptionInfo));
+                        MessageBox.Show(msg.ToString(), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         Trace.WriteLine(ex.Message);
                     }
                 }
