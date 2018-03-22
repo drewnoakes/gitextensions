@@ -118,19 +118,7 @@ namespace GitUI
                     return;
                 }
 
-                IGitUICommandsSource cmdsSrc = null;
-                Control parent = Parent;
-                while (parent != null && cmdsSrc == null)
-                {
-                    if (parent is IGitUICommandsSource)
-                    {
-                        cmdsSrc = parent as IGitUICommandsSource;
-                    }
-                    else
-                    {
-                        parent = parent.Parent;
-                    }
-                }
+                var cmdsSrc = this.FindAncestorOfType<IGitUICommandsSource>();
 
                 if (cmdsSrc == null)
                 {

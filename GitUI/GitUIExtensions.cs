@@ -266,6 +266,32 @@ namespace GitUI
                 });
         }
 
+        /// <summary>
+        /// Finds the closest ancestor of <paramref name="control"/> of type <typeparamref name="T"/>.
+        /// </summary>
+        /// <remarks>
+        /// This method finds ancestors. If <paramref name="control"/> is of type <typeparamref name="T"/>
+        /// it will not be returned.
+        /// </remarks>
+        /// <typeparam name="T">The type of the ancestor to find.</typeparam>
+        /// <param name="control">The control to start the search from.</param>
+        /// <returns>The ancestor if found, otherwise <c>false</c>.</returns>
+        [CanBeNull]
+        public static T FindAncestorOfType<T>([CanBeNull] this Control control) where T : class
+        {
+            while (control != null)
+            {
+                control = control.Parent;
+
+                if (control is T target)
+                {
+                    return target;
+                }
+            }
+
+            return null;
+        }
+
         public static Control FindFocusedControl(this ContainerControl container)
         {
             while (true)
