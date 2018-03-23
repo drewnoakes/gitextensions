@@ -35,7 +35,6 @@ namespace Gerrit
         private IGitUICommands _gitUiCommands;
         private ToolStripButton _installCommitMsgMenuItem;
 
-        // public only because of FormTranslate
         public GerritPlugin()
             : base("Gerrit Code Review")
         {
