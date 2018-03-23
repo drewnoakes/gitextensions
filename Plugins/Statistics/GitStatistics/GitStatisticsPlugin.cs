@@ -1,4 +1,5 @@
-﻿using GitUIPluginInterfaces;
+﻿using System.Collections.Generic;
+using GitUIPluginInterfaces;
 using ResourceManager;
 
 [assembly: PluginType(typeof(GitStatistics.GitStatisticsPlugin))]
@@ -19,30 +20,32 @@ namespace GitStatistics
         private readonly StringSetting _ignoreDirectories = new StringSetting("Directories to ignore (EndsWith)", "\\Debug;\\Release;\\obj;\\bin;\\lib");
         private readonly BoolSetting _ignoreSubmodules = new BoolSetting("Ignore submodules", true);
 
-        public override System.Collections.Generic.IEnumerable<ISetting> GetSettings()
+        public override IEnumerable<ISetting> GetSettings()
         {
             yield return _codeFiles;
             yield return _ignoreDirectories;
             yield return _ignoreSubmodules;
         }
 
-        public override bool Execute(GitUIBaseEventArgs gitUIEventArgs)
+        public override bool Execute(GitUIBaseEventArgs e)
         {
-            if (string.IsNullOrEmpty(gitUIEventArgs.GitModule.WorkingDir))
+            if (string.IsNullOrEmpty(e.GitModule.WorkingDir))
             {
                 return false;
             }
 
-            bool countSubmodule = !_ignoreSubmodules.ValueOrDefault(Settings);
-            using (var formGitStatistics =
-                new FormGitStatistics(gitUIEventArgs.GitModule, _codeFiles.ValueOrDefault(Settings), countSubmodule)
-                {
-                    DirectoriesToIgnore = _ignoreDirectories.ValueOrDefault(Settings)
-                })
-            {
-                formGitStatistics.DirectoriesToIgnore = formGitStatistics.DirectoriesToIgnore.Replace("/", "\\");
+            bool includeSubmodules = !_ignoreSubmodules.ValueOrDefault(Settings);
 
-                formGitStatistics.ShowDialog(gitUIEventArgs.OwnerForm);
+            var form = new FormGitStatistics(e.GitModule, _codeFiles.ValueOrDefault(Settings), includeSubmodules)
+            {
+                DirectoriesToIgnore = _ignoreDirectories.ValueOrDefault(Settings)
+            };
+
+            using (form)
+            {
+                form.DirectoriesToIgnore = form.DirectoriesToIgnore.Replace("/", "\\");
+
+                form.ShowDialog(e.OwnerForm);
             }
 
             return false;
