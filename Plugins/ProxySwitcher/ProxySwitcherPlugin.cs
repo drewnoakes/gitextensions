@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace ProxySwitcher
 {
-    public class ProxySwitcherPlugin : GitPluginBase
+    public sealed class ProxySwitcherPlugin : GitPluginBase
     {
         public readonly StringSetting Username = new StringSetting("Username", string.Empty);
         public readonly StringSetting Password = new StringSetting("Password", string.Empty);

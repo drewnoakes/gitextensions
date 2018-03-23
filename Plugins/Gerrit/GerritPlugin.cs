@@ -13,7 +13,7 @@ using ResourceManager;
 
 namespace Gerrit
 {
-    public class GerritPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class GerritPlugin : GitPluginBase, IGitPluginForRepository
     {
         #region Translation
         private readonly TranslationString _editGitReview = new TranslationString("Edit .gitreview");

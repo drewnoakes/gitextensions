@@ -13,7 +13,7 @@ using ResourceManager;
 
 namespace Gource
 {
-    public class GourcePlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class GourcePlugin : GitPluginBase, IGitPluginForRepository
     {
         #region Translation
         private readonly TranslationString _currentDirectoryIsNotValidGit = new TranslationString("The current directory is not a valid git repository.\n\n" +

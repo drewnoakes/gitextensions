@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace DeleteUnusedBranches
 {
-    public class DeleteUnusedBranchesPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class DeleteUnusedBranchesPlugin : GitPluginBase, IGitPluginForRepository
     {
         public DeleteUnusedBranchesPlugin()
             : base("Delete obsolete branches")

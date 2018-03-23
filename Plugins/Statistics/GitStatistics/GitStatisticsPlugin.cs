@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace GitStatistics
 {
-    public class GitStatisticsPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class GitStatisticsPlugin : GitPluginBase, IGitPluginForRepository
     {
         public GitStatisticsPlugin()
             : base("Statistics")

@@ -6,7 +6,7 @@ using ResourceManager;
 
 namespace ReleaseNotesGenerator
 {
-    public class ReleaseNotesGeneratorPlugin : GitPluginBase
+    public sealed class ReleaseNotesGeneratorPlugin : GitPluginBase
     {
         public ReleaseNotesGeneratorPlugin()
             : base("Release Notes Generator")

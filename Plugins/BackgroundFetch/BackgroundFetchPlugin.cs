@@ -9,7 +9,7 @@ using ResourceManager;
 
 namespace BackgroundFetch
 {
-    public class BackgroundFetchPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class BackgroundFetchPlugin : GitPluginBase, IGitPluginForRepository
     {
         public BackgroundFetchPlugin()
             : base("Periodic background fetch")

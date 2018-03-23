@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace CreateLocalBranches
 {
-    public class CreateLocalBranchesPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class CreateLocalBranchesPlugin : GitPluginBase, IGitPluginForRepository
     {
         public CreateLocalBranchesPlugin()
             : base("Create local tracking branches")

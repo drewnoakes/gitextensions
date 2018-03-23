@@ -6,7 +6,7 @@ using ResourceManager;
 
 namespace FindLargeFiles
 {
-    public class FindLargeFilesPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class FindLargeFilesPlugin : GitPluginBase, IGitPluginForRepository
     {
         public FindLargeFilesPlugin()
             : base("Find large files")

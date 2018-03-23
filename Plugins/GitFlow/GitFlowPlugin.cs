@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace GitFlow
 {
-    public class GitFlowPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class GitFlowPlugin : GitPluginBase, IGitPluginForRepository
     {
         public GitFlowPlugin()
             : base("GitFlow")

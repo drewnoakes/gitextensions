@@ -13,7 +13,7 @@ using ResourceManager;
 
 namespace JiraCommitHintPlugin
 {
-    public class JiraCommitHintPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class JiraCommitHintPlugin : GitPluginBase, IGitPluginForRepository
     {
         private static readonly string EnablePluginLabel = new TranslationString("Jira hint plugin enabled").Text;
         private static readonly string JiraUrlLabel = new TranslationString("Jira URL").Text;

@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace Bitbucket
 {
-    public class BitbucketPlugin : GitPluginBase
+    public sealed class BitbucketPlugin : GitPluginBase
     {
         public readonly StringSetting BitbucketUsername = new StringSetting("Bitbucket Username", string.Empty);
         public readonly PasswordSetting BitbucketPassword = new PasswordSetting("Bitbucket Password", string.Empty);

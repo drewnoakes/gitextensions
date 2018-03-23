@@ -9,7 +9,7 @@ using ResourceManager;
 
 namespace AutoCompileSubmodules
 {
-    public class AutoCompileSubModulesPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class AutoCompileSubModulesPlugin : GitPluginBase, IGitPluginForRepository
     {
         private readonly TranslationString _doYouWantBuild =
             new TranslationString("Do you want to build {0}?\n\n{1}");

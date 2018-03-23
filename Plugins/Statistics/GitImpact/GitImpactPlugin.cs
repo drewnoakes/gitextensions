@@ -5,7 +5,7 @@ using ResourceManager;
 
 namespace GitImpact
 {
-    public class GitImpactPlugin : GitPluginBase, IGitPluginForRepository
+    public sealed class GitImpactPlugin : GitPluginBase, IGitPluginForRepository
     {
         public GitImpactPlugin()
             : base("Impact Graph")
