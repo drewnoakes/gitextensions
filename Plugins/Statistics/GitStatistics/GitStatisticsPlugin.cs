@@ -19,8 +19,6 @@ namespace GitStatistics
         private readonly StringSetting _ignoreDirectories = new StringSetting("Directories to ignore (EndsWith)", "\\Debug;\\Release;\\obj;\\bin;\\lib");
         private readonly BoolSetting _ignoreSubmodules = new BoolSetting("Ignore submodules", true);
 
-        #region IGitPlugin Members
-
         public override System.Collections.Generic.IEnumerable<ISetting> GetSettings()
         {
             yield return _codeFiles;
@@ -49,7 +47,5 @@ namespace GitStatistics
 
             return false;
         }
-
-        #endregion
     }
 }

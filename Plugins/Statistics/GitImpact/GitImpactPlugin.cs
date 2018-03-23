@@ -13,8 +13,6 @@ namespace GitImpact
             Translate();
         }
 
-        #region IGitPlugin Members
-
         public override bool Execute(GitUIBaseEventArgs gitUIEventArgs)
         {
             if (string.IsNullOrEmpty(gitUIEventArgs.GitModule.WorkingDir))
@@ -29,7 +27,5 @@ namespace GitImpact
 
             return false;
         }
-
-        #endregion
     }
 }
