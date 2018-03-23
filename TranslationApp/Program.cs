@@ -36,7 +36,7 @@ namespace TranslationApp
             }
 
             // required for translation
-            GitUI.PluginLoader.Load();
+            GitUI.PluginRegistry.Initialise();
             string[] args = Environment.GetCommandLineArgs();
             if (args.Length == 1)
             {

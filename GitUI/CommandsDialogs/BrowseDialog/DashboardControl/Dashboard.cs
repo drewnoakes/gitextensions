@@ -83,7 +83,7 @@ namespace GitUI.CommandsDialogs.BrowseDialog.DashboardControl
             cloneSvnItem.Click += cloneSvnItem_Click;
             CommonActions.AddItem(cloneSvnItem);
 
-            foreach (IRepositoryHostPlugin el in RepoHosts.GitHosters)
+            foreach (IRepositoryHostPlugin el in PluginRegistry.RepoHostPlugins)
             {
                 IRepositoryHostPlugin gitHoster = el;
                 var di = new DashboardItem(Resources.IconCloneRepoGithub, string.Format(_cloneFork.Text, el.Description));

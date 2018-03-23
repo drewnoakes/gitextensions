@@ -18,7 +18,6 @@ using GitUI.CommandsDialogs.BrowseDialog;
 using GitUI.CommandsDialogs.BrowseDialog.DashboardControl;
 using GitUI.CommandsDialogs.WorktreeDialog;
 using GitUI.Hotkey;
-using GitUI.Plugin;
 using GitUI.Properties;
 using GitUI.Script;
 using GitUI.UserControls;
@@ -183,7 +182,7 @@ namespace GitUI.CommandsDialogs
 
             RevisionGrid.UICommandsSource = this;
             Repositories.LoadRepositoryHistoryAsync();
-            Task.Factory.StartNew(PluginLoader.Load)
+            Task.Factory.StartNew(PluginRegistry.Initialise)
                 .ContinueWith((task) => RegisterPlugins(), TaskScheduler.FromCurrentSynchronizationContext());
             RevisionGrid.GitModuleChanged += SetGitModule;
             _filterRevisionsHelper = new FilterRevisionsHelper(toolStripRevisionFilterTextBox, toolStripRevisionFilterDropDownButton, RevisionGrid, toolStripRevisionFilterLabel, ShowFirstParent, form: this);
@@ -467,7 +466,7 @@ namespace GitUI.CommandsDialogs
                 return;
             }
 
-            foreach (var plugin in LoadedPlugins.Plugins)
+            foreach (var plugin in PluginRegistry.Plugins)
             {
                 var item = new ToolStripMenuItem { Text = plugin.Description, Tag = plugin };
                 item.Click += ItemClick;
@@ -507,7 +506,7 @@ namespace GitUI.CommandsDialogs
 
         private void RegisterPlugins()
         {
-            foreach (var plugin in LoadedPlugins.Plugins)
+            foreach (var plugin in PluginRegistry.Plugins)
             {
                 plugin.Register(UICommands);
             }
@@ -517,7 +516,7 @@ namespace GitUI.CommandsDialogs
 
         private void UnregisterPlugins()
         {
-            foreach (var plugin in LoadedPlugins.Plugins)
+            foreach (var plugin in PluginRegistry.Plugins)
             {
                 plugin.Unregister(UICommands);
             }
@@ -604,11 +603,20 @@ namespace GitUI.CommandsDialogs
             _createPullRequestsToolStripMenuItem.Enabled = validWorkingDir;
             _viewPullRequestsToolStripMenuItem.Enabled = validWorkingDir;
 
-            // Only show "Repository hosts" menu item when there is at least 1 repository host plugin loaded
-            _repositoryHostsToolStripMenuItem.Visible = RepoHosts.GitHosters.Count > 0;
-            if (RepoHosts.GitHosters.Count == 1)
+            // If plugins haven't loaded yet, ignore for now
+            if (PluginRegistry.IsInitialised)
             {
-                _repositoryHostsToolStripMenuItem.Text = RepoHosts.GitHosters[0].Description;
+                // Only show "Repository hosts" menu item when there is at least 1 repository host plugin loaded
+                _repositoryHostsToolStripMenuItem.Visible = PluginRegistry.RepoHostPlugins.Count != 0;
+
+                if (PluginRegistry.RepoHostPlugins.Count == 1)
+                {
+                    _repositoryHostsToolStripMenuItem.Text = PluginRegistry.RepoHostPlugins[0].Description;
+                }
+            }
+            else
+            {
+                _repositoryHostsToolStripMenuItem.Visible = false;
             }
 
             _filterBranchHelper.InitToolStripBranchFilter();
@@ -1964,9 +1972,9 @@ namespace GitUI.CommandsDialogs
 
         private void _forkCloneMenuItem_Click(object sender, EventArgs e)
         {
-            if (RepoHosts.GitHosters.Count > 0)
+            if (PluginRegistry.RepoHostPlugins.Count > 0)
             {
-                UICommands.StartCloneForkFromHoster(this, RepoHosts.GitHosters[0], SetGitModule);
+                UICommands.StartCloneForkFromHoster(this, PluginRegistry.RepoHostPlugins[0], SetGitModule);
                 UICommands.RepoChangedNotifier.Notify();
             }
             else
@@ -1977,7 +1985,7 @@ namespace GitUI.CommandsDialogs
 
         private void _viewPullRequestsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var repoHost = RepoHosts.TryGetGitHosterForModule(Module);
+            var repoHost = PluginRegistry.TryGetGitHosterForModule(Module);
             if (repoHost == null)
             {
                 MessageBox.Show(this, _noReposHostFound.Text, _errorCaption.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1989,7 +1997,7 @@ namespace GitUI.CommandsDialogs
 
         private void _createPullRequestToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var repoHost = RepoHosts.TryGetGitHosterForModule(Module);
+            var repoHost = PluginRegistry.TryGetGitHosterForModule(Module);
             if (repoHost == null)
             {
                 MessageBox.Show(this, _noReposHostFound.Text, _errorCaption.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
