@@ -49,6 +49,7 @@ namespace JiraCommitHintPlugin
         public JiraCommitHintPlugin()
             : base(description)
         {
+            Translate();
         }
 
         public override bool Execute(GitUIBaseEventArgs gitUiCommands)
