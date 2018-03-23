@@ -7,8 +7,8 @@ namespace FindLargeFiles
     public class FindLargeFilesPlugin : GitPluginBase, IGitPluginForRepository
     {
         public FindLargeFilesPlugin()
+            : base("Find large files")
         {
-            SetNameAndDescription("Find large files");
             Translate();
         }
 

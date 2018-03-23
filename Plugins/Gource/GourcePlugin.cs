@@ -31,8 +31,8 @@ namespace Gource
         #endregion
 
         public GourcePlugin()
+            : base("Gource")
         {
-            SetNameAndDescription("Gource");
             Translate();
         }
 

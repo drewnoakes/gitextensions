@@ -6,8 +6,8 @@ namespace GitStatistics
     public class GitStatisticsPlugin : GitPluginBase, IGitPluginForRepository
     {
         public GitStatisticsPlugin()
+            : base("Statistics")
         {
-            SetNameAndDescription("Statistics");
             Translate();
         }
 

@@ -9,10 +9,10 @@ namespace ResourceManager
     [UsedImplicitly]
     public abstract class GitPluginBase : IGitPlugin, ITranslate
     {
-        public string Description { get; protected set; }
-        public string Name { get; protected set; }
+        public string Description { get; }
+        public string Name { get; }
 
-        protected void SetNameAndDescription(string name)
+        protected GitPluginBase(string name)
         {
             Name = name;
             Description = name;

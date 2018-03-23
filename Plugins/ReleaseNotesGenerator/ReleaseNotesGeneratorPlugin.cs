@@ -7,8 +7,8 @@ namespace ReleaseNotesGenerator
     public class ReleaseNotesGeneratorPlugin : GitPluginBase
     {
         public ReleaseNotesGeneratorPlugin()
+            : base("Release Notes Generator")
         {
-            SetNameAndDescription("Release Notes Generator");
             Translate();
         }
 

@@ -77,8 +77,8 @@ namespace Github3
         internal static Client github;
 
         public Github3Plugin()
+            : base("Github")
         {
-            SetNameAndDescription("Github");
             Translate();
 
             if (instance == null)

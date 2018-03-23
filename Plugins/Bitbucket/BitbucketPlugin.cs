@@ -11,8 +11,8 @@ namespace Bitbucket
         public readonly BoolSetting BitbucketDisableSsl = new BoolSetting("Disable SSL verification", false);
 
         public BitbucketPlugin()
+            : base("Bitbucket Server")
         {
-            SetNameAndDescription("Bitbucket Server");
             Translate();
         }
 

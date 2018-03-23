@@ -47,8 +47,8 @@ namespace JiraCommitHintPlugin
         private Button _btnPreview;
 
         public JiraCommitHintPlugin()
+            : base(description)
         {
-            Description = description;
         }
 
         public override bool Execute(GitUIBaseEventArgs gitUiCommands)
