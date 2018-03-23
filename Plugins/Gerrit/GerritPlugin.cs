@@ -9,6 +9,8 @@ using GitUIPluginInterfaces;
 using JetBrains.Annotations;
 using ResourceManager;
 
+[assembly: PluginType(typeof(Gerrit.GerritPlugin))]
+
 namespace Gerrit
 {
     public class GerritPlugin : GitPluginBase, IGitPluginForRepository

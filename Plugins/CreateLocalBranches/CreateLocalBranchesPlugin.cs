@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(CreateLocalBranches.CreateLocalBranchesPlugin))]
+
 namespace CreateLocalBranches
 {
     public class CreateLocalBranchesPlugin : GitPluginBase, IGitPluginForRepository

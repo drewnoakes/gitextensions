@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(Bitbucket.BitbucketPlugin))]
+
 namespace Bitbucket
 {
     public class BitbucketPlugin : GitPluginBase

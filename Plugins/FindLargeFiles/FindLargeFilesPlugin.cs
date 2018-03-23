@@ -2,6 +2,8 @@
 using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(FindLargeFiles.FindLargeFilesPlugin))]
+
 namespace FindLargeFiles
 {
     public class FindLargeFilesPlugin : GitPluginBase, IGitPluginForRepository

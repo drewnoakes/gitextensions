@@ -9,6 +9,8 @@ using GitUIPluginInterfaces;
 using NString;
 using ResourceManager;
 
+[assembly: PluginType(typeof(JiraCommitHintPlugin.JiraCommitHintPlugin))]
+
 namespace JiraCommitHintPlugin
 {
     public class JiraCommitHintPlugin : GitPluginBase, IGitPluginForRepository

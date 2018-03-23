@@ -2,6 +2,8 @@
 using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(ReleaseNotesGenerator.ReleaseNotesGeneratorPlugin))]
+
 namespace ReleaseNotesGenerator
 {
     public class ReleaseNotesGeneratorPlugin : GitPluginBase

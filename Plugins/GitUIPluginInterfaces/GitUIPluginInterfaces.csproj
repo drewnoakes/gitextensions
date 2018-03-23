@@ -95,6 +95,7 @@
     <Compile Include="IGitRemoteCommand.cs" />
     <Compile Include="ILockableNotifier.cs" />
     <Compile Include="ISettingsValueGetter.cs" />
+    <Compile Include="PluginTypeAttribute.cs" />
     <Compile Include="Settings\BoolSetting.cs" />
     <Compile Include="ISetting.cs" />
     <Compile Include="ISettingsSource.cs" />

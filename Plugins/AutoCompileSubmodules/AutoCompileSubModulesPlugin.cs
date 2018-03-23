@@ -5,6 +5,8 @@ using System.Windows.Forms;
 using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(AutoCompileSubmodules.AutoCompileSubModulesPlugin))]
+
 namespace AutoCompileSubmodules
 {
     public class AutoCompileSubModulesPlugin : GitPluginBase, IGitPluginForRepository

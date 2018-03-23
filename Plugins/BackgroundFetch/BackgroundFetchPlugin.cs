@@ -5,6 +5,8 @@ using System.Reactive.Linq;
 using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(BackgroundFetch.BackgroundFetchPlugin))]
+
 namespace BackgroundFetch
 {
     public class BackgroundFetchPlugin : GitPluginBase, IGitPluginForRepository

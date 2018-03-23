@@ -9,6 +9,8 @@ using GitUIPluginInterfaces;
 using GitUIPluginInterfaces.RepositoryHosts;
 using ResourceManager;
 
+[assembly: PluginType(typeof(Github3.Github3Plugin))]
+
 namespace Github3
 {
     internal static class GithubAPIInfo

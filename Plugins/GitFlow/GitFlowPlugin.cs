@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(GitFlow.GitFlowPlugin))]
+
 namespace GitFlow
 {
     public class GitFlowPlugin : GitPluginBase, IGitPluginForRepository

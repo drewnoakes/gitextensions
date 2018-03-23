@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(DeleteUnusedBranches.DeleteUnusedBranchesPlugin))]
+
 namespace DeleteUnusedBranches
 {
     public class DeleteUnusedBranchesPlugin : GitPluginBase, IGitPluginForRepository

@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(GitStatistics.GitStatisticsPlugin))]
+
 namespace GitStatistics
 {
     public class GitStatisticsPlugin : GitPluginBase, IGitPluginForRepository

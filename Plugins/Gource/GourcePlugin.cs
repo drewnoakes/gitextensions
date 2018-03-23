@@ -9,6 +9,8 @@ using GitUIPluginInterfaces;
 using ICSharpCode.SharpZipLib.Zip;
 using ResourceManager;
 
+[assembly: PluginType(typeof(Gource.GourcePlugin))]
+
 namespace Gource
 {
     public class GourcePlugin : GitPluginBase, IGitPluginForRepository

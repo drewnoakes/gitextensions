@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(GitImpact.GitImpactPlugin))]
+
 namespace GitImpact
 {
     public class GitImpactPlugin : GitPluginBase, IGitPluginForRepository

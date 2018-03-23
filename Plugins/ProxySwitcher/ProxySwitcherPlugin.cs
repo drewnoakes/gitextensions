@@ -1,6 +1,8 @@
 ﻿using GitUIPluginInterfaces;
 using ResourceManager;
 
+[assembly: PluginType(typeof(ProxySwitcher.ProxySwitcherPlugin))]
+
 namespace ProxySwitcher
 {
     public class ProxySwitcherPlugin : GitPluginBase
