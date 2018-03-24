@@ -23,7 +23,6 @@ namespace GitCommands
         {
             Module = module;
             Guid = guid;
-            Selected = false;
             CompleteName = completeName;
             Remote = remote;
 
