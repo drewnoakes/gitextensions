@@ -570,7 +570,7 @@ namespace GitUI
             }
         }
 
-        public void ResetNavigationHistory()
+        private void ResetNavigationHistory()
         {
             var selectedRevisions = GetSelectedRevisions();
             if (selectedRevisions.Count == 1)
@@ -820,7 +820,7 @@ namespace GitUI
 
         public event EventHandler SelectionChanged;
 
-        public void SetSelectedIndex(int index)
+        private void SetSelectedIndex(int index)
         {
             if (Revisions.Rows[index].Selected)
             {
@@ -884,7 +884,7 @@ namespace GitUI
             return SetSelectedRevision(revision?.Guid);
         }
 
-        public void HighlightBranch(string id)
+        private void HighlightBranch(string id)
         {
             RevisionGraphDrawStyle = RevisionGraphDrawStyleEnum.HighlightSelected;
             Revisions.HighlightBranch(id);
@@ -988,12 +988,12 @@ namespace GitUI
             return Revisions.GetRevisionChildren(revision);
         }
 
-        public bool IsValidRevisionIndex(int index)
+        private bool IsValidRevisionIndex(int index)
         {
             return index >= 0 && index < Revisions.RowCount;
         }
 
-        public GitRevision GetRevision(int row)
+        private GitRevision GetRevision(int row)
         {
             return Revisions.GetRowData(row);
         }
@@ -1110,7 +1110,7 @@ namespace GitUI
             Translate();
         }
 
-        public bool ShowRemoteRef(IGitRef r)
+        private bool ShowRemoteRef(IGitRef r)
         {
             if (r.IsTag)
             {
@@ -1304,7 +1304,7 @@ namespace GitUI
             }
         }
 
-        public class SuperProjectInfo
+        private class SuperProjectInfo
         {
             public string CurrentBranch;
             public string Conflict_Base;
