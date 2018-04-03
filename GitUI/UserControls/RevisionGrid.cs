@@ -1406,7 +1406,7 @@ namespace GitUI
         {
             if (_revisionGraphCommand != null)
             {
-                LatestRefs = _revisionGraphCommand.LatestRefs();
+                LatestRefs = _revisionGraphCommand.LatestRefs;
 
                 // Dispose command, it is not needed anymore
                 _revisionGraphCommand.Updated -= GitGetCommitsCommandUpdated;
