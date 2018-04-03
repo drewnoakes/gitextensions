@@ -1287,7 +1287,7 @@ namespace GitUI
                     PathFilter = _revisionFilter.GetPathFilter() + FixedPathFilter,
                     RevisionPredicate = predicate
                 };
-                _revisionGraph.Updated += GitGetCommitsCommandUpdated;
+                _revisionGraph.Updated += UpdateGraph;
                 _revisionGraph.Exited += GitGetCommitsCommandExited;
                 _revisionGraph.Error += _revisionGraphCommand_Error;
                 _revisionGraph.Execute();
@@ -1372,11 +1372,6 @@ namespace GitUI
             e.Handled = true;
         }
 
-        private void GitGetCommitsCommandUpdated(object sender, RevisionGraphUpdatedEventArgs e)
-        {
-            UpdateGraph(e.Revision);
-        }
-
         internal bool FilterIsApplied(bool inclBranchFilter)
         {
             return (inclBranchFilter && !string.IsNullOrEmpty(BranchFilter)) ||
@@ -1401,11 +1396,6 @@ namespace GitUI
             if (_revisionGraph != null)
             {
                 LatestRefs = _revisionGraph.LatestRefs;
-
-                // Dispose command, it is not needed anymore
-                _revisionGraph.Updated -= GitGetCommitsCommandUpdated;
-                _revisionGraph.Exited -= GitGetCommitsCommandExited;
-                _revisionGraph.Error -= _revisionGraphCommand_Error;
 
                 _revisionGraph.Dispose();
                 _revisionGraph = null;
