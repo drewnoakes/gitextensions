@@ -1378,10 +1378,9 @@ namespace GitUI
             e.Handled = true;
         }
 
-        private void GitGetCommitsCommandUpdated(object sender, EventArgs e)
+        private void GitGetCommitsCommandUpdated(object sender, RevisionGraph.RevisionGraphUpdatedEventArgs e)
         {
-            var updatedEvent = (RevisionGraph.RevisionGraphUpdatedEventArgs)e;
-            UpdateGraph(updatedEvent.Revision);
+            UpdateGraph(e.Revision);
         }
 
         internal bool FilterIsApplied(bool inclBranchFilter)
