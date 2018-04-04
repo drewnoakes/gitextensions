@@ -1284,7 +1284,8 @@ namespace GitUI
                     _refFilterOptions,
                     BranchFilter,
                     _revisionFilter.GetRevisionFilter() + QuickRevisionFilter + FixedRevisionFilter,
-                    _revisionFilter.GetPathFilter() + FixedPathFilter, predicate);
+                    _revisionFilter.GetPathFilter() + FixedPathFilter,
+                    predicate);
                 _revisionGraph.Updated += UpdateGraph;
                 _revisionGraph.Exited += GitGetCommitsCommandExited;
                 _revisionGraph.Error += _revisionGraphCommand_Error;
@@ -3601,8 +3602,9 @@ namespace GitUI
 
         private void deleteBranchTagToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            ToolStripMenuItem item = sender as ToolStripMenuItem;
-            if (item?.DropDown != null && item.DropDown.Items.Count == 1)
+            var item = (ToolStripMenuItem)sender;
+
+            if (item.DropDown != null && item.DropDown.Items.Count == 1)
             {
                 item.DropDown.Items[0].PerformClick();
             }
