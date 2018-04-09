@@ -39,7 +39,7 @@ namespace GitCommands
 
         public IReadOnlyList<IGitRef> Refs { get; set; } = Array.Empty<IGitRef>();
 
-        public string TreeGuid { get; set; }
+        public ObjectId TreeGuid { get; set; }
 
         public string Author { get; set; }
         public string AuthorEmail { get; set; }
