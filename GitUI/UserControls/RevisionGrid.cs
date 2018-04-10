@@ -3577,11 +3577,6 @@ namespace GitUI
                 return;
             }
 
-            HighlightSelectedBranch();
-        }
-
-        public void HighlightSelectedBranch()
-        {
             var revisions = GetSelectedRevisions();
             if (revisions.Count > 0)
             {
