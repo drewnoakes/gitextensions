@@ -26,7 +26,6 @@ namespace GitCommands
         public static readonly Regex Sha1HashRegex = new Regex("^" + Sha1HashPattern + "$", RegexOptions.Compiled);
         public static readonly Regex Sha1HashShortRegex = new Regex(string.Format(@"\b{0}\b", Sha1HashShortPattern), RegexOptions.Compiled);
 
-        public string[] ParentGuids;
         private BuildInfo _buildStatus;
 
         public GitRevision(string guid)
@@ -38,6 +37,10 @@ namespace GitCommands
         }
 
         public IReadOnlyList<IGitRef> Refs { get; set; } = Array.Empty<IGitRef>();
+
+        // TODO seems inconsistent that this can be null, yet Refs is never null
+        [CanBeNull, ItemNotNull]
+        public IReadOnlyList<string> ParentGuids { get; set; }
 
         public ObjectId TreeGuid { get; set; }
 
@@ -115,7 +118,7 @@ namespace GitCommands
         /// </summary>
         public bool IsArtificial => Guid.IsArtificial();
 
-        public bool HasParent => ParentGuids != null && ParentGuids.Length > 0;
+        public bool HasParent => ParentGuids != null && ParentGuids.Count > 0;
 
         public string FirstParentGuid => ParentGuids?.FirstOrDefault();
 
