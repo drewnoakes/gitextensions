@@ -62,9 +62,10 @@ namespace GitUI.RevisionGridClasses
         private Pen _blackBorderPen;
 
         private readonly AutoResetEvent _backgroundEvent = new AutoResetEvent(false);
-        private readonly Graph _graphData;
         private readonly Dictionary<Junction, int> _junctionColors = new Dictionary<Junction, int>();
         private readonly Color _nonRelativeColor = Color.LightGray;
+
+        private readonly Graph _graphData = new Graph();
 
         private readonly Color[] _possibleColors =
             {
@@ -109,8 +110,6 @@ namespace GitUI.RevisionGridClasses
 
         public DvcsGraph()
         {
-            _graphData = new Graph();
-
             _backgroundThread = new Thread(BackgroundThreadEntry)
             {
                 IsBackground = true,
