@@ -108,7 +108,7 @@ namespace System.Linq
             }
         }
 
-        public static IReadOnlyList<T> ToReadOnlyList<T>(this IEnumerable<T> source)
+        public static IReadOnlyList<T> AsReadOnlyList<T>(this IEnumerable<T> source)
         {
             if (source is IReadOnlyList<T> readOnlyList)
             {
