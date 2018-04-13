@@ -234,7 +234,7 @@ namespace GitUI.RevisionGridClasses
 
             public void Prune()
             {
-                Node[] nodesToRemove = Nodes.Values.Where(n => n.Data == null).ToArray();
+                var nodesToRemove = Nodes.Values.Where(n => n.Data == null).ToList();
 
                 // Remove all nodes that don't have a value associated with them.
                 foreach (var node in nodesToRemove)
