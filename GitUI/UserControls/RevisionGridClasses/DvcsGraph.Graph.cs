@@ -251,7 +251,7 @@ namespace GitUI.RevisionGridClasses
 
             public IEnumerable<Node> GetRefs()
             {
-                var nodes = new List<Node>();
+                var nodes = new List<Node>(capacity: _junctions.Count);
 
                 foreach (var junction in _junctions)
                 {
