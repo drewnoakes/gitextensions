@@ -15,7 +15,7 @@ namespace GitUI.RevisionGridClasses
 {
     public sealed partial class DvcsGraph : DataGridView
     {
-        #region Delegates
+        #region EventArgs
 
         public class LoadingEventArgs : EventArgs
         {
@@ -163,26 +163,10 @@ namespace GitUI.RevisionGridClasses
             }
         }
 
-        /// <summary>
-        /// 0
-        /// </summary>
         internal DataGridViewColumn GraphColumn => Columns[0];
-
-        /// <summary>
-        /// 1
-        /// </summary>
         internal DataGridViewColumn MessageColumn => Columns[1];
-
-        /// <summary>
-        /// 2
-        /// </summary>
         internal DataGridViewColumn AuthorColumn => Columns[2];
-
-        /// <summary>
-        /// 3
-        /// </summary>
         internal DataGridViewColumn DateColumn => Columns[3];
-
         internal DataGridViewColumn IdColumn => Columns[4];
 
         public void ShowAuthor(bool show)
