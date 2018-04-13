@@ -75,12 +75,8 @@ namespace GitUI.RevisionGridClasses
 
             public bool IsRevisionRelative(string guid)
             {
-                if (Nodes.TryGetValue(guid, out var startNode))
-                {
-                    return startNode.Ancestors.Any(a => a.IsRelative);
-                }
-
-                return false;
+                return Nodes.TryGetValue(guid, out var startNode)
+                    && startNode.Ancestors.Any(a => a.IsRelative);
             }
 
             public event Action Updated;
