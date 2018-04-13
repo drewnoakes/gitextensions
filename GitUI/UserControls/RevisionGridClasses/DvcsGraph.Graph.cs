@@ -37,9 +37,9 @@ namespace GitUI.RevisionGridClasses
 
                 void ClearHighlights()
                 {
-                    foreach (Node node in Nodes.Values)
+                    foreach (var node in Nodes.Values)
                     {
-                        foreach (Junction junction in node.Ancestors)
+                        foreach (var junction in node.Ancestors)
                         {
                             junction.HighLight = false;
                         }
@@ -237,14 +237,14 @@ namespace GitUI.RevisionGridClasses
                 Node[] nodesToRemove = Nodes.Values.Where(n => n.Data == null).ToArray();
 
                 // Remove all nodes that don't have a value associated with them.
-                foreach (Node n in nodesToRemove)
+                foreach (var node in nodesToRemove)
                 {
-                    Nodes.Remove(n.Id);
+                    Nodes.Remove(node.Id);
 
                     // This guy should have been at the end of some junctions
-                    foreach (Junction j in n.Descendants)
+                    foreach (var junction in node.Descendants)
                     {
-                        j.Remove(n);
+                        junction.Remove(node);
                     }
                 }
             }
@@ -252,11 +252,12 @@ namespace GitUI.RevisionGridClasses
             public IEnumerable<Node> GetRefs()
             {
                 var nodes = new List<Node>();
-                foreach (Junction j in _junctions)
+
+                foreach (var junction in _junctions)
                 {
-                    if (j.Youngest.Descendants.Count == 0 && !nodes.Contains(j.Youngest))
+                    if (junction.Youngest.Descendants.Count == 0 && !nodes.Contains(junction.Youngest))
                     {
-                        nodes.Add(j.Youngest);
+                        nodes.Add(junction.Youngest);
                     }
                 }
 
@@ -407,7 +408,7 @@ namespace GitUI.RevisionGridClasses
 
                 public void UnionWith(LaneInfo other)
                 {
-                    foreach (Junction otherJunction in other._junctions)
+                    foreach (var otherJunction in other._junctions)
                     {
                         if (!_junctions.Contains(otherJunction))
                         {
