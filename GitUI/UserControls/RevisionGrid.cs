@@ -2935,21 +2935,21 @@ namespace GitUI
                 CheckUncommitedChanged(_filtredCurrentCheckout);
             }
 
-            DvcsGraph.DataType dataType;
+            DvcsGraph.DataTypes dataTypes;
             if (rev.Guid == _filtredCurrentCheckout)
             {
-                dataType = DvcsGraph.DataType.Active;
+                dataTypes = DvcsGraph.DataTypes.Active;
             }
             else if (rev.Refs.Count != 0)
             {
-                dataType = DvcsGraph.DataType.Special;
+                dataTypes = DvcsGraph.DataTypes.Special;
             }
             else
             {
-                dataType = DvcsGraph.DataType.Normal;
+                dataTypes = DvcsGraph.DataTypes.Normal;
             }
 
-            Revisions.Add(rev, dataType);
+            Revisions.Add(rev, dataTypes);
         }
 
         public void UpdateArtificialCommitCount(IReadOnlyList<GitItemStatus> status)
@@ -2998,7 +2998,7 @@ namespace GitUI
                 Subject = Strings.GetCurrentUnstagedChanges(),
                 ParentGuids = new[] { GitRevision.IndexGuid }
             };
-            Revisions.Add(unstagedRev, DvcsGraph.DataType.Normal);
+            Revisions.Add(unstagedRev, DvcsGraph.DataTypes.Normal);
 
             // Add index as virtual commit
             var stagedRev = new GitRevision(GitRevision.IndexGuid)
@@ -3012,7 +3012,7 @@ namespace GitUI
                 Subject = Strings.GetCurrentIndex(),
                 ParentGuids = new[] { filtredCurrentCheckout }
             };
-            Revisions.Add(stagedRev, DvcsGraph.DataType.Normal);
+            Revisions.Add(stagedRev, DvcsGraph.DataTypes.Normal);
 
             if (_artificialStatus != null)
             {
