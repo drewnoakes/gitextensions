@@ -832,6 +832,12 @@ namespace GitUI.RevisionGridClasses
                     _graphBitmap = null;
                 }
 
+                if (_graphWorkArea != null)
+                {
+                    _graphWorkArea.Dispose();
+                    _graphWorkArea = null;
+                }
+
                 if (width > 0 && height > 0)
                 {
                     _graphBitmap = new Bitmap(Math.Max(width, _laneWidth * 3), height, PixelFormat.Format32bppPArgb);
