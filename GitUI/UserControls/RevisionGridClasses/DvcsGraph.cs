@@ -1200,6 +1200,8 @@ namespace GitUI.RevisionGridClasses
                 }
             }
 
+            nodeBrush.Dispose();
+
             return true;
         }
 
