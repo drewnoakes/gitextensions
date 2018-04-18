@@ -250,8 +250,14 @@ namespace GitUIPluginInterfaces
         [ContractAnnotation("=>true,objectId:notnull")]
         public static bool TryParseAsciiHexBytes([NotNull] byte[] bytes, int index, out ObjectId objectId)
         {
+            if (index < 0 || index > bytes.Length - Sha1CharCount)
+            {
+                objectId = default;
+                return false;
+            }
+
             return TryParseAsciiHexBytes(
-                new ArraySegment<byte>(bytes, index, Sha1ByteCount),
+                new ArraySegment<byte>(bytes, index, Sha1CharCount),
                 out objectId);
         }
 
@@ -260,16 +266,10 @@ namespace GitUIPluginInterfaces
         [ContractAnnotation("=>true,objectId:notnull")]
         public static bool TryParseAsciiHexBytes(ArraySegment<byte> bytes, int index, out ObjectId objectId)
         {
-            var adjustedOffset = bytes.Offset + index;
-
-            if (bytes.Array.Length - adjustedOffset < Sha1ByteCount)
-            {
-                objectId = default;
-                return false;
-            }
+            // TODO get rid of this overload? slice the array segment instead
 
             return TryParseAsciiHexBytes(
-                new ArraySegment<byte>(bytes.Array, adjustedOffset, Sha1ByteCount),
+                new ArraySegment<byte>(bytes.Array, bytes.Offset + index, Sha1CharCount),
                 out objectId);
         }
 
@@ -291,7 +291,7 @@ namespace GitUIPluginInterfaces
         {
             var index = bytes.Offset;
 
-            if (bytes.Count != Sha1ByteCount)
+            if (bytes.Count != Sha1CharCount)
             {
                 objectId = default;
                 return false;
