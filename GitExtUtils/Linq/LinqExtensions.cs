@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using JetBrains.Annotations;
 
 namespace System.Linq
 {
@@ -152,6 +153,22 @@ namespace System.Linq
 
                 return list;
             }
+        }
+
+        [Pure]
+        [MustUseReturnValue]
+        public static TResult[] ToArray<TSource, TResult>(
+            [NotNull] this IReadOnlyList<TSource> source,
+            [NotNull, InstantHandle] Func<TSource, TResult> map)
+        {
+            var array = new TResult[source.Count];
+
+            for (var i = 0; i < source.Count; i++)
+            {
+                array[i] = map(source[i]);
+            }
+
+            return array;
         }
 
         public static void Swap<T>(this IList<T> list, int index1, int index2)
