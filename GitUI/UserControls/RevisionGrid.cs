@@ -3226,7 +3226,7 @@ namespace GitUI
             ForceRefreshRevisions();
         }
 
-        public void OnModuleChanged(object sender, GitModuleEventArgs e)
+        private void OnModuleChanged(object sender, GitModuleEventArgs e)
         {
             GitModuleChanged?.Invoke(this, e);
         }
