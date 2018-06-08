@@ -1943,6 +1943,8 @@ namespace GitUI
             Graph.Refresh();
         }
 
+        #region Bisect
+
         private void MarkRevisionAsBadToolStripMenuItemClick(object sender, EventArgs e)
         {
             ContinueBisect(GitBisectOption.Bad);
@@ -1974,6 +1976,8 @@ namespace GitUI
             FormProcess.ShowDialog(this, Module, GitCommandHelpers.StopBisectCmd());
             RefreshRevisions();
         }
+
+        #endregion
 
         private void RefreshOwnScripts()
         {
