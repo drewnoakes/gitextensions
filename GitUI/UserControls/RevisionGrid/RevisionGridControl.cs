@@ -156,8 +156,6 @@ namespace GitUI
             Graph.MouseEnter += (_, e) => _toolTipProvider.OnCellMouseEnter();
             Graph.CellMouseMove += (_, e) => _toolTipProvider.OnCellMouseMove(e);
 
-            showMergeCommitsToolStripMenuItem.Checked = AppSettings.ShowMergeCommits;
-
             SetShowBranches();
 
             Hotkeys = HotkeySettingsManager.LoadHotkeys(HotkeySettingsName);
@@ -2071,8 +2069,7 @@ namespace GitUI
 
         internal void ShowMergeCommits_ToolStripMenuItemClick()
         {
-            AppSettings.ShowMergeCommits = !showMergeCommitsToolStripMenuItem.Checked;
-            showMergeCommitsToolStripMenuItem.Checked = AppSettings.ShowMergeCommits;
+            AppSettings.ShowMergeCommits = !AppSettings.ShowMergeCommits;
 
             // hide revision graph when hiding merge commits, reasons:
             // 1, revision graph is no longer relevant, as we are not showing all commits
@@ -2111,7 +2108,6 @@ namespace GitUI
             if (!AppSettings.ShowMergeCommits && AppSettings.ShowRevisionGridGraphColumn)
             {
                 AppSettings.ShowMergeCommits = true;
-                showMergeCommitsToolStripMenuItem.Checked = true;
                 ForceRefreshRevisions();
             }
             else
