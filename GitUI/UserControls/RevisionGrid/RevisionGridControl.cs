@@ -1808,7 +1808,7 @@ namespace GitUI
             UICommands.StartSquashCommitDialog(this, LatestSelectedRevision);
         }
 
-        internal void ShowRelativeDate_ToolStripMenuItemClick(EventArgs e)
+        internal void ToggleShowRelativeDate(EventArgs e)
         {
             AppSettings.RelativeDate = !AppSettings.RelativeDate;
             Refresh();
@@ -1936,7 +1936,7 @@ namespace GitUI
             UpdateArtificialCommitCount(_artificialStatus, unstagedRev, stagedRev);
         }
 
-        internal void DrawNonrelativesGray_ToolStripMenuItemClick()
+        internal void ToggleDrawNonRelativesGray()
         {
             AppSettings.RevisionGraphDrawNonRelativesGray = !AppSettings.RevisionGraphDrawNonRelativesGray;
             MenuCommands.TriggerMenuChanged();
@@ -2065,13 +2065,13 @@ namespace GitUI
             }
         }
 
-        internal void ShowGitNotes_ToolStripMenuItemClick()
+        internal void ToggleShowGitNotes()
         {
             AppSettings.ShowGitNotes = !AppSettings.ShowGitNotes;
             ForceRefreshRevisions();
         }
 
-        internal void ShowMergeCommits_ToolStripMenuItemClick()
+        internal void ToggleShowMergeCommits()
         {
             AppSettings.ShowMergeCommits = !AppSettings.ShowMergeCommits;
 
@@ -2080,7 +2080,7 @@ namespace GitUI
             // 2, performance hit when both revision graph and no merge commits are enabled
             if (AppSettings.ShowRevisionGridGraphColumn && !AppSettings.ShowMergeCommits)
             {
-                ToggleRevisionGraphSettings();
+                AppSettings.ShowRevisionGridGraphColumn = !AppSettings.ShowRevisionGridGraphColumn;
             }
 
             ForceRefreshRevisions();
@@ -2097,16 +2097,14 @@ namespace GitUI
 
         internal void ToggleObjectIdColumn()
         {
-            AppSettings.ShowIds = !AppSettings.ShowIds;
+            AppSettings.ShowObjectIdColumn = !AppSettings.ShowObjectIdColumn;
             MenuCommands.TriggerMenuChanged();
             Refresh();
         }
 
-        internal void ToggleRevisionGraph()
+        internal void ToggleRevisionGraphColumn()
         {
-            ToggleRevisionGraphSettings();
-
-            MenuCommands.TriggerMenuChanged();
+            AppSettings.ShowRevisionGridGraphColumn = !AppSettings.ShowRevisionGridGraphColumn;
 
             // must show MergeCommits when showing revision graph
             if (!AppSettings.ShowMergeCommits && AppSettings.ShowRevisionGridGraphColumn)
@@ -2118,15 +2116,11 @@ namespace GitUI
             {
                 Refresh();
             }
+
+            MenuCommands.TriggerMenuChanged();
         }
 
-        private void ToggleRevisionGraphSettings()
-        {
-            AppSettings.ShowRevisionGridGraphColumn = !AppSettings.ShowRevisionGridGraphColumn;
-            Refresh();
-        }
-
-        internal void ShowTags_ToolStripMenuItemClick()
+        internal void ToggleShowTags()
         {
             AppSettings.ShowTags = !AppSettings.ShowTags;
             MenuCommands.TriggerMenuChanged();
@@ -2488,15 +2482,15 @@ namespace GitUI
 
             switch (command)
             {
-                case Commands.ToggleRevisionGraph: ToggleRevisionGraph(); break;
+                case Commands.ToggleRevisionGraph: ToggleRevisionGraphColumn(); break;
                 case Commands.RevisionFilter: ShowRevisionFilterDialog(); break;
                 case Commands.ToggleAuthorDateCommitDate: ToggleShowAuthorDate(); break;
                 case Commands.ToggleOrderRevisionsByDate: ToggleOrderRevisionByDate(); break;
-                case Commands.ToggleShowRelativeDate: ShowRelativeDate_ToolStripMenuItemClick(null); break;
-                case Commands.ToggleDrawNonRelativesGray: DrawNonrelativesGray_ToolStripMenuItemClick(); break;
-                case Commands.ToggleShowGitNotes: ShowGitNotes_ToolStripMenuItemClick(); break;
-                case Commands.ToggleShowMergeCommits: ShowMergeCommits_ToolStripMenuItemClick(); break;
-                case Commands.ToggleShowTags: ShowTags_ToolStripMenuItemClick(); break;
+                case Commands.ToggleShowRelativeDate: ToggleShowRelativeDate(null); break;
+                case Commands.ToggleDrawNonRelativesGray: ToggleDrawNonRelativesGray(); break;
+                case Commands.ToggleShowGitNotes: ToggleShowGitNotes(); break;
+                case Commands.ToggleShowMergeCommits: ToggleShowMergeCommits(); break;
+                case Commands.ToggleShowTags: ToggleShowTags(); break;
                 case Commands.ShowAllBranches: ShowAllBranches(); break;
                 case Commands.ShowCurrentBranchOnly: ShowCurrentBranchOnly(); break;
                 case Commands.ShowFilteredBranches: ShowFilteredBranches(); break;
