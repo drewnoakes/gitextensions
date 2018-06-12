@@ -957,7 +957,7 @@ namespace GitCommands
 
         public static int RevisionGridQuickSearchTimeout
         {
-            get => GetInt("revisiongridquicksearchtimeout", 750);
+            get => GetInt("revisiongridquicksearchtimeout", 4000);
             set => SetInt("revisiongridquicksearchtimeout", value);
         }
 
