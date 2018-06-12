@@ -1707,19 +1707,18 @@ namespace GitUI
             Refresh();
         }
 
-        public void UpdateArtificialCommitCount(IReadOnlyList<GitItemStatus> status)
-        {
-            GitRevision unstagedRev = GetRevision(GitRevision.UnstagedGuid);
-            GitRevision stagedRev = GetRevision(GitRevision.IndexGuid);
-            UpdateArtificialCommitCount(status, unstagedRev, stagedRev);
-        }
-
-        private void UpdateArtificialCommitCount([CanBeNull] IReadOnlyList<GitItemStatus> status, GitRevision unstagedRev, GitRevision stagedRev)
+        public void UpdateArtificialCommitCount(
+            [CanBeNull] IReadOnlyList<GitItemStatus> status,
+            [CanBeNull] GitRevision unstagedRev = null,
+            [CanBeNull] GitRevision stagedRev = null)
         {
             if (status == null)
             {
                 return;
             }
+
+            unstagedRev = unstagedRev ?? GetRevision(GitRevision.UnstagedGuid);
+            stagedRev = stagedRev ?? GetRevision(GitRevision.IndexGuid);
 
             int staged = status.Count(item => item.IsStaged);
             int unstaged = status.Count - staged;
