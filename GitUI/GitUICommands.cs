@@ -1371,7 +1371,7 @@ namespace GitUI
             switch (args[1])
             {
                 case "about":
-                    Application.Run(new AboutBox
+                    Application.Run(new FormAbout
                     {
                         StartPosition = FormStartPosition.CenterScreen
                     });
