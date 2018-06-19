@@ -491,7 +491,7 @@ namespace GitUI.CommandsDialogs
             foreach (var plugin in PluginRegistry.Plugins)
             {
                 // Add the plugin to the Plugins menu
-                var item = new ToolStripMenuItem { Text = plugin.Description };
+                var item = new ToolStripMenuItem { Text = plugin.Description, Image = plugin.Icon };
                 item.Click += (sender, e) =>
                 {
                     if (plugin.Execute(new GitUIEventArgs(this, UICommands)))
