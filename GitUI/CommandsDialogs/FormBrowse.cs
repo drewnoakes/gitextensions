@@ -2947,6 +2947,7 @@ namespace GitUI.CommandsDialogs
                 CommitInfoTabControl.ResumeLayout(true);
                 RevisionInfo.Parent = CommitInfoTabControl.Controls[0];
                 RevisionsSplitContainer.Panel2Collapsed = true;
+                CommitInfoTabControl.SelectedTab = CommitInfoTabPage;
             }
         }
 
