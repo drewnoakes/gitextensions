@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using GitCommands.Git;
+using GitCommands.Logging;
 using GitCommands.Patches;
 using GitCommands.Utils;
 using GitUIPluginInterfaces;
@@ -82,21 +83,21 @@ namespace GitCommands
         {
             EnvironmentConfiguration.SetEnvironmentVariables();
 
-            var startCmd = AppSettings.GitLog.Log(fileName, arguments);
+            var operation = CommandLog.LogProcessStart(fileName, arguments);
 
             var startInfo = CreateProcessStartInfo(fileName, arguments, workingDirectory, outputEncoding);
-            var startProcess = Process.Start(startInfo);
-            startProcess.EnableRaisingEvents = true;
+            var process = Process.Start(startInfo);
+            process.EnableRaisingEvents = true;
 
             void ProcessExited(object sender, EventArgs args)
             {
-                startProcess.Exited -= ProcessExited;
-                startCmd.LogEnd();
+                process.Exited -= ProcessExited;
+                operation.LogProcessEnd();
             }
 
-            startProcess.Exited += ProcessExited;
+            process.Exited += ProcessExited;
 
-            return startProcess;
+            return process;
         }
 
         public static bool UseSsh(string arguments)
