@@ -154,7 +154,7 @@ namespace GitCommands.Config
             return configSection != null && configSection.GetValue(keyName) != string.Empty;
         }
 
-        private int FindAndCheckKeyIndex(string setting)
+        private static int FindAndCheckKeyIndex(string setting)
         {
             var keyIndex = FindKeyIndex(setting);
 
