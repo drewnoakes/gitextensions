@@ -14,7 +14,10 @@ namespace GitUI.AutoCompletion
 {
     public class CommitAutoCompleteProvider : IAutoCompleteProvider
     {
-        private static readonly Lazy<Dictionary<string, Regex>> _regexes = new Lazy<Dictionary<string, Regex>>(ParseRegexes);
+#pragma warning disable VSTHRD012 // Provide JoinableTaskFactory where allowed
+        private static readonly AsyncLazy<Dictionary<string, Regex>> _regexByExtension = new AsyncLazy<Dictionary<string, Regex>>(ParseRegexesAsync);
+#pragma warning restore VSTHRD012 // Provide JoinableTaskFactory where allowed
+
         private readonly GitModule _module;
 
         public CommitAutoCompleteProvider(GitModule module)
@@ -34,13 +37,15 @@ namespace GitUI.AutoCompletion
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var regex = GetRegexForExtension(Path.GetExtension(file.Name));
+                var extension = Path.GetExtension(file.Name);
 
-                if (regex != null)
+                var regexByExtension = await _regexByExtension.GetValueAsync(cancellationToken);
+
+                if (regexByExtension.TryGetValue(extension, out var regex))
                 {
                     var text = GetChangedFileText(_module, file);
-                    var matches = regex.Matches(text);
-                    foreach (Match match in matches)
+
+                    foreach (Match match in regex.Matches(text))
                     {
                         // Skip first group since it always contains the entire matched string (regardless of capture groups)
                         foreach (Group group in match.Groups.OfType<Group>().Skip(1))
@@ -55,6 +60,7 @@ namespace GitUI.AutoCompletion
 
                 autoCompleteWords.Add(Path.GetFileNameWithoutExtension(file.Name));
                 autoCompleteWords.Add(Path.GetFileName(file.Name));
+
                 if (!string.IsNullOrWhiteSpace(file.OldName))
                 {
                     autoCompleteWords.Add(Path.GetFileNameWithoutExtension(file.OldName));
@@ -65,55 +71,60 @@ namespace GitUI.AutoCompletion
             return autoCompleteWords.Select(w => new AutoCompleteWord(w));
         }
 
-        [CanBeNull]
-        private static Regex GetRegexForExtension(string extension)
+        private static async Task<Dictionary<string, Regex>> ParseRegexesAsync()
         {
-            return _regexes.Value.ContainsKey(extension) ? _regexes.Value[extension] : null;
-        }
+            var stream = OpenStream();
 
-        private static IEnumerable<string> ReadOrInitializeAutoCompleteRegexes()
-        {
-            var path = Path.Combine(AppSettings.ApplicationDataPath.Value, "AutoCompleteRegexes.txt");
-
-            if (File.Exists(path))
+            if (stream == null)
             {
-                return File.ReadLines(path);
+                throw new NotImplementedException("Unable to open AutoCompleteRegexes.txt");
             }
-
-            Stream s = Assembly.GetEntryAssembly().GetManifestResourceStream("GitExtensions.AutoCompleteRegexes.txt");
-            if (s == null)
-            {
-                throw new NotImplementedException("Please add AutoCompleteRegexes.txt file into .csproj");
-            }
-
-            using (var sr = new StreamReader(s))
-            {
-                return sr.ReadToEnd().Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-            }
-        }
-
-        private static Dictionary<string, Regex> ParseRegexes()
-        {
-            var autoCompleteRegexes = ReadOrInitializeAutoCompleteRegexes();
 
             var regexes = new Dictionary<string, Regex>();
 
-            foreach (var line in autoCompleteRegexes)
+            using (stream)
+            using (var reader = new StreamReader(stream))
             {
-                var i = line.IndexOf('=');
-                var extensionStr = line.Substring(0, i);
-                var regexStr = line.Substring(i + 1).Trim();
-
-                var extensions = extensionStr.Split(',').Select(s => s.Trim()).Distinct();
-                var regex = new Regex(regexStr, RegexOptions.Compiled);
-
-                foreach (var extension in extensions)
+                while (true)
                 {
-                    regexes.Add(extension, regex);
+                    var line = await reader.ReadLineAsync();
+                    if (line == null)
+                    {
+                        break;
+                    }
+
+                    var index = line.IndexOf('=');
+
+                    if (index == -1)
+                    {
+                        continue;
+                    }
+
+                    var extensionStr = line.Substring(0, index);
+                    var regexStr = line.Substring(index + 1).Trim();
+
+                    var regex = new Regex(regexStr, RegexOptions.Compiled);
+
+                    foreach (var extension in extensionStr.Split(',').Select(s => s.Trim()).Distinct())
+                    {
+                        regexes.Add(extension, regex);
+                    }
                 }
             }
 
             return regexes;
+
+            Stream OpenStream()
+            {
+                var path = Path.Combine(AppSettings.ApplicationDataPath.Value, "AutoCompleteRegexes.txt");
+
+                if (File.Exists(path))
+                {
+                    return File.OpenRead(path);
+                }
+
+                return Assembly.GetEntryAssembly().GetManifestResourceStream("GitExtensions.AutoCompleteRegexes.txt");
+            }
         }
 
         [CanBeNull]
