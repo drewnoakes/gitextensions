@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GitCommands;
 using GitCommands.UserRepositoryHistory;
@@ -19,67 +20,69 @@ namespace GitUI.CommandsDialogs.BrowseDialog
 
         [CanBeNull] private GitModule _chosenModule;
 
-        public FormOpenDirectory(GitModule currentModule)
+        public FormOpenDirectory([CanBeNull] GitModule currentModule)
         {
             InitializeComponent();
             InitializeComplete();
 
             ThreadHelper.JoinableTaskFactory.Run(async () =>
             {
-                var repositoryHistory = await RepositoryHistoryManager.Locals.LoadRecentHistoryAsync();
+                var directories = await GetDirectoriesAsync();
 
                 await this.SwitchToMainThreadAsync();
-                _NO_TRANSLATE_Directory.DataSource = GetDirectories(currentModule, repositoryHistory);
-                Load.Select();
+
+                _NO_TRANSLATE_Directory.DataSource = directories;
                 _NO_TRANSLATE_Directory.Focus();
                 _NO_TRANSLATE_Directory.Select();
             });
-        }
-
-        protected override void OnRuntimeLoad(EventArgs e)
-        {
-            base.OnRuntimeLoad(e);
 
             // scale up for hi DPI
             MaximumSize = DpiUtil.Scale(new Size(800, 116));
             MinimumSize = DpiUtil.Scale(new Size(450, 116));
-        }
 
-        private static IReadOnlyList<string> GetDirectories(GitModule currentModule, IEnumerable<Repository> repositoryHistory)
-        {
-            var directories = new List<string>();
+            return;
 
-            if (AppSettings.DefaultCloneDestinationPath.IsNotNullOrWhitespace())
+            async Task<IReadOnlyList<string>> GetDirectoriesAsync()
             {
-                directories.Add(AppSettings.DefaultCloneDestinationPath.EnsureTrailingPathSeparator());
-            }
+                var repositoryHistory = await RepositoryHistoryManager.Locals.LoadRecentHistoryAsync();
 
-            if (!string.IsNullOrWhiteSpace(currentModule?.WorkingDir))
-            {
-                var di = new DirectoryInfo(currentModule.WorkingDir);
-                if (di.Parent != null)
+                var directories = new List<string>(capacity: repositoryHistory.Count + 2);
+
+                if (AppSettings.DefaultCloneDestinationPath.IsNotNullOrWhitespace())
                 {
-                    directories.Add(di.Parent.FullName.EnsureTrailingPathSeparator());
-                }
-            }
-
-            directories.AddRange(repositoryHistory.Select(r => r.Path));
-
-            if (directories.Count == 0)
-            {
-                if (AppSettings.RecentWorkingDir.IsNotNullOrWhitespace())
-                {
-                    directories.Add(AppSettings.RecentWorkingDir.EnsureTrailingPathSeparator());
+                    directories.Add(AppSettings.DefaultCloneDestinationPath);
                 }
 
-                string homeDir = EnvironmentConfiguration.GetHomeDir();
-                if (homeDir.IsNotNullOrWhitespace())
+                if (!string.IsNullOrWhiteSpace(currentModule?.WorkingDir))
                 {
-                    directories.Add(homeDir.EnsureTrailingPathSeparator());
+                    var di = new DirectoryInfo(currentModule.WorkingDir);
+                    if (di.Parent != null)
+                    {
+                        directories.Add(di.Parent.FullName);
+                    }
                 }
-            }
 
-            return directories.Distinct().ToList();
+                directories.AddRange(repositoryHistory.Select(r => r.Path));
+
+                if (directories.Count == 0)
+                {
+                    if (AppSettings.RecentWorkingDir.IsNotNullOrWhitespace())
+                    {
+                        directories.Add(AppSettings.RecentWorkingDir);
+                    }
+
+                    string homeDir = EnvironmentConfiguration.GetHomeDir();
+                    if (homeDir.IsNotNullOrWhitespace())
+                    {
+                        directories.Add(homeDir);
+                    }
+                }
+
+                return directories.Distinct()
+                    .Select(dir => dir.EnsureTrailingPathSeparator())
+                    .Select(dir => PathUtil.TryGetExactPath(dir, out var exact) ? exact : dir)
+                    .ToList();
+            }
         }
 
         [CanBeNull]
