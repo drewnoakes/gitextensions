@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using GitUI;
 using GitUIPluginInterfaces;
 using JetBrains.Annotations;
-using Microsoft.VisualStudio.Threading;
 
 namespace GitCommands
 {
@@ -40,31 +38,9 @@ namespace GitCommands
             string pathFilter,
             [CanBeNull] Func<GitRevision, bool> revisionPredicate)
         {
-            ThreadHelper.JoinableTaskFactory
-                .RunAsync(() => ExecuteAsync(module, refs, subject, refFilterOptions, branchFilter, revisionFilter, pathFilter, revisionPredicate))
-                .FileAndForget(
-                    ex =>
-                    {
-                        subject.OnError(ex);
-                        return false;
-                    });
-        }
-
-        private async Task ExecuteAsync(
-            GitModule module,
-            IReadOnlyList<IGitRef> refs,
-            IObserver<GitRevision> subject,
-            RefFilterOptions refFilterOptions,
-            string branchFilter,
-            string revisionFilter,
-            string pathFilter,
-            [CanBeNull] Func<GitRevision, bool> revisionPredicate)
-        {
             var token = _cancellationTokenSequence.Next();
 
             var revisionCount = 0;
-
-            await TaskScheduler.Default;
 
             token.ThrowIfCancellationRequested();
 

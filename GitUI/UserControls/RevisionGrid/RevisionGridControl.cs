@@ -778,18 +778,30 @@ namespace GitUI
                     _revisionReader = new RevisionReader();
                 }
 
-                var refs = Module.GetRefs();
-                _ambiguousRefs = GitRef.GetAmbiguousRefNames(refs);
+                ThreadHelper.JoinableTaskFactory.RunAsync(
+                    async () =>
+                    {
+                        await TaskScheduler.Default;
 
-                _revisionReader.Execute(
-                    Module,
-                    refs,
-                    revisions,
-                    _refFilterOptions,
-                    _branchFilter,
-                    _revisionFilter.GetRevisionFilter() + QuickRevisionFilter + _fixedRevisionFilter,
-                    _revisionFilter.GetPathFilter() + _fixedPathFilter,
-                    predicate);
+                        var refs = await Module.GetRefsAsync();
+
+                        _ambiguousRefs = GitRef.GetAmbiguousRefNames(refs);
+
+                        _revisionReader.Execute(
+                            Module,
+                            refs,
+                            revisions,
+                            _refFilterOptions,
+                            _branchFilter,
+                            _revisionFilter.GetRevisionFilter() + QuickRevisionFilter + _fixedRevisionFilter,
+                            _revisionFilter.GetPathFilter() + _fixedPathFilter,
+                            predicate);
+                    })
+                    .FileAndForget(ex =>
+                    {
+                        revisions.OnError(ex);
+                        return false;
+                    });
 
                 _gridView.SuspendLayout();
                 _gridView.SelectionChanged -= OnGridViewSelectionChanged;
