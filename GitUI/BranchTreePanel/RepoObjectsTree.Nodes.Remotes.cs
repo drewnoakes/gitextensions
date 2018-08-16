@@ -30,7 +30,9 @@ namespace GitUI.BranchTreePanel
                 token.ThrowIfCancellationRequested();
                 var nodes = new Dictionary<string, BaseBranchNode>();
 
-                var branches = Module.GetRefs()
+                var refs = await Module.GetRefsAsync();
+
+                var branches = refs
                     .Where(branch => branch.IsRemote && !branch.IsTag)
                     .OrderBy(branch => branch.Name)
                     .Select(branch => branch.Name);

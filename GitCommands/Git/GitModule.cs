@@ -2772,28 +2772,33 @@ namespace GitCommands
 
         public IReadOnlyList<IGitRef> GetRefs(bool tags = true, bool branches = true)
         {
-            var refList = GetRefList();
+            return ThreadHelper.JoinableTaskFactory.Run(() => GetRefsAsync(tags, branches));
+        }
+
+        public async Task<IReadOnlyList<IGitRef>> GetRefsAsync(bool tags = true, bool branches = true)
+        {
+            var refList = await GetRefListAsync();
 
             return ParseRefs(refList);
 
-            string GetRefList()
+            Task<string> GetRefListAsync()
             {
                 if (tags && branches)
                 {
-                    return _gitExecutable.GetOutput("show-ref --dereference");
+                    return _gitExecutable.GetOutputAsync("show-ref --dereference");
                 }
 
                 if (tags)
                 {
-                    return _gitExecutable.GetOutput("show-ref --tags");
+                    return _gitExecutable.GetOutputAsync("show-ref --tags");
                 }
 
                 if (branches)
                 {
-                    return _gitExecutable.GetOutput(@"for-each-ref --sort=-committerdate refs/heads/ --format=""%(objectname) %(refname)""");
+                    return _gitExecutable.GetOutputAsync(@"for-each-ref --sort=-committerdate refs/heads/ --format=""%(objectname) %(refname)""");
                 }
 
-                return "";
+                return Task.FromResult("");
             }
         }
 

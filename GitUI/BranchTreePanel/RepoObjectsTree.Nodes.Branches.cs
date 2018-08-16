@@ -193,8 +193,9 @@ namespace GitUI.BranchTreePanel
                 await TaskScheduler.Default;
                 token.ThrowIfCancellationRequested();
 
-                var branchNames = Module.GetRefs(false).Select(b => b.Name);
-                FillBranchTree(branchNames, token);
+                var branches = await Module.GetRefsAsync(tags: false);
+
+                FillBranchTree(branches.Select(b => b.Name), token);
             }
 
             private void FillBranchTree(IEnumerable<string> branches, CancellationToken token)
