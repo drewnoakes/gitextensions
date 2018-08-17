@@ -397,9 +397,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
                                 if (otherLaneInfo.ConnectLane < otherLane)
                                 {
                                     _currentRow.Swap(otherLaneInfo.ConnectLane, otherLane);
-                                    LaneJunctionDetail temp = _laneNodes[otherLane];
-                                    _laneNodes[otherLane] = _laneNodes[otherLaneInfo.ConnectLane];
-                                    _laneNodes[otherLaneInfo.ConnectLane] = temp;
+                                    _laneNodes.Swap(otherLaneInfo.ConnectLane, otherLane);
                                 }
                             }
                         }
