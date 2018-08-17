@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
+using JetBrains.Annotations;
 
 namespace GitUI.UserControls.RevisionGrid.Graph
 {
     internal sealed class SavedLaneRow : ILaneRow
     {
-        private readonly Edge[] _edges;
+        [CanBeNull] private readonly Edge[] _edges;
 
         public int NodeLane { get; }
 
