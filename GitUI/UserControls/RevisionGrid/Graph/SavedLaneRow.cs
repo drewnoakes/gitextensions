@@ -7,12 +7,12 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 {
     internal sealed class SavedLaneRow : ILaneRow
     {
-        [CanBeNull] private readonly Edge[] _edges;
+        [NotNull] private readonly Edge[] _edges;
 
         public Node Node { get; }
         public int NodeLane { get; }
 
-        public SavedLaneRow(Node node, int nodeLane, [CanBeNull] Edge[] edges)
+        public SavedLaneRow([NotNull] Node node, int nodeLane, [NotNull] Edge[] edges)
         {
             Node = node;
             NodeLane = nodeLane;
@@ -45,11 +45,6 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         {
             get
             {
-                if (_edges == null)
-                {
-                    return 0;
-                }
-
                 int count = -1;
                 foreach (Edge edge in _edges)
                 {
