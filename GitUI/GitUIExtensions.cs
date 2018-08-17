@@ -190,18 +190,17 @@ namespace GitUI
 
         public static IEnumerable<TreeNode> AllNodes(this TreeView tree)
         {
-            return tree.Nodes.AllNodes();
-        }
+            var stack = new Stack<TreeNode>(tree.Nodes.Cast<TreeNode>());
 
-        private static IEnumerable<TreeNode> AllNodes(this TreeNodeCollection nodes)
-        {
-            foreach (TreeNode node in nodes)
+            while (stack.Count != 0)
             {
+                var node = stack.Pop();
+
                 yield return node;
 
-                foreach (TreeNode subNode in node.Nodes.AllNodes())
+                foreach (TreeNode child in node.Nodes)
                 {
-                    yield return subNode;
+                    stack.Push(child);
                 }
             }
         }
