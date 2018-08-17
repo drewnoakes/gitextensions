@@ -13,8 +13,6 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public int Count => _edges.CountCurrent();
 
-        public Edge[] GetEdges() => _edges.GetEdges();
-
         public int LaneInfoCount(int lane)
         {
             return _edges.CountCurrent(lane);
@@ -86,7 +84,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public ILaneRow Advance()
         {
-            var newLaneRow = new SavedLaneRow(this);
+            var newLaneRow = new SavedLaneRow(Node, NodeLane, _edges.GetEdges());
 
             var newEdges = new Edges();
             for (int i = 0; i < _edges.CountNext(); i++)

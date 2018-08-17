@@ -9,22 +9,14 @@ namespace GitUI.UserControls.RevisionGrid.Graph
     {
         [CanBeNull] private readonly Edge[] _edges;
 
+        public Node Node { get; }
         public int NodeLane { get; }
 
-        public Node Node { get; }
-
-        public SavedLaneRow(Node node)
+        public SavedLaneRow(Node node, int nodeLane, [CanBeNull] Edge[] edges)
         {
             Node = node;
-            NodeLane = -1;
-            _edges = null;
-        }
-
-        public SavedLaneRow(ActiveLaneRow activeRow)
-        {
-            NodeLane = activeRow.NodeLane;
-            Node = activeRow.Node;
-            _edges = activeRow.GetEdges();
+            NodeLane = nodeLane;
+            _edges = edges;
         }
 
         public LaneInfo this[int col, int row]

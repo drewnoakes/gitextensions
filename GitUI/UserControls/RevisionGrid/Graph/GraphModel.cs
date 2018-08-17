@@ -39,7 +39,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
             if (row < _nodes.Count)
             {
-                return new SavedLaneRow(_nodes[row]);
+                return new SavedLaneRow(_nodes[row], nodeLane: -1, edges: null);
             }
 
             return null;
