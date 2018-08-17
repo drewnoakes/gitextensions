@@ -11,9 +11,9 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public Node Node { get; set; }
 
-        public Edge[] GetEdges() => _edges.EdgeList.ToArray();
-
         public int Count => _edges.CountCurrent();
+
+        public Edge[] GetEdges() => _edges.GetEdges();
 
         public int LaneInfoCount(int lane)
         {

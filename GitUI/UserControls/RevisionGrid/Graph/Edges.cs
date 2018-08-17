@@ -7,13 +7,14 @@ namespace GitUI.UserControls.RevisionGrid.Graph
     {
         private readonly List<int> _countEnd = new List<int>();
         private readonly List<int> _countStart = new List<int>();
+        private readonly List<Edge> _edges = new List<Edge>();
 
-        public List<Edge> EdgeList { get; } = new List<Edge>();
+        public Edge[] GetEdges() => _edges.ToArray();
 
         public LaneInfo Current(int lane, int item)
         {
             int found = 0;
-            foreach (Edge e in EdgeList)
+            foreach (Edge e in _edges)
             {
                 if (e.Start == lane)
                 {
@@ -32,7 +33,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         public LaneInfo Next(int lane, int item)
         {
             int found = 0;
-            foreach (Edge e in EdgeList)
+            foreach (Edge e in _edges)
             {
                 if (e.End == lane)
                 {
@@ -51,18 +52,18 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         public LaneInfo RemoveNext(int lane, int item, out int start, out int end)
         {
             int found = 0;
-            for (int i = 0; i < EdgeList.Count; i++)
+            for (int i = 0; i < _edges.Count; i++)
             {
-                if (EdgeList[i].End == lane)
+                if (_edges[i].End == lane)
                 {
                     if (item == found)
                     {
-                        LaneInfo data = EdgeList[i].Data;
-                        start = EdgeList[i].Start;
-                        end = EdgeList[i].End;
+                        LaneInfo data = _edges[i].Data;
+                        start = _edges[i].Start;
+                        end = _edges[i].End;
                         _countStart[start]--;
                         _countEnd[end]--;
-                        EdgeList.RemoveAt(i);
+                        _edges.RemoveAt(i);
                         return data;
                     }
 
@@ -78,7 +79,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         public void Add(int from, LaneInfo data)
         {
             var e = new Edge(data, from);
-            EdgeList.Add(e);
+            _edges.Add(e);
 
             while (_countStart.Count <= e.Start)
             {
@@ -96,15 +97,15 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public void Clear(int lane)
         {
-            for (int i = EdgeList.Count - 1; i >= 0; --i)
+            for (int i = _edges.Count - 1; i >= 0; --i)
             {
-                int start = EdgeList[i].Start;
+                int start = _edges[i].Start;
                 if (start == lane)
                 {
-                    int end = EdgeList[i].End;
+                    int end = _edges[i].End;
                     _countStart[start]--;
                     _countEnd[end]--;
-                    EdgeList.RemoveAt(i);
+                    _edges.RemoveAt(i);
                 }
             }
         }
@@ -123,7 +124,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public int CountCurrent(int lane)
         {
-            return EdgeList.Count(e => e.Start == lane);
+            return _edges.Count(e => e.Start == lane);
         }
 
         public int CountNext()
@@ -146,9 +147,9 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
             // ReSharper disable once LoopCanBeConvertedToQuery
             // ReSharper disable once ForCanBeConvertedToForeach
-            for (var index = 0; index < EdgeList.Count; index++)
+            for (var index = 0; index < _edges.Count; index++)
             {
-                var e = EdgeList[index];
+                var e = _edges[index];
 
                 if (e.End == lane)
                 {
