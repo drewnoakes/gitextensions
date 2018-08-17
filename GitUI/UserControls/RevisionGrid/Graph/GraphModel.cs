@@ -20,7 +20,9 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         private readonly List<Node> _nodes = new List<Node>();
 
         private int _processedNodes;
-        public int Count { get; private set; }
+
+        public int Count => _nodes.Count;
+        public int CachedCount => _laneRows.Count;
 
         [CanBeNull]
         public ILaneRow GetLaneRow(int row)
@@ -46,8 +48,6 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         [ContractAnnotation("=>true,node:notnull")]
         [ContractAnnotation("=>false,node:null")]
         public bool TryGetNode(ObjectId objectId, out Node node) => _nodeByObjectId.TryGetValue(objectId, out node);
-
-        public int CachedCount => _laneRows.Count;
 
         public void HighlightBranch(ObjectId startId)
         {
@@ -112,7 +112,6 @@ namespace GitUI.UserControls.RevisionGrid.Graph
                 _junctions.Add(new Junction(node));
             }
 
-            Count++;
             node.Revision = revision;
             node.Flags = flags;
             node.Index = _nodes.Count;
@@ -228,8 +227,6 @@ namespace GitUI.UserControls.RevisionGrid.Graph
             _junctions.Clear();
             _nodeByObjectId.Clear();
             ClearLanes();
-
-            Count = 0;
         }
 
         private void ClearLanes()
