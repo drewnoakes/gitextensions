@@ -24,7 +24,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         {
             NodeLane = activeRow.NodeLane;
             Node = activeRow.Node;
-            _edges = activeRow.EdgeList;
+            _edges = activeRow.GetEdges();
         }
 
         public LaneInfo this[int col, int row]

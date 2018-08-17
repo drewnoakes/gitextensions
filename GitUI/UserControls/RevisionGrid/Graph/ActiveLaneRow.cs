@@ -11,7 +11,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public Node Node { get; set; }
 
-        public Edge[] EdgeList => _edges.EdgeList.ToArray();
+        public Edge[] GetEdges() => _edges.EdgeList.ToArray();
 
         public int Count => _edges.CountCurrent();
 
