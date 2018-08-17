@@ -862,12 +862,9 @@ namespace GitUI
                     CheckUncommittedChanged(_filteredCurrentCheckout);
                 }
 
-                var flags = RevisionNodeFlags.None;
-
-                if (isCurrentCheckout)
-                {
-                    flags = RevisionNodeFlags.CheckedOut;
-                }
+                var flags = isCurrentCheckout
+                    ? RevisionNodeFlags.CheckedOut
+                    : RevisionNodeFlags.None;
 
                 if (revision.Refs.Count != 0)
                 {

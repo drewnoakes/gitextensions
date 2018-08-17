@@ -64,7 +64,8 @@ namespace GitUI.UserControls.RevisionGrid
             UpdateRowHeight();
 
             SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
-            ColumnWidthChanged += (s, e) =>
+
+            ColumnWidthChanged += (_, e) =>
             {
                 if (e.Column.Tag is ColumnProvider provider)
                 {
@@ -85,7 +86,17 @@ namespace GitUI.UserControls.RevisionGrid
                     }
                 }
             };
-            RowPrePaint += OnRowPrePaint;
+            RowPrePaint += (_, e) =>
+            {
+                if (e.PaintParts.HasFlag(DataGridViewPaintParts.Background) &&
+                    e.RowBounds.Width > 0 &&
+                    e.RowBounds.Height > 0)
+                {
+                    // Draw row background
+                    var backBrush = GetBackground(e.State, e.RowIndex);
+                    e.Graphics.FillRectangle(backBrush, e.RowBounds);
+                }
+            };
 
             _graphModel.Updated += () =>
             {
@@ -110,18 +121,6 @@ namespace GitUI.UserControls.RevisionGrid
             Clear();
 
             return;
-
-            void OnRowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
-            {
-                if (e.PaintParts.HasFlag(DataGridViewPaintParts.Background) &&
-                    e.RowBounds.Width > 0 &&
-                    e.RowBounds.Height > 0)
-                {
-                    // Draw row background
-                    var backBrush = GetBackground(e.State, e.RowIndex);
-                    e.Graphics.FillRectangle(backBrush, e.RowBounds);
-                }
-            }
 
             void InitializeComponent()
             {
@@ -347,7 +346,7 @@ namespace GitUI.UserControls.RevisionGrid
                 _revisionByRowIndex.Clear();
                 _isRelativeByIndex.Clear();
 
-                ////// Redraw
+                // Redraw
                 UpdateVisibleRowRange();
                 Invalidate(invalidateChildren: true);
             }
@@ -506,7 +505,7 @@ namespace GitUI.UserControls.RevisionGrid
                                 _backgroundScrollTo = rowIndex;
                             }
 
-                            break;
+                            return;
                         }
 
                         // Update the row (if needed)
