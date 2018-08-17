@@ -9,7 +9,6 @@ using Git.hub;
 using GitCommands;
 using GitCommands.Config;
 using GitUIPluginInterfaces;
-using JetBrains.Annotations;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs.BrowseDialog
@@ -170,32 +169,6 @@ namespace GitUI.CommandsDialogs.BrowseDialog
         public ReleaseType ReleaseType;
         public string DownloadPage;
 
-        [CanBeNull]
-        public static ReleaseVersion FromSection(IConfigSection section)
-        {
-            Version ver;
-            try
-            {
-                ver = new Version(section.SubSection);
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine(e);
-                return null;
-            }
-
-            var version = new ReleaseVersion
-            {
-                Version = ver,
-                ReleaseType = ReleaseType.Major,
-                DownloadPage = section.GetValue("DownloadPage")
-            };
-
-            Enum.TryParse(section.GetValue("ReleaseType"), true, out version.ReleaseType);
-
-            return version;
-        }
-
         public static IEnumerable<ReleaseVersion> Parse(string versionsStr)
         {
             var cfg = new ConfigFile("", true);
@@ -204,6 +177,31 @@ namespace GitUI.CommandsDialogs.BrowseDialog
             sections = sections.Concat(cfg.GetConfigSections("RCVersion"));
 
             return sections.Select(FromSection).Where(version => version != null);
+
+            ReleaseVersion FromSection(IConfigSection section)
+            {
+                Version ver;
+                try
+                {
+                    ver = new Version(section.SubSection);
+                }
+                catch (Exception e)
+                {
+                    Debug.WriteLine(e);
+                    return null;
+                }
+
+                var version = new ReleaseVersion
+                {
+                    Version = ver,
+                    ReleaseType = ReleaseType.Major,
+                    DownloadPage = section.GetValue("DownloadPage")
+                };
+
+                Enum.TryParse(section.GetValue("ReleaseType"), true, out version.ReleaseType);
+
+                return version;
+            }
         }
 
         public static IEnumerable<ReleaseVersion> GetNewerVersions(

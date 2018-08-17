@@ -271,9 +271,30 @@ namespace GitUI.UserControls.RevisionGrid
                 return SystemColors.HighlightText;
             }
 
-            return AppSettings.RevisionGraphDrawNonRelativesTextGray && !RowIsRelative(rowIndex)
+            return AppSettings.RevisionGraphDrawNonRelativesTextGray &&
+                   !_isRelativeByIndex.GetOrAdd(rowIndex, IsRowRelative)
                 ? Color.Gray
                 : Color.Black;
+
+            bool IsRowRelative(int index)
+            {
+                lock (_graphModel)
+                {
+                    var laneRow = _graphModel.GetLaneRow(index);
+
+                    if (laneRow == null)
+                    {
+                        return false;
+                    }
+
+                    if (laneRow.Node.Ancestors.Count > 0)
+                    {
+                        return laneRow.Node.Ancestors[0].IsRelative;
+                    }
+
+                    return true;
+                }
+            }
         }
 
         private static Brush GetBackground(DataGridViewElementStates state, int rowIndex)
@@ -349,31 +370,6 @@ namespace GitUI.UserControls.RevisionGrid
                 // Redraw
                 UpdateVisibleRowRange();
                 Invalidate(invalidateChildren: true);
-            }
-        }
-
-        public bool RowIsRelative(int rowIndex)
-        {
-            return _isRelativeByIndex.GetOrAdd(rowIndex, IsRelative);
-
-            bool IsRelative(int index)
-            {
-                lock (_graphModel)
-                {
-                    var laneRow = _graphModel.GetLaneRow(index);
-
-                    if (laneRow == null)
-                    {
-                        return false;
-                    }
-
-                    if (laneRow.Node.Ancestors.Count > 0)
-                    {
-                        return laneRow.Node.Ancestors[0].IsRelative;
-                    }
-
-                    return true;
-                }
             }
         }
 
