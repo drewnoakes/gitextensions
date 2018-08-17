@@ -1162,7 +1162,7 @@ namespace GitCommands
         }
 
         /// <summary>
-        /// Gets the commit ID of the currently checked out commit.
+        /// Gets the commit ID of the currently checked out commit (<c>HEAD</c>).
         /// If the repo is bare or has no commits, <c>null</c> is returned.
         /// </summary>
         [CanBeNull]
