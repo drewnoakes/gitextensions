@@ -11,6 +11,13 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public Edge[] GetEdges() => _edges.ToArray();
 
+        public void Clear()
+        {
+            _countEnd.Clear();
+            _countStart.Clear();
+            _edges.Clear();
+        }
+
         public LaneInfo Current(int lane, int item)
         {
             int found = 0;

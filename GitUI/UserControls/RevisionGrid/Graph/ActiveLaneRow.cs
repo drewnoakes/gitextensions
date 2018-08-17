@@ -5,7 +5,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 {
     internal sealed class ActiveLaneRow : ILaneRow
     {
-        private Edges _edges;
+        private Edges _edges = new Edges();
 
         public int NodeLane { get; set; } = -1;
 
@@ -29,7 +29,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public void Clear()
         {
-            _edges = new Edges();
+            _edges.Clear();
         }
 
         public void Clear(int lane)
