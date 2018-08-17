@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using JetBrains.Annotations;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs.BrowseDialog.DashboardControl
@@ -18,7 +19,7 @@ namespace GitUI.CommandsDialogs.BrowseDialog.DashboardControl
             InitializeComplete();
         }
 
-        public FormDashboardCategoryTitle(IEnumerable<string> existingCategories)
+        public FormDashboardCategoryTitle([CanBeNull] IEnumerable<string> existingCategories)
             : this()
         {
             if (existingCategories != null)
