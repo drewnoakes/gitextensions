@@ -19,7 +19,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         private readonly Dictionary<ObjectId, Node> _nodeByObjectId = new Dictionary<ObjectId, Node>();
         private readonly List<Node> _nodes = new List<Node>();
 
-        private int _processedNodes;
+        private int _processedNodeCount;
 
         public int Count => _nodes.Count;
         public int CachedCount => _laneRows.Count;
@@ -456,7 +456,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
             void ProcessNode(Node node)
             {
-                for (var i = _processedNodes; i < _nodes.Count; i++)
+                for (var i = _processedNodeCount; i < _nodes.Count; i++)
                 {
                     if (_nodes[i] != node)
                     {
@@ -465,7 +465,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
                     var isChanged = false;
 
-                    while (i > _processedNodes)
+                    while (i > _processedNodeCount)
                     {
                         // This only happens if we weren't in topo order
                         if (Debugger.IsAttached)
@@ -484,7 +484,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
                         Updated?.Invoke();
                     }
 
-                    _processedNodes++;
+                    _processedNodeCount++;
                     break;
                 }
             }
