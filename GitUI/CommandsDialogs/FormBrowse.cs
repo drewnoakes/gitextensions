@@ -450,7 +450,7 @@ namespace GitUI.CommandsDialogs
             TranslationUtils.TranslateItemsFromFields(Name, _filterBranchHelper, translation);
         }
 
-        public override void CancelButtonClick(object sender, EventArgs e)
+        protected override void CancelButtonClick(object sender, EventArgs e)
         {
             // If a filter is applied, clear it
             if (RevisionGrid.FilterIsApplied(false))
@@ -2018,7 +2018,7 @@ namespace GitUI.CommandsDialogs
             ToggleBranchTreePanel = 21
         }
 
-        internal Keys GetShortcutKeys(Commands cmd)
+        private Keys GetShortcutKeys(Commands cmd)
         {
             return GetShortcutKeys((int)cmd);
         }
@@ -2827,7 +2827,7 @@ namespace GitUI.CommandsDialogs
             };
         }
 
-        public void ChangeTerminalActiveFolder(string path)
+        private void ChangeTerminalActiveFolder(string path)
         {
             if (_terminal?.RunningSession == null || string.IsNullOrWhiteSpace(path))
             {

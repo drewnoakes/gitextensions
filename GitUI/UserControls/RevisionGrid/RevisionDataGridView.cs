@@ -57,7 +57,7 @@ namespace GitUI.UserControls.RevisionGrid
             };
             _backgroundThread.Start();
 
-            NormalFont = AppSettings.Font;
+            SetFont(AppSettings.Font);
 
             InitializeComponent();
 
@@ -167,14 +167,10 @@ namespace GitUI.UserControls.RevisionGrid
             base.Dispose(disposing);
         }
 
-        internal Font NormalFont
+        private void SetFont(Font font)
         {
-            get => _normalFont;
-            set
-            {
-                _normalFont = value;
-                _boldFont = new Font(value, FontStyle.Bold);
-            }
+            _normalFont = font;
+            _boldFont = new Font(font, FontStyle.Bold);
         }
 
         [CanBeNull]

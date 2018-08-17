@@ -32,7 +32,7 @@ namespace GitUI
         /// Prompts the user to browse for a key. Returns the path chosen, or null.
         /// </summary>
         [CanBeNull]
-        public static string Browse(IWin32Window parent)
+        private static string Browse(IWin32Window parent)
         {
             using (var dialog = new OpenFileDialog
             {
@@ -53,7 +53,7 @@ namespace GitUI
         /// <summary>
         /// Tries to load the given key. Returns whether successful.
         /// </summary>
-        public static bool LoadKey(IWin32Window parent, string path)
+        private static bool LoadKey(IWin32Window parent, string path)
         {
             if (!File.Exists(AppSettings.Pageant))
             {

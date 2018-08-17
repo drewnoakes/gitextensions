@@ -14,7 +14,7 @@ namespace GitUI.UserControls.RevisionGrid.Columns
 {
     internal sealed class MessageColumnProvider : ColumnProvider
     {
-        public const int MaxSuperprojectRefs = 4;
+        private const int MaxSuperprojectRefs = 4;
 
         private readonly RevisionGridControl _grid;
 

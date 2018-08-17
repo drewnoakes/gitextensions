@@ -115,7 +115,7 @@ namespace GitUI.UserControls.RevisionGrid
             RefreshWatcher();
         }
 
-        public void Clear()
+        private void Clear()
         {
             IndexChanged = true;
             RefreshWatcher();

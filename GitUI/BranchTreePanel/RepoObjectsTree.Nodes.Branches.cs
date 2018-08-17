@@ -21,7 +21,7 @@ namespace GitUI.BranchTreePanel
             protected const char PathSeparator = '/';
 
             /// <summary>Short name of the branch/branch path. <example>"issue1344"</example></summary>
-            protected string Name { get; set; }
+            protected string Name { get; }
 
             private string ParentPath { get; }
 

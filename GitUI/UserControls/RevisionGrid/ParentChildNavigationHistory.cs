@@ -63,7 +63,7 @@ namespace GitUI.UserControls.RevisionGrid
             _direction = null;
         }
 
-        public void Clear()
+        private void Clear()
         {
             _childHistory.Clear();
             _parentHistory.Clear();

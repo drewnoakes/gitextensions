@@ -175,7 +175,7 @@ namespace GitUI
             }
         }
 
-        internal static GraphicsPath CreateRoundRectPath(Rectangle rect, int radius)
+        private static GraphicsPath CreateRoundRectPath(Rectangle rect, int radius)
         {
             var left = rect.X;
             var top = rect.Y;

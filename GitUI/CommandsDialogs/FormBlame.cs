@@ -6,7 +6,7 @@ namespace GitUI.CommandsDialogs
 {
     public partial class FormBlame : GitModuleForm
     {
-        public string FileName { get; set; }
+        private readonly string _fileName;
 
         [Obsolete("For VS designer and translation test only. Do not remove.")]
         private FormBlame()
@@ -29,14 +29,14 @@ namespace GitUI.CommandsDialogs
                 return;
             }
 
-            FileName = fileName;
+            _fileName = fileName;
 
             blameControl1.LoadBlame(revision ?? Module.GetRevision(), null, fileName, null, null, Module.FilesEncoding, initialLine);
         }
 
         private void FormBlameLoad(object sender, EventArgs e)
         {
-            Text = $"Blame ({FileName})";
+            Text = $"Blame ({_fileName})";
         }
     }
 }

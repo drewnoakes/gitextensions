@@ -165,9 +165,9 @@ namespace GitUI.CommandsDialogs.BrowseDialog
 
     public class ReleaseVersion
     {
-        public Version Version;
-        public ReleaseType ReleaseType;
-        public string DownloadPage;
+        public Version Version { get; private set; }
+        public ReleaseType ReleaseType { get; private set; }
+        public string DownloadPage { get; private set; }
 
         public static IEnumerable<ReleaseVersion> Parse(string versionsStr)
         {
@@ -191,14 +191,14 @@ namespace GitUI.CommandsDialogs.BrowseDialog
                     return null;
                 }
 
+                Enum.TryParse<ReleaseType>(section.GetValue("ReleaseType"), true, out var releaseType);
+
                 var version = new ReleaseVersion
                 {
                     Version = ver,
-                    ReleaseType = ReleaseType.Major,
+                    ReleaseType = releaseType,
                     DownloadPage = section.GetValue("DownloadPage")
                 };
-
-                Enum.TryParse(section.GetValue("ReleaseType"), true, out version.ReleaseType);
 
                 return version;
             }

@@ -19,8 +19,7 @@ namespace GitUI.CommandsDialogs
 
         private bool _isMerge;
 
-        [CanBeNull]
-        public GitRevision Revision { get; set; }
+        [CanBeNull] private GitRevision _revision;
 
         [Obsolete("For VS designer and translation test only. Do not remove.")]
         private FormCherryPick()
@@ -31,7 +30,8 @@ namespace GitUI.CommandsDialogs
         public FormCherryPick(GitUICommands commands, [CanBeNull] GitRevision revision)
             : base(commands)
         {
-            Revision = revision;
+            _revision = revision;
+
             InitializeComponent();
             InitializeComplete();
         }
@@ -61,20 +61,20 @@ namespace GitUI.CommandsDialogs
 
         private void OnRevisionChanged()
         {
-            commitSummaryUserControl1.Revision = Revision;
+            commitSummaryUserControl1.Revision = _revision;
 
             ParentsList.Items.Clear();
 
-            if (Revision != null)
+            if (_revision != null)
             {
-                _isMerge = Module.IsMerge(Revision.ObjectId);
+                _isMerge = Module.IsMerge(_revision.ObjectId);
             }
 
             panelParentsList.Visible = _isMerge;
 
             if (_isMerge)
             {
-                var parents = Module.GetParentRevisions(Revision.ObjectId);
+                var parents = Module.GetParentRevisions(_revision.ObjectId);
 
                 for (int i = 0; i < parents.Count; i++)
                 {
@@ -117,7 +117,7 @@ namespace GitUI.CommandsDialogs
 
             if (canExecute)
             {
-                FormProcess.ShowDialog(this, GitCommandHelpers.CherryPickCmd(Revision.ObjectId, AutoCommit.Checked, args.ToString()));
+                FormProcess.ShowDialog(this, GitCommandHelpers.CherryPickCmd(_revision.ObjectId, AutoCommit.Checked, args.ToString()));
                 MergeConflictHandler.HandleMergeConflicts(UICommands, this, AutoCommit.Checked);
                 DialogResult = DialogResult.OK;
                 Close();
@@ -132,11 +132,11 @@ namespace GitUI.CommandsDialogs
 
         private void btnChooseRevision_Click(object sender, EventArgs e)
         {
-            using (var chooseForm = new FormChooseCommit(UICommands, Revision?.Guid))
+            using (var chooseForm = new FormChooseCommit(UICommands, _revision?.Guid))
             {
                 if (chooseForm.ShowDialog(this) == DialogResult.OK && chooseForm.SelectedRevision != null)
                 {
-                    Revision = chooseForm.SelectedRevision;
+                    _revision = chooseForm.SelectedRevision;
                 }
             }
 

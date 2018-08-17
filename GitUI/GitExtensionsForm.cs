@@ -21,7 +21,7 @@ namespace GitUI
         private bool _windowCentred;
 
         /// <summary>Creates a new <see cref="GitExtensionsForm"/> without position restore.</summary>
-        public GitExtensionsForm()
+        protected GitExtensionsForm()
             : this(enablePositionRestore: false)
         {
         }
@@ -47,7 +47,7 @@ namespace GitUI
             }
         }
 
-        public virtual void CancelButtonClick(object sender, EventArgs e)
+        protected virtual void CancelButtonClick(object sender, EventArgs e)
         {
             Close();
         }
