@@ -61,17 +61,17 @@ namespace GitUI.UserControls.RevisionGrid.Graph
             int found = 0;
             for (int i = 0; i < _edges.Count; i++)
             {
-                if (_edges[i].End == lane)
+                var edge = _edges[i];
+                if (edge.End == lane)
                 {
                     if (item == found)
                     {
-                        LaneInfo data = _edges[i].Data;
-                        start = _edges[i].Start;
-                        end = _edges[i].End;
+                        start = edge.Start;
+                        end = edge.End;
                         _countStart[start]--;
                         _countEnd[end]--;
                         _edges.RemoveAt(i);
-                        return data;
+                        return edge.Data;
                     }
 
                     found++;

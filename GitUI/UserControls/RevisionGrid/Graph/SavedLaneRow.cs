@@ -5,6 +5,9 @@ using JetBrains.Annotations;
 
 namespace GitUI.UserControls.RevisionGrid.Graph
 {
+    /// <summary>
+    /// Immutable representation of a node's row.
+    /// </summary>
     internal sealed class SavedLaneRow : ILaneRow
     {
         [NotNull] private readonly Edge[] _edges;
@@ -23,8 +26,10 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         {
             get
             {
-                int count = 0;
-                foreach (Edge edge in _edges)
+                // Find the row'th edge that starts in col
+                var count = 0;
+
+                foreach (var edge in _edges)
                 {
                     if (edge.Start == col)
                     {
@@ -45,8 +50,10 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         {
             get
             {
-                int count = -1;
-                foreach (Edge edge in _edges)
+                var count = -1;
+
+                // ReSharper disable once LoopCanBeConvertedToQuery
+                foreach (var edge in _edges)
                 {
                     if (edge.Start > count)
                     {

@@ -3,6 +3,10 @@ using System.Text;
 
 namespace GitUI.UserControls.RevisionGrid.Graph
 {
+    /// <summary>
+    /// Mutable representation of a node's row during the process of graph population.
+    /// Once constructed, an finalised and immutable representation is acquired via <see cref="Advance"/>.
+    /// </summary>
     internal sealed class ActiveLaneRow : ILaneRow
     {
         private Edges _edges = new Edges();

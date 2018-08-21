@@ -15,9 +15,25 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         private readonly List<Junction> _junctions = new List<Junction>();
         private readonly ActiveLaneRow _currentRow = new ActiveLaneRow();
         private readonly List<LaneJunctionDetail> _laneNodes = new List<LaneJunctionDetail>();
+
+        /// <summary>
+        /// Data per visible row in the graph. Each graph row has an entry in this list, according to its index.
+        /// Rows will only exist in this collection once they have been processed (cached).
+        /// </summary>
         private readonly List<ILaneRow> _laneRows = new List<ILaneRow>();
+
+        /// <summary>
+        /// Map from commit IDs to node. Each commit will have a node once it has been loaded into the graph.
+        /// </summary>
         private readonly Dictionary<ObjectId, Node> _nodeByObjectId = new Dictionary<ObjectId, Node>();
+
+        /// <summary>
+        /// The list of all nodes in the graph. Each graph row has an entry in this list, according to its index.
+        /// Nodes will exist in this collection even if the corresponding row has not yet been processed (cached).
+        /// </summary>
         private readonly List<Node> _nodes = new List<Node>();
+
+        // TODO what is the difference between 'processed' and 'cached'?
 
         private int _processedNodeCount;
 
@@ -32,16 +48,19 @@ namespace GitUI.UserControls.RevisionGrid.Graph
                 return null;
             }
 
+            // If the row has been cached, return it
             if (row < _laneRows.Count)
             {
                 return _laneRows[row];
             }
 
+            // The row has not yet been cached, but we have received the corresponding revision
             if (row < _nodes.Count)
             {
                 return new SavedLaneRow(_nodes[row], nodeLane: -1, edges: Array.Empty<Edge>());
             }
 
+            // We have not yet received a revision for this row
             return null;
         }
 
@@ -49,6 +68,10 @@ namespace GitUI.UserControls.RevisionGrid.Graph
         [ContractAnnotation("=>false,node:null")]
         public bool TryGetNode(ObjectId objectId, out Node node) => _nodeByObjectId.TryGetValue(objectId, out node);
 
+        /// <summary>
+        /// Updates <see cref="Junction.IsHighlighted"/> properties across the whole graph such that
+        /// only junctions relative to <paramref name="startId"/> are <c>true</c>.
+        /// </summary>
         public void HighlightBranch(ObjectId startId)
         {
             ClearHighlights();
@@ -260,9 +283,10 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
         public bool CacheTo(int rowIndex)
         {
+            // Cache rows one at a time until enough rows are cached
             while (rowIndex >= CachedCount)
             {
-                if (!MoveNext())
+                if (!TryCacheNext())
                 {
                     return false;
                 }
@@ -270,7 +294,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
             return true;
 
-            bool MoveNext()
+            bool TryCacheNext()
             {
                 // If there are no lanes, there is nothing more to draw
                 if (_laneNodes.Count == 0 || Count <= _laneRows.Count)
@@ -283,6 +307,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
                 #region Find current node & index
 
                 _currentRow.Node = null;
+
                 for (int curLane = 0; curLane < _laneNodes.Count; curLane++)
                 {
                     LaneJunctionDetail lane = _laneNodes[curLane];
@@ -329,6 +354,7 @@ namespace GitUI.UserControls.RevisionGrid.Graph
                 #region Check for branches
 
                 _currentRow.Clear(_currentRow.NodeLane);
+
                 for (int curLane = 0; curLane < _laneNodes.Count; curLane++)
                 {
                     LaneJunctionDetail lane = _laneNodes[curLane];
@@ -367,8 +393,8 @@ namespace GitUI.UserControls.RevisionGrid.Graph
 
                 #region Straighten out lanes
 
-                // Look for crossing lanes
-                //   but only when there are not too many lanes taking up too much performance
+                // Look for crossing lanes, but only when there are not too many lanes
+                // taking up too much performance
                 if (_currentRow.Count < 10)
                 {
                     for (int lane = 0; lane < _currentRow.Count; lane++)

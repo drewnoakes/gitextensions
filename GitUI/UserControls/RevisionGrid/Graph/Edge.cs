@@ -2,16 +2,15 @@
 {
     internal readonly struct Edge
     {
-        public readonly int Start;
-        public readonly LaneInfo Data;
+        public LaneInfo Data { get; }
+        public int Start { get; }
+        public int End => Data.ConnectLane;
 
         public Edge(LaneInfo data, int start)
         {
             Data = data;
             Start = start;
         }
-
-        public int End => Data.ConnectLane;
 
 #if DEBUG
         public override string ToString() => $"{Start}->{End}: {Data}";

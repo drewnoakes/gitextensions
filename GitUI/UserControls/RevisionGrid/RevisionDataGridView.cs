@@ -37,9 +37,9 @@ namespace GitUI.UserControls.RevisionGrid
         private readonly AutoResetEvent _backgroundEvent = new AutoResetEvent(false);
         private readonly Thread _backgroundThread;
         private volatile bool _shouldRun = LicenseManager.UsageMode != LicenseUsageMode.Designtime;
-        private int _backgroundScrollTo;
+        private int _backgroundCacheTo;
 
-        private int _graphDataCount;
+        private int _lastCachedCount;
         private int _rowHeight; // Height of elements in the cache. Is equal to the control's row height.
         private VisibleRowRange _visibleRowRange;
 
@@ -348,7 +348,7 @@ namespace GitUI.UserControls.RevisionGrid
         {
             lock (_backgroundThread)
             {
-                _backgroundScrollTo = 0;
+                _backgroundCacheTo = 0;
             }
 
             foreach (var columnProvider in _columnProviders)
@@ -359,7 +359,7 @@ namespace GitUI.UserControls.RevisionGrid
             lock (_graphModel)
             {
                 SetRowCount(0);
-                _graphDataCount = 0;
+                _lastCachedCount = 0;
                 _revisionByRowIndex.Clear();
                 _isRelativeByIndex.Clear();
 
@@ -456,20 +456,20 @@ namespace GitUI.UserControls.RevisionGrid
                     {
                         lock (_backgroundEvent)
                         {
-                            int scrollTo;
+                            int cacheTo;
                             lock (_backgroundThread)
                             {
-                                scrollTo = _backgroundScrollTo;
+                                cacheTo = _backgroundCacheTo;
                             }
 
-                            int curCount;
+                            int cachedCount;
                             lock (_graphModel)
                             {
-                                curCount = _graphDataCount;
-                                _graphDataCount = _graphModel.CachedCount;
+                                cachedCount = _lastCachedCount;
+                                _lastCachedCount = _graphModel.CachedCount;
                             }
 
-                            UpdateGraph(curCount, scrollTo);
+                            UpdateGraph(cachedCount, cacheTo);
                         }
                     }
                     else
@@ -484,6 +484,7 @@ namespace GitUI.UserControls.RevisionGrid
             {
                 var rowIndex = fromIndex;
 
+                // Cache each pending row, one at a time
                 while (rowIndex < toIndex)
                 {
                     lock (_graphModel)
@@ -494,7 +495,7 @@ namespace GitUI.UserControls.RevisionGrid
                             Debug.WriteLine("Cached item FAILED {0}", rowIndex);
                             lock (_backgroundThread)
                             {
-                                _backgroundScrollTo = rowIndex;
+                                _backgroundCacheTo = rowIndex;
                             }
 
                             return;
@@ -507,7 +508,7 @@ namespace GitUI.UserControls.RevisionGrid
                         }
 
                         rowIndex = _graphModel.CachedCount;
-                        _graphDataCount = rowIndex;
+                        _lastCachedCount = rowIndex;
                     }
                 }
 
@@ -515,6 +516,7 @@ namespace GitUI.UserControls.RevisionGrid
 
                 void UpdateRow(int row)
                 {
+                    // Ensure grid view has enough rows to fit the whole graph
                     if (RowCount < _graphModel.Count)
                     {
                         lock (_graphModel)
@@ -564,9 +566,9 @@ namespace GitUI.UserControls.RevisionGrid
                 toIndex + 250,
                 _graphModel.Count);
 
-            if (_backgroundScrollTo < targetBottom)
+            if (_backgroundCacheTo < targetBottom)
             {
-                _backgroundScrollTo = targetBottom;
+                _backgroundCacheTo = targetBottom;
                 _backgroundEvent.Set();
             }
 
