@@ -50,6 +50,7 @@ public sealed class OperationRunner : IOperationRunner
         if (isOutermost)
         {
             ValidateWorkingDirectory(operation);
+            ValidateInteractiveContext(operation);
         }
 
         _repoChangedNotifier.Lock();
@@ -84,6 +85,7 @@ public sealed class OperationRunner : IOperationRunner
         if (isOutermost)
         {
             ValidateWorkingDirectory(operation);
+            ValidateInteractiveContext(operation);
         }
 
         _repoChangedNotifier.Lock();
@@ -115,6 +117,15 @@ public sealed class OperationRunner : IOperationRunner
         if (operation.RequiresValidWorkingDirectory && !_module.IsValidGitWorkingDir())
         {
             throw new InvalidWorkingDirectoryException();
+        }
+    }
+
+    private void ValidateInteractiveContext(object operation)
+    {
+        if (operation is IRequiresUI && _window is null)
+        {
+            throw new InvalidOperationException(
+                $"Interactive operation '{operation.GetType().Name}' requires a UI context (Window), but none was provided.");
         }
     }
 
