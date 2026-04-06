@@ -27,6 +27,7 @@ public sealed class FetchOperationTests
 
         _context = Substitute.For<IOperationContext>();
         _context.Module.Returns(_module);
+        _context.Repository.Returns(_module);
         _context.Progress.Returns(NullProgress<string>.Instance);
     }
 

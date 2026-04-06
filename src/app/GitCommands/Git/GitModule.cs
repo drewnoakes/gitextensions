@@ -1161,7 +1161,7 @@ public sealed partial class GitModule : IGitModule
         return new GitModule(_executorProvider, GetSubmoduleFullPath(localPath));
     }
 
-    IGitModule IGitModule.GetSubmodule(string? submoduleName)
+    IGitModule IGitRepository.GetSubmodule(string? submoduleName)
     {
         return GetSubmodule(submoduleName);
     }

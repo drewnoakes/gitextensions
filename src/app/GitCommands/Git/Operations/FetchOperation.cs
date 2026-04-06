@@ -65,7 +65,7 @@ public sealed class FetchOperation : IOperation
     /// <inheritdoc />
     public async Task ExecuteAsync(IOperationContext context, CancellationToken cancellationToken)
     {
-        ArgumentString gitOptions = BuildFetchOptions(context.Module);
+        ArgumentString gitOptions = BuildFetchOptions(context.Repository);
         ArgumentString fetchArgs = BuildFetchArgs(context.Module);
 
         ArgumentString arguments = new GitArgumentBuilder("fetch", gitOptions: gitOptions)
@@ -77,7 +77,7 @@ public sealed class FetchOperation : IOperation
             },
         };
 
-        using IProcess process = context.Module.GitExecutable.Start(
+        using IProcess process = context.Repository.GitExecutable.Start(
             arguments,
             throwOnErrorExit: true,
             cancellationToken: cancellationToken);
@@ -85,12 +85,12 @@ public sealed class FetchOperation : IOperation
         await process.WaitForExitAsync(cancellationToken);
     }
 
-    private static ArgumentString BuildFetchOptions(IGitModule module)
+    private static ArgumentString BuildFetchOptions(IGitRepository repository)
     {
         return new ArgumentBuilder
         {
-            { string.IsNullOrWhiteSpace(module.GetEffectiveSetting("fetch.parallel")), "-c fetch.parallel=0" },
-            { string.IsNullOrWhiteSpace(module.GetEffectiveSetting("submodule.fetchjobs")), "-c submodule.fetchjobs=0" },
+            { string.IsNullOrWhiteSpace(repository.GetEffectiveSetting("fetch.parallel")), "-c fetch.parallel=0" },
+            { string.IsNullOrWhiteSpace(repository.GetEffectiveSetting("submodule.fetchjobs")), "-c submodule.fetchjobs=0" },
         };
     }
 

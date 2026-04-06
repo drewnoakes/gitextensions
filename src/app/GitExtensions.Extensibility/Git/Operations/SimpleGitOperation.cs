@@ -33,7 +33,7 @@ public abstract class SimpleGitOperation : IOperation
     {
         ArgumentString arguments = BuildArguments();
 
-        using IProcess process = context.Module.GitExecutable.Start(
+        using IProcess process = context.Repository.GitExecutable.Start(
             arguments,
             throwOnErrorExit: true,
             cancellationToken: cancellationToken);

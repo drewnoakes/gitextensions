@@ -15,6 +15,15 @@ public interface IOperationContext
 
     /// <summary>
     ///  Gets the git repository this operation targets.
+    ///  Provides access to repository identity, configuration, paths, and
+    ///  the low-level git execution primitives.
+    /// </summary>
+    IGitRepository Repository { get; }
+
+    /// <summary>
+    ///  Gets the full git module for this operation's repository.
+    ///  Prefer <see cref="Repository"/> for new code; this property exists
+    ///  for backward compatibility during migration.
     /// </summary>
     IGitModule Module { get; }
 

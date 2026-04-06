@@ -10,8 +10,16 @@ namespace GitExtensions.Extensibility.Git;
 /// <summary>
 ///  Provides the ability to manipulate the git module.
 /// </summary>
-public interface IGitModule
+public interface IGitModule : IGitRepository
 {
+    /// <summary>
+    ///  Gets this module as an <see cref="IGitRepository"/>.
+    ///  This is a transitional property — during migration, code that only needs
+    ///  repository identity and configuration should use this property to signal
+    ///  that it does not require the full <see cref="IGitModule"/> surface area.
+    /// </summary>
+    IGitRepository Repository => this;
+
     string AddRemote(string remoteName, string? path);
 
     /// <summary>
@@ -66,107 +74,12 @@ public interface IGitModule
     void SetSetting(string setting, string value, bool append = false);
     void UnsetSetting(string setting);
 
-    Encoding CommitEncoding { get; }
-
-    Encoding FilesEncoding { get; }
-
-    /// <summary>
-    /// Returns git common directory.
-    /// https://git-scm.com/docs/git-rev-parse#Documentation/git-rev-parse.txt---git-common-dir.
-    /// </summary>
-    string GitCommonDirectory { get; }
-
-    /// <summary>
-    ///  Gets the default Git executable associated with this module.
-    ///  This executable can be non-native (i.e. WSL).
-    /// </summary>
-    IExecutable GitExecutable { get; }
-
-    /// <summary>
-    ///  Gets the access to the current git executable associated with this module.
-    ///  This command runner can be non-native (i.e. WSL).
-    /// </summary>
-    IGitCommandRunner GitCommandRunner { get; }
-
-    /// <summary>
-    /// Encoding for commit header (message, notes, author, committer, emails).
-    /// </summary>
-    Encoding LogOutputEncoding { get; }
-
-    /// <summary>
-    /// If this module is a submodule, returns its path, otherwise <c>null</c>.
-    /// </summary>
-    string? SubmodulePath { get; }
-
-    /// <summary>
-    ///  Gets the super-project of the current git module, if any.
-    /// </summary>
-    /// <value>
-    ///  If this module is a submodule, returns its super-project <see cref="IGitModule"/>, otherwise <c>null</c>.
-    /// </value>
-    public IGitModule? SuperprojectModule { get; }
-
-    /// <summary>
-    ///  Gets the directory which contains the git repository.
-    /// </summary>
-    string WorkingDir { get; }
-
-    /// <summary>
-    /// Gets the location of .git directory for the current working folder.
-    /// </summary>
-    string WorkingDirGitDir { get; }
-
-    /// <summary>
-    /// Asks git to resolve the given relativePath
-    /// git special folders are located in different directories depending on the kind of repo: submodule, worktree, main
-    /// See https://git-scm.com/docs/git-rev-parse#Documentation/git-rev-parse.txt---git-pathltpathgt
-    /// </summary>
-    /// <param name="relativePath">A path relative to the .git directory</param>
-    string ResolveGitInternalPath(string relativePath);
-
-    /// <summary>
-    ///  Invalidates the cached git config settings in order to trigger a reload on next access or in the background.
-    /// </summary>
-    void InvalidateGitSettings();
-
-    /// <summary>Indicates whether the specified directory contains a git repository.</summary>
-    bool IsValidGitWorkingDir();
-
     /// <summary>Indicates HEAD is not pointing to a branch (i.e. it is detached).</summary>
     bool IsDetachedHead();
 
-    /// <summary>
-    /// Convert the path for the Git executable. For WSL Git, the path will be adjusted.
-    /// </summary>
-    /// <param name="path">The Windows (native) path as seen by the application.</param>
-    /// <returns>The Posix path if Windows Git, WSL path for WSL Git.</returns>
-    public string GetPathForGitExecution(string? path);
-
-    /// <summary>
-    /// Convert a path to Windows application (native) format.
-    /// </summary>
-    /// <param name="path">Path as seen by the Git executable, possibly WSL Git.</param>
-    /// <returns>The path in Windows format with native file separators.</returns>
-    public string GetWindowsPath(string path);
-
     bool TryResolvePartialCommitId(string objectIdPrefix, [NotNullWhen(returnValue: true)] out ObjectId? objectId);
 
-    string GetSubmoduleFullPath(string localPath);
-
     IEnumerable<IGitSubmoduleInfo?> GetSubmodulesInfo();
-
-    /// <summary>
-    /// Gets the local paths of any submodules of this git module.
-    /// </summary>
-    /// <remarks>
-    /// <para>This method obtains its results by parsing the <c>.gitmodules</c> file.</para>
-    ///
-    /// <para>This approach is a faster than <see cref="GetSubmodulesInfo"/> which
-    /// invokes the <c>git submodule</c> command.</para>
-    /// </remarks>
-    IReadOnlyList<string> GetSubmodulesLocalPaths(bool recursive = true);
-
-    IGitModule GetSubmodule(string? submoduleName);
 
     /// <summary>
     /// Retrieves registered remotes by running <c>git remote show</c> command.
@@ -192,19 +105,6 @@ public interface IGitModule
     /// </summary>
     string GetSetting(string setting);
 
-    string GetEffectiveSetting(string setting, string defaultValue = "");
-
-    /// <summary>
-    ///  Gets the config setting from git converted in an expected C# value type (bool, int, etc.).
-    /// </summary>
-    /// <typeparam name="T">The expected type of the git setting.</typeparam>
-    /// <param name="setting">The git setting key.</param>
-    /// <returns>The value converted to the <typeparamref name="T" /> type; <see langword="null"/> if the settings is not set.</returns>
-    /// <exception cref="GitConfigFormatException">
-    ///  The value of the git setting <paramref name="setting" /> cannot be converted in the specified type <typeparamref name="T" />.
-    /// </exception>
-    T? GetEffectiveSetting<T>(string setting) where T : struct;
-
     /// <summary>
     ///  Gets the name of the currently checked out branch.
     /// </summary>
@@ -214,12 +114,8 @@ public interface IGitModule
     /// </returns>
     string GetSelectedBranch(bool emptyIfDetached = false);
 
-    /// <summary>true if ".git" directory does NOT exist.</summary>
-    bool IsBareRepository();
-
     bool IsRunningGitProcess();
 
-    SettingsSource GetEffectiveSettings();
     SettingsSource GetLocalSettings();
 
     [return: NotNullIfNotNull(nameof(s))]
@@ -389,7 +285,6 @@ public interface IGitModule
     public void GetSubmoduleCurrentStatus(IReadOnlyList<GitItemStatus> status);
 
     bool ResetChanges(ObjectId? resetId, IReadOnlyList<GitItemStatus> selectedItems, bool resetAndDelete, IFullPathResolver fullPathResolver, out StringBuilder output, Action<BatchProgressEventArgs>? progressAction);
-    bool HasSubmodules();
     void OpenWithDifftool(string? filename, string? oldFileName = "", string? firstRevision = GitRevision.IndexGuid, string? secondRevision = GitRevision.WorkTreeGuid, string? extraDiffArguments = null, bool isTracked = true, string? customTool = null);
     void OpenWithDifftoolDirDiff(string? firstRevision, string? secondRevision, string? customTool);
     IReadOnlyList<ObjectId> GetParents(ObjectId objectId);
@@ -479,11 +374,6 @@ public interface IGitModule
     /// </summary>
     /// <returns><see langword="true"/> if the remote has a PuTTY key file; <see langword="false"/>, otherwise.</returns>
     string GetPuttyKeyFileForRemote(string? remote);
-
-    /// <summary>
-    /// GitVersion for the default GitExecutable.
-    /// </summary>
-    IGitVersion GitVersion { get; }
 
     bool GetCombinedDiffContent(
             ObjectId revisionOfMergeCommit,

@@ -109,6 +109,7 @@ public sealed class StashSaveOperationTests
 
         IOperationContext context = Substitute.For<IOperationContext>();
         context.Module.Returns(module);
+        context.Repository.Returns(module);
         context.Progress.Returns(NullProgress<string>.Instance);
 
         return context;

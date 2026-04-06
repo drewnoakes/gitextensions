@@ -30,7 +30,7 @@ public sealed class GetCurrentCheckoutOperation : IOperation<ObjectId?>
     {
         ArgumentString arguments = new GitArgumentBuilder("rev-parse") { "HEAD" };
 
-        using IProcess process = context.Module.GitExecutable.Start(
+        using IProcess process = context.Repository.GitExecutable.Start(
             arguments,
             redirectOutput: true,
             throwOnErrorExit: false,

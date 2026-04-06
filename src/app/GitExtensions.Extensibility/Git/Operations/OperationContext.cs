@@ -9,6 +9,9 @@ internal sealed class OperationContext : IOperationContext
     public IOperationRunner Runner { get; }
 
     /// <inheritdoc />
+    public IGitRepository Repository { get; }
+
+    /// <inheritdoc />
     public IGitModule Module { get; }
 
     /// <inheritdoc />
@@ -24,6 +27,7 @@ internal sealed class OperationContext : IOperationContext
         IProgress<string> progress)
     {
         Runner = runner;
+        Repository = module.Repository;
         Module = module;
         Window = window;
         Progress = progress;

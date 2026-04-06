@@ -52,7 +52,7 @@ public sealed class RevParseOperation : IOperation<ObjectId?>
             RevisionExpression + "^{commit}",
         };
 
-        using IProcess process = context.Module.GitExecutable.Start(
+        using IProcess process = context.Repository.GitExecutable.Start(
             arguments,
             redirectOutput: true,
             throwOnErrorExit: false,
