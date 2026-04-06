@@ -1,4 +1,5 @@
 ﻿using System.Security.Cryptography;
+using GitExtensions.Extensibility.Git.Operations;
 using GitExtensions.Extensibility.Plugins;
 using GitExtensions.Extensibility.Settings;
 using GitUIPluginInterfaces;
@@ -23,6 +24,12 @@ public interface IGitUICommands : IServiceProvider
     IBrowseRepo? BrowseRepo { get; set; }
 
     IGitModule Module { get; }
+
+    /// <summary>
+    ///  Gets the operation runner for executing git operations.
+    ///  Prefer using this runner over calling <see cref="IGitModule"/> methods directly.
+    /// </summary>
+    IOperationRunner OperationRunner { get; }
 
     /// <summary>
     /// RepoChangedNotifier.Notify() should be called after each action that changes repo state

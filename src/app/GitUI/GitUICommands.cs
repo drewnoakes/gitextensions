@@ -9,6 +9,7 @@ using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtensions.Extensibility.Plugins;
 using GitExtensions.Extensibility.Settings;
+using GitExtensions.Extensibility.Git.Operations;
 using GitExtUtils;
 using GitUI.CommandsDialogs;
 using GitUI.CommandsDialogs.RepoHosting;
@@ -38,6 +39,7 @@ public sealed class GitUICommands : IGitUICommands
 
     public IGitModule Module { get; private set; }
     public ILockableNotifier RepoChangedNotifier { get; }
+    public IOperationRunner OperationRunner { get; }
     public IBrowseRepo? BrowseRepo { get; set; }
 
     public GitUICommands(IServiceProvider serviceProvider, IGitModule module)
@@ -51,6 +53,7 @@ public sealed class GitUICommands : IGitUICommands
         _commitTemplateManager = new CommitTemplateManager(() => module);
         RepoChangedNotifier = new ActionNotifier(
             () => InvokeEvent(null, PostRepositoryChanged));
+        OperationRunner = new OperationRunner(module, RepoChangedNotifier);
 
         _fullPathResolver = new FullPathResolver(() => Module.WorkingDir);
         _findFilePredicateProvider = new FindFilePredicateProvider();
