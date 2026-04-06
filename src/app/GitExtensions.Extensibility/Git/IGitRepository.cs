@@ -58,9 +58,9 @@ public interface IGitRepository
     // ── Submodule graph ──────────────────────────────────────────────
 
     /// <summary>
-    ///  Gets the super-project of the current git module, if this is a submodule.
+    ///  Gets the super-project of the current repository, if this is a submodule.
     /// </summary>
-    IGitModule? SuperprojectModule { get; }
+    IGitRepository? SuperprojectModule { get; }
 
     /// <summary>
     ///  Gets the submodule path if this is a submodule, otherwise <see langword="null"/>.
@@ -75,7 +75,7 @@ public interface IGitRepository
     /// <summary>
     ///  Gets a submodule by name.
     /// </summary>
-    IGitModule GetSubmodule(string? submoduleName);
+    IGitRepository GetSubmodule(string? submoduleName);
 
     /// <summary>
     ///  Gets the local paths of any submodules.

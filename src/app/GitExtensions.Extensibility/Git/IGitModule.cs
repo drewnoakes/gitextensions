@@ -20,6 +20,20 @@ public interface IGitModule : IGitRepository
     /// </summary>
     IGitRepository Repository => this;
 
+    /// <summary>
+    ///  Gets a submodule by name, returning the full <see cref="IGitModule"/>.
+    ///  Hides <see cref="IGitRepository.GetSubmodule"/> to provide the wider type
+    ///  during the migration period.
+    /// </summary>
+    new IGitModule GetSubmodule(string? submoduleName);
+
+    /// <summary>
+    ///  Gets the super-project module, returning the full <see cref="IGitModule"/>.
+    ///  Hides <see cref="IGitRepository.SuperprojectModule"/> to provide the wider type
+    ///  during the migration period.
+    /// </summary>
+    new IGitModule? SuperprojectModule { get; }
+
     string AddRemote(string remoteName, string? path);
 
     /// <summary>

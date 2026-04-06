@@ -197,6 +197,8 @@ public sealed partial class GitModule : IGitModule
 
     public IGitModule? SuperprojectModule { get; }
 
+    IGitRepository? IGitRepository.SuperprojectModule => SuperprojectModule;
+
     public IGitModule GetTopModule()
     {
         IGitModule topModule = this;
@@ -1161,7 +1163,7 @@ public sealed partial class GitModule : IGitModule
         return new GitModule(_executorProvider, GetSubmoduleFullPath(localPath));
     }
 
-    IGitModule IGitRepository.GetSubmodule(string? submoduleName)
+    IGitRepository IGitRepository.GetSubmodule(string? submoduleName)
     {
         return GetSubmodule(submoduleName);
     }
