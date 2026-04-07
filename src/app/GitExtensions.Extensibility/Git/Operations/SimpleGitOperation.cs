@@ -35,8 +35,22 @@ public abstract class SimpleGitOperation : IOperation
 
         using IProcess process = context.Repository.GitExecutable.Start(
             arguments,
+            redirectOutput: true,
             throwOnErrorExit: true,
             cancellationToken: cancellationToken);
+
+        await ReadProcessOutputAsync(process, context.Progress, cancellationToken);
+    }
+
+    /// <summary>
+    ///  Reads stdout from the process line-by-line and reports each line via progress.
+    /// </summary>
+    private static async Task ReadProcessOutputAsync(IProcess process, IProgress<string> progress, CancellationToken cancellationToken)
+    {
+        while (await process.StandardOutput.ReadLineAsync(cancellationToken) is string line)
+        {
+            progress.Report(line);
+        }
 
         await process.WaitForExitAsync(cancellationToken);
     }

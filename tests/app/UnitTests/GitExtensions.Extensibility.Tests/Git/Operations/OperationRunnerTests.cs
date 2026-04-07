@@ -18,6 +18,7 @@ public sealed class OperationRunnerTests
     {
         _module = Substitute.For<IGitModule>();
         _module.IsValidGitWorkingDir().Returns(true);
+        _module.Repository.Returns(_module);
         _notifier = Substitute.For<ILockableNotifier>();
     }
 

@@ -1,3 +1,4 @@
+using CommonTestUtils;
 using FluentAssertions;
 using GitCommands.Git.Operations;
 using GitCommands.Git.Operations.Interactive;
@@ -20,6 +21,7 @@ public sealed class InteractiveOperationTests
     {
         _module = Substitute.For<IGitModule>();
         _module.IsValidGitWorkingDir().Returns(true);
+        _module.Repository.Returns(_module);
         _notifier = Substitute.For<ILockableNotifier>();
     }
 
@@ -40,16 +42,11 @@ public sealed class InteractiveOperationTests
     public async Task RunAsync_should_accept_interactive_operation_with_window()
     {
         IWin32Window window = Substitute.For<IWin32Window>();
-        List<IOperation> executed = [];
+        MockExecutable executable = new();
+        _module.GitExecutable.Returns(executable);
 
-        // Use a recording runner to verify the plumbing operation is invoked
-        IOperationRunner innerRunner = Substitute.For<IOperationRunner>();
-        innerRunner.RunAsync(Arg.Any<IOperation>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                executed.Add(callInfo.Arg<IOperation>());
-                return Task.CompletedTask;
-            });
+        // Stage the expected git command from the inner StashSaveOperation
+        using IDisposable staged = executable.StageCommand("stash save -u \"wip\"");
 
         StashSaveInteractiveOperation operation = new()
         {
@@ -57,9 +54,10 @@ public sealed class InteractiveOperationTests
             Message = "wip",
         };
 
-        // Run through the real runner (which validates and then executes)
         OperationRunner runner = new(_module, _notifier, window: window);
         await runner.RunAsync(operation, CancellationToken.None);
+
+        executable.Verify();
     }
 
     [Test]
