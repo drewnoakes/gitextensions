@@ -1,10 +1,12 @@
 ﻿using System.Diagnostics;
 using GitCommands;
+using GitCommands.Git.Operations;
 using GitCommands.Submodules;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.CommandsDialogs;
+using GitUI.Operations;
 using Microsoft;
 using Microsoft.VisualStudio.Threading;
 
@@ -393,10 +395,13 @@ internal sealed class SubmoduleTree : Tree
         module.ResetAllChanges(clean: resetType == FormResetChanges.ActionEnum.ResetAndDelete);
     }
 
-    public void StashSubmodule(IWin32Window owner, SubmoduleNode node)
+    public async void StashSubmodule(IWin32Window owner, SubmoduleNode node)
     {
         IGitUICommands uiCmds = UICommands.WithWorkingDirectory(node.Info.Path);
-        uiCmds.StashSave(owner, AppSettings.IncludeUntrackedFilesInManualStash);
+        await OperationProgressDialog.RunAsync(owner, uiCmds.OperationRunner, new StashSaveOperation
+        {
+            IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+        });
     }
 
     public void CommitSubmodule(IWin32Window owner, SubmoduleNode node)

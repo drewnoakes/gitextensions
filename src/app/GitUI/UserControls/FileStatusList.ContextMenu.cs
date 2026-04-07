@@ -2,12 +2,14 @@ using System.Text;
 using GitCommands;
 using GitCommands.Git;
 using GitCommands.Git.Extended;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.CommandsDialogs;
 using GitUI.CommandsDialogs.BrowseDialog;
 using GitUI.HelperDialogs;
+using GitUI.Operations;
 using GitUI.ScriptsEngine;
 using GitUI.UserControls;
 using GitUI.UserControls.RevisionGrid;
@@ -1157,13 +1159,16 @@ partial class FileStatusList
         UICommands.StartFileHistoryDialog(this, fileName, revision, showBlame: showBlame);
     }
 
-    private void StashSubmoduleChanges_Click(object sender, EventArgs e)
+    private async void StashSubmoduleChanges_Click(object sender, EventArgs e)
     {
         string[] submodules = [.. SelectedItems.Where(it => it.Item.IsSubmodule).Select(it => it.Item.Name).Distinct()];
         foreach (string name in submodules)
         {
             IGitUICommands uiCmds = UICommands.WithGitModule(Module.GetSubmodule(name));
-            uiCmds.StashSave(this, AppSettings.IncludeUntrackedFilesInManualStash);
+            await OperationProgressDialog.RunAsync(this, uiCmds.OperationRunner, new StashSaveOperation
+            {
+                IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+            });
         }
 
         RequestRefresh();
