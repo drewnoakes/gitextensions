@@ -1,6 +1,8 @@
 ﻿using GitCommands;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI;
+using GitUI.Operations;
 using GitUIPluginInterfaces;
 using Microsoft;
 using ResourceManager;
@@ -303,27 +305,38 @@ public sealed partial class FormStash : GitModuleForm
         EnablePartialStash();
     }
 
-    private void StashClick(object sender, EventArgs e)
+    private async void StashClick(object sender, EventArgs e)
     {
         using (WaitCursorScope.Enter())
         {
             string msg = !string.IsNullOrWhiteSpace(StashMessage.Text) ? " " + StashMessage.Text.Trim() : string.Empty;
-            UICommands.StashSave(this, chkIncludeUntrackedFiles.Checked, StashKeepIndex.Checked, msg);
+            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
+            {
+                IncludeUntrackedFiles = chkIncludeUntrackedFiles.Checked,
+                KeepIndex = StashKeepIndex.Checked,
+                Message = msg,
+            });
             Initialize();
         }
     }
 
-    private void StashSelectedFiles_Click(object sender, EventArgs e)
+    private async void StashSelectedFiles_Click(object sender, EventArgs e)
     {
         using (WaitCursorScope.Enter())
         {
             string msg = !string.IsNullOrWhiteSpace(StashMessage.Text) ? " " + StashMessage.Text.Trim() : string.Empty;
-            UICommands.StashSave(this, chkIncludeUntrackedFiles.Checked, StashKeepIndex.Checked, msg, Stashed.SelectedItems.Select(i => i.Item.Name).ToList());
+            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
+            {
+                IncludeUntrackedFiles = chkIncludeUntrackedFiles.Checked,
+                KeepIndex = StashKeepIndex.Checked,
+                Message = msg,
+                SelectedFiles = Stashed.SelectedItems.Select(i => i.Item.Name).ToList(),
+            });
             Initialize();
         }
     }
 
-    private void ClearClick(object sender, EventArgs e)
+    private async void ClearClick(object sender, EventArgs e)
     {
         using (new WaitCursorScope())
         {
@@ -349,7 +362,7 @@ public sealed partial class FormStash : GitModuleForm
                 if (result == TaskDialogButton.Yes)
                 {
                     _lastSelectedStashIndex = Stashes.SelectedIndex;
-                    UICommands.StashDrop(this, stashName);
+                    await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName });
                     Initialize();
                 }
 
@@ -361,7 +374,7 @@ public sealed partial class FormStash : GitModuleForm
             else
             {
                 _lastSelectedStashIndex = Stashes.SelectedIndex;
-                UICommands.StashDrop(this, stashName);
+                await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName });
                 Initialize();
             }
         }
@@ -372,9 +385,9 @@ public sealed partial class FormStash : GitModuleForm
         return ((GitStash)Stashes.SelectedItem!).Name;
     }
 
-    private void ApplyClick(object sender, EventArgs e)
+    private async void ApplyClick(object sender, EventArgs e)
     {
-        UICommands.StashApply(this, GetStashName());
+        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashApplyOperation { StashName = GetStashName() });
         Initialize();
     }
 
