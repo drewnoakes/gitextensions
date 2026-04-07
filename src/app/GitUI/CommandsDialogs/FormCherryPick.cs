@@ -1,9 +1,11 @@
 using GitCommands;
 using GitCommands.Git;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI;
 using GitUI.HelperDialogs;
+using GitUI.Operations;
 using GitUIPluginInterfaces;
 using ResourceManager;
 
@@ -147,7 +149,7 @@ public partial class FormCherryPick : GitExtensionsDialog
         DialogResult = DialogResult.Cancel;
     }
 
-    private void btnPick_Click(object sender, EventArgs e)
+    private async void btnPick_Click(object sender, EventArgs e)
     {
         ArgumentBuilder args = [];
         bool canExecute = true;
@@ -172,11 +174,12 @@ public partial class FormCherryPick : GitExtensionsDialog
 
         if (canExecute && Revision is not null)
         {
-            ArgumentString command = Commands.CherryPick(Revision.ObjectId, cbxAutoCommit.Checked, args.ToString());
-
-            // Don't verify whether the command is successful.
-            // If it fails, likely there is a conflict that needs to be resolved.
-            FormProcess.ShowDialog(this, UICommands, arguments: command, Module.WorkingDir, input: null, useDialogSettings: true);
+            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new CherryPickOperation
+            {
+                CommitId = Revision.ObjectId,
+                Commit = cbxAutoCommit.Checked,
+                ExtraArguments = args.ToString(),
+            }, autoClose: false);
 
             MergeConflictHandler.HandleMergeConflicts(UICommands, this, cbxAutoCommit.Checked);
             DialogResult = DialogResult.OK;
