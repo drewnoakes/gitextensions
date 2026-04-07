@@ -235,10 +235,13 @@ aren't part of the operation system yet. Future work: implement as runner decora
 - Runner wired into IGitUICommands
 - 69 unit tests
 
-### Phase 2: Process Output Bridge
-- Enhance operations to capture and report stdout/stderr via `IProgress<string>`
-- Build new progress dialog that observes operation progress
-- Migrate one operation end-to-end
+### Phase 2: Process Output Bridge (COMPLETE)
+- SimpleGitOperation now redirects stdout and reports line-by-line via IProgress<string>
+- OperationProgressDialog: new dialog that observes operation progress (doesn't own process)
+- UIProgress: marshals IProgress<string> reports to UI thread
+- ProgressInjectingRunner: decorator that injects progress into operation context
+- First end-to-end migration: FormStash uses operations + OperationProgressDialog
+  for stash save, stash drop, and stash apply
 
 ### Phase 3: Incremental Call Site Migration
 - Convert event handlers to `async void`
