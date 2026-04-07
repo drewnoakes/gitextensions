@@ -243,10 +243,19 @@ aren't part of the operation system yet. Future work: implement as runner decora
 - First end-to-end migration: FormStash uses operations + OperationProgressDialog
   for stash save, stash drop, and stash apply
 
-### Phase 3: Incremental Call Site Migration
-- Convert event handlers to `async void`
-- Replace old method calls with `await runner.RunAsync(...)`
-- Remove old methods from IGitUICommands
+### Phase 3: Incremental Call Site Migration (IN PROGRESS)
+- FormStash: all 4 stash operations migrated (save, drop, apply, selected files)
+- StashNode: apply, pop, drop migrated
+- StashTree: stash all, stash staged migrated
+- FormBrowse: all 6 stash call sites migrated (menu items + hotkeys)
+- RevisionGridControl: apply, pop, drop migrated
+- SubmoduleTree: stash submodule migrated
+- FileStatusList: stash submodule changes migrated
+
+Remaining (5 call sites in multi-step workflow forms — need composite operations):
+- FormCheckoutBranch: stash save + pop (part of checkout workflow)
+- FormPull: stash save + pop (part of pull workflow)
+- FormCommit: stash staged (via BypassFormActivatedEventHandler)
 
 ### Phase 4: FormProcess Feature Parity
 - Abort/cancel, WSL wrapping, index unlock, auto-close, output history
