@@ -8,6 +8,7 @@ using System.Runtime.ExceptionServices;
 using GitCommands;
 using GitCommands.Config;
 using GitCommands.Git;
+using GitCommands.Git.Operations;
 using GitCommands.Utils;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
@@ -20,6 +21,7 @@ using GitUI.BuildServerIntegration;
 using GitUI.CommandsDialogs;
 using GitUI.CommandsDialogs.BrowseDialog;
 using GitUI.HelperDialogs;
+using GitUI.Operations;
 using GitUI.Properties;
 using GitUI.UserControls;
 using GitUI.UserControls.RevisionGrid;
@@ -2474,13 +2476,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         UICommands.StartCherryPickDialog(ParentForm, revisions);
     }
 
-    private void ApplyStashToolStripMenuItemClick(object sender, EventArgs e)
+    private async void ApplyStashToolStripMenuItemClick(object sender, EventArgs e)
     {
-        UICommands.StashApply(this, LatestSelectedRevision!.ObjectId.ToString());
+        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashApplyOperation { StashName = LatestSelectedRevision!.ObjectId.ToString() });
         PerformRefreshRevisions();
     }
 
-    private void PopStashToolStripMenuItemClick(object sender, EventArgs e)
+    private async void PopStashToolStripMenuItemClick(object sender, EventArgs e)
     {
         string? stashName = LatestSelectedRevision!.ReflogSelector;
         if (string.IsNullOrEmpty(stashName))
@@ -2488,11 +2490,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             return;
         }
 
-        UICommands.StashPop(this, stashName);
+        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashPopOperation { StashName = stashName });
         PerformRefreshRevisions();
     }
 
-    private void DropStashToolStripMenuItemClick(object sender, EventArgs e)
+    private async void DropStashToolStripMenuItemClick(object sender, EventArgs e)
     {
         string? stashName = LatestSelectedRevision!.ReflogSelector;
         if (string.IsNullOrEmpty(stashName))
@@ -2533,7 +2535,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
             if (result == TaskDialogButton.Yes)
             {
-                UICommands.StashDrop(this, stashName);
+                await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName });
                 PerformRefreshRevisions();
             }
         }
