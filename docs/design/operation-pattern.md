@@ -164,39 +164,32 @@ Created in `GitUICommands` constructor, wired to `Module` and `RepoChangedNotifi
 
 ## Known Challenges
 
-### 1. FormProcess Owns Process Execution (MAJOR)
+### 1. Process Execution and UI Feedback
 
 **Problem:** Today, `FormProcess` both starts the git process AND displays its output.
 Operations also start the git process (via `SimpleGitOperation.ExecuteAsync`).
-These two things can't both own the same process.
 
-**Current architecture:**
+**Current solution:** `SimpleGitOperation` captures stdout and reports line-by-line
+via `IProgress<string>`. `OperationProgressDialog` subscribes and displays output.
+This works for single-command operations.
+
+**Future direction:** Operations should start processes via the context, not directly
+via `Repository.GitExecutable`. The context can decide per-invocation whether output
+should be shown to the user:
+
+```csharp
+// Operation decides whether this particular execution is user-visible
+IProcess process = context.StartProcess(arguments, showProgress: true);
 ```
-FormProcess.ShowDialog()
-  → FormStatus.Start()
-    → ProcessCallback (= FormProcess.ProcessStart)
-      → ConsoleOutputControl.StartProcess(command, args, workDir, envVars)
-        → System.Diagnostics.Process.Start()
-        → AsyncStreamReader captures stdout/stderr
-        → FireDataReceived events → UI display
-        → FireProcessExited → OnExit → Done()
-```
 
-**What needs to change:** The operation should own process execution. The UI dialog
-should observe the operation's progress, not own the process. Two approaches:
+An operation may make multiple git calls — some internal (validation, state queries)
+and some user-facing (the actual fetch/push/etc). The operation itself advertises
+per-call whether the output is of interest to the user. When the context is wired
+for UI, user-facing calls are displayed; internal calls are silent. In headless
+contexts, all calls are silent regardless.
 
-**Approach A — Output-capturing operations:**
-Enhance `SimpleGitOperation` (or create a new variant) to capture stdout/stderr
-and report line-by-line via `IProgress<string>`. Build a new progress dialog that
-subscribes to this progress and displays it. The operation owns the process, the
-dialog is pure presentation.
-
-**Approach B — IProcess handoff:**
-The operation starts the process and exposes the running `IProcess` for a display
-component to read from. This requires the operation to return an `IProcess` handle,
-which leaks implementation details and couples the display to the process model.
-
-**Recommended:** Approach A. Operations report progress, dialogs observe it.
+This replaces the current architecture where `FormProcess` owns both execution and
+display.
 
 ### 2. Synchronous Call Sites
 
