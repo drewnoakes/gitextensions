@@ -1,4 +1,6 @@
 ﻿using GitCommands;
+using GitCommands.Git.Operations;
+using GitUI.Operations;
 using GitUI.UserControls.RevisionGrid;
 using GitUIPluginInterfaces;
 using Microsoft.VisualStudio.Threading;
@@ -60,14 +62,17 @@ internal sealed class StashTree : BaseRevisionTree
         }
     }
 
-    public void StashAll(IWin32Window owner)
+    public async void StashAll(IWin32Window owner)
     {
-        UICommands.StashSave(owner, AppSettings.IncludeUntrackedFilesInManualStash);
+        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashSaveOperation
+        {
+            IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+        });
     }
 
-    public void StashStaged(IWin32Window owner)
+    public async void StashStaged(IWin32Window owner)
     {
-        UICommands.StashStaged(owner);
+        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashStagedOperation());
     }
 
     public void OpenStash(IWin32Window owner)

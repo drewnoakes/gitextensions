@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using GitCommands;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility.Git;
+using GitUI.Operations;
 using GitUI.Properties;
 
 namespace GitUI.LeftPanel;
@@ -40,17 +42,17 @@ internal sealed class StashNode : BaseRevisionNode
         return UICommands.StartStashDialog(owner, manageStashes: true, ReflogSelector);
     }
 
-    public void ApplyStash(IWin32Window owner)
+    public async void ApplyStash(IWin32Window owner)
     {
-        UICommands.StashApply(owner, ReflogSelector);
+        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashApplyOperation { StashName = ReflogSelector });
     }
 
-    public void PopStash(IWin32Window owner)
+    public async void PopStash(IWin32Window owner)
     {
-        UICommands.StashPop(owner, ReflogSelector);
+        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashPopOperation { StashName = ReflogSelector });
     }
 
-    public void DropStash(IWin32Window owner)
+    public async void DropStash(IWin32Window owner)
     {
         using (new WaitCursorScope())
         {
@@ -85,7 +87,7 @@ internal sealed class StashNode : BaseRevisionNode
 
             if (result == TaskDialogButton.Yes)
             {
-                UICommands.StashDrop(owner, ReflogSelector);
+                await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashDropOperation { StashName = ReflogSelector });
             }
         }
     }
