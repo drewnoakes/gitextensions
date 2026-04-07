@@ -1,7 +1,9 @@
 using GitCommands;
 using GitCommands.Git;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
+using GitUI.Operations;
 using Microsoft;
 using ResourceManager;
 
@@ -65,7 +67,7 @@ public sealed partial class FormDeleteBranch : GitExtensionsDialog
         Branches.Focus();
     }
 
-    private void Delete_Click(object sender, EventArgs e)
+    private async void Delete_Click(object sender, EventArgs e)
     {
         IGitRef[] selectedBranches = [.. Branches.GetSelectedBranches()];
         if (selectedBranches.Length == 0)
@@ -107,8 +109,12 @@ public sealed partial class FormDeleteBranch : GitExtensionsDialog
             }
         }
 
-        IGitCommand cmd = Commands.DeleteBranch(selectedBranches, force: true);
-        bool success = UICommands.StartCommandLineProcessDialog(Owner, cmd);
+        bool success = await OperationProgressDialog.RunAsync(Owner, UICommands.OperationRunner, new DeleteBranchOperation
+        {
+            Branches = selectedBranches,
+            Force = true,
+        });
+
         if (success)
         {
             Close();

@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI;
 using GitUI.HelperDialogs;
+using GitUI.Operations;
 using GitUI.ScriptsEngine;
 
 namespace GitUI.CommandsDialogs;
@@ -31,11 +33,11 @@ public partial class FormDeleteTag : GitModuleForm
         EnableOrDisableRemotesCombobox();
     }
 
-    private void OkClick(object sender, EventArgs e)
+    private async void OkClick(object sender, EventArgs e)
     {
         try
         {
-            Module.DeleteTag(Tags.Text);
+            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new DeleteTagOperation { TagName = Tags.Text });
 
             if (deleteTag.Checked && !string.IsNullOrEmpty(Tags.Text))
             {

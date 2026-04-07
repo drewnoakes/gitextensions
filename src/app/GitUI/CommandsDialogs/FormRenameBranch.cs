@@ -1,8 +1,9 @@
 ﻿using GitCommands;
 using GitCommands.Git;
+using GitCommands.Git.Operations;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
-using GitUI.HelperDialogs;
+using GitUI.Operations;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs;
@@ -37,7 +38,7 @@ public sealed partial class FormRenameBranch : GitModuleForm
         BranchNameTextBox.SelectionStart = caretPosition;
     }
 
-    private void OkClick(object sender, EventArgs e)
+    private async void OkClick(object sender, EventArgs e)
     {
         // Ok button set as the "AcceptButton" for the form
         // if the user hits [Enter] at any point, we need to trigger BranchNameTextBox Leave event
@@ -51,8 +52,11 @@ public sealed partial class FormRenameBranch : GitModuleForm
             return;
         }
 
-        ArgumentString command = Commands.RenameBranch(_oldName, newName);
-        bool success = FormProcess.ShowDialog(this, UICommands, arguments: command, Module.WorkingDir, input: null, useDialogSettings: true);
+        bool success = await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new RenameBranchOperation
+        {
+            OldName = _oldName,
+            NewName = newName,
+        });
 
         DialogResult = success ? DialogResult.OK : DialogResult.None;
     }
