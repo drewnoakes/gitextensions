@@ -67,7 +67,7 @@ public sealed partial class FormDeleteBranch : GitExtensionsDialog
         Branches.Focus();
     }
 
-    private async void Delete_Click(object sender, EventArgs e)
+    private void Delete_Click(object sender, EventArgs e)
     {
         IGitRef[] selectedBranches = [.. Branches.GetSelectedBranches()];
         if (selectedBranches.Length == 0)
@@ -109,11 +109,12 @@ public sealed partial class FormDeleteBranch : GitExtensionsDialog
             }
         }
 
-        bool success = await OperationProgressDialog.RunAsync(Owner, UICommands.OperationRunner, new DeleteBranchOperation
-        {
-            Branches = selectedBranches,
-            Force = true,
-        });
+        bool success = ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(Owner, UICommands.OperationRunner, new DeleteBranchOperation
+            {
+                Branches = selectedBranches,
+                Force = true,
+            }));
 
         if (success)
         {

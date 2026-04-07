@@ -38,7 +38,7 @@ public sealed partial class FormRenameBranch : GitModuleForm
         BranchNameTextBox.SelectionStart = caretPosition;
     }
 
-    private async void OkClick(object sender, EventArgs e)
+    private void OkClick(object sender, EventArgs e)
     {
         // Ok button set as the "AcceptButton" for the form
         // if the user hits [Enter] at any point, we need to trigger BranchNameTextBox Leave event
@@ -52,11 +52,12 @@ public sealed partial class FormRenameBranch : GitModuleForm
             return;
         }
 
-        bool success = await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new RenameBranchOperation
-        {
-            OldName = _oldName,
-            NewName = newName,
-        });
+        bool success = ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new RenameBranchOperation
+            {
+                OldName = _oldName,
+                NewName = newName,
+            }));
 
         DialogResult = success ? DialogResult.OK : DialogResult.None;
     }

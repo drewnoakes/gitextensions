@@ -202,8 +202,8 @@ which leaks implementation details and couples the display to the process model.
 
 **Problem:** Most callers are synchronous WinForms event handlers.
 
-**Solution:** Convert event handlers to `async void` — standard WinForms async pattern.
-Do NOT add synchronous wrapper methods. Callers should explicitly await.
+**Solution:** Use `ThreadHelper.JoinableTaskFactory.Run()` explicitly at call sites.
+Never use `async void` — VSTHRD100 enforces this as a build error.
 
 ### 3. FormProcess Side Effects
 

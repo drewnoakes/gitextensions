@@ -395,13 +395,14 @@ internal sealed class SubmoduleTree : Tree
         module.ResetAllChanges(clean: resetType == FormResetChanges.ActionEnum.ResetAndDelete);
     }
 
-    public async void StashSubmodule(IWin32Window owner, SubmoduleNode node)
+    public void StashSubmodule(IWin32Window owner, SubmoduleNode node)
     {
         IGitUICommands uiCmds = UICommands.WithWorkingDirectory(node.Info.Path);
-        await OperationProgressDialog.RunAsync(owner, uiCmds.OperationRunner, new StashSaveOperation
-        {
-            IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
-        });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(owner, uiCmds.OperationRunner, new StashSaveOperation
+            {
+                IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+            }));
     }
 
     public void CommitSubmodule(IWin32Window owner, SubmoduleNode node)

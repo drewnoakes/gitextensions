@@ -42,17 +42,19 @@ internal sealed class StashNode : BaseRevisionNode
         return UICommands.StartStashDialog(owner, manageStashes: true, ReflogSelector);
     }
 
-    public async void ApplyStash(IWin32Window owner)
+    public void ApplyStash(IWin32Window owner)
     {
-        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashApplyOperation { StashName = ReflogSelector });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashApplyOperation { StashName = ReflogSelector }));
     }
 
-    public async void PopStash(IWin32Window owner)
+    public void PopStash(IWin32Window owner)
     {
-        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashPopOperation { StashName = ReflogSelector });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashPopOperation { StashName = ReflogSelector }));
     }
 
-    public async void DropStash(IWin32Window owner)
+    public void DropStash(IWin32Window owner)
     {
         using (new WaitCursorScope())
         {
@@ -87,7 +89,8 @@ internal sealed class StashNode : BaseRevisionNode
 
             if (result == TaskDialogButton.Yes)
             {
-                await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashDropOperation { StashName = ReflogSelector });
+                ThreadHelper.JoinableTaskFactory.Run(() =>
+                    OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashDropOperation { StashName = ReflogSelector }));
             }
         }
     }

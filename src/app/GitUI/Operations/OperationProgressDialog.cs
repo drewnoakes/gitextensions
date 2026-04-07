@@ -93,42 +93,49 @@ public sealed class OperationProgressDialog : Form
 
         bool success = false;
 
-        // Show the dialog and run the operation concurrently
-        dialog.Shown += async (_, _) =>
+        // Start the operation when the dialog is shown.
+        // FileAndForget handles exceptions and avoids the async void lambda issue.
+        dialog.Shown += (_, _) =>
         {
-            try
+            ThreadHelper.FileAndForget(async () =>
             {
-                await progressRunner.RunAsync(operation, cancellationToken);
-                success = true;
-
-                dialog._completed = true;
-                dialog._progressBar.Style = ProgressBarStyle.Continuous;
-                dialog._progressBar.Value = 100;
-                dialog._closeButton.Enabled = true;
-
-                if (autoClose)
+                try
                 {
-                    dialog.DialogResult = DialogResult.OK;
-                    dialog.Close();
+                    await progressRunner.RunAsync(operation, cancellationToken);
+                    success = true;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                dialog._outputBox.AppendText(Environment.NewLine + "Cancelled." + Environment.NewLine);
-                dialog._completed = true;
-                dialog._progressBar.Style = ProgressBarStyle.Continuous;
-                dialog._closeButton.Enabled = true;
-            }
-            catch (Exception ex)
-            {
-                dialog._outputBox.AppendText(Environment.NewLine + ex.Message + Environment.NewLine);
-                dialog._completed = true;
-                dialog._progressBar.Style = ProgressBarStyle.Continuous;
-                dialog._closeButton.Enabled = true;
-            }
+                catch (OperationCanceledException)
+                {
+                    dialog.InvokeAndForget(() =>
+                        dialog._outputBox.AppendText(Environment.NewLine + "Cancelled." + Environment.NewLine));
+                }
+                catch (Exception ex)
+                {
+                    dialog.InvokeAndForget(() =>
+                        dialog._outputBox.AppendText(Environment.NewLine + ex.Message + Environment.NewLine));
+                }
+                finally
+                {
+                    dialog.InvokeAndForget(() =>
+                    {
+                        dialog._completed = true;
+                        dialog._progressBar.Style = ProgressBarStyle.Continuous;
+                        dialog._progressBar.Value = success ? 100 : 0;
+                        dialog._closeButton.Enabled = true;
+
+                        if (success && autoClose)
+                        {
+                            dialog.DialogResult = DialogResult.OK;
+                            dialog.Close();
+                        }
+                    });
+                }
+            });
         };
 
+#pragma warning disable VSTHRD103 // ShowDialog is the correct call here — the dialog runs a message loop
         dialog.ShowDialog(owner);
+#pragma warning restore VSTHRD103
 
         return success;
     }

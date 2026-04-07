@@ -149,7 +149,7 @@ public partial class FormCherryPick : GitExtensionsDialog
         DialogResult = DialogResult.Cancel;
     }
 
-    private async void btnPick_Click(object sender, EventArgs e)
+    private void btnPick_Click(object sender, EventArgs e)
     {
         ArgumentBuilder args = [];
         bool canExecute = true;
@@ -174,12 +174,13 @@ public partial class FormCherryPick : GitExtensionsDialog
 
         if (canExecute && Revision is not null)
         {
-            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new CherryPickOperation
-            {
-                CommitId = Revision.ObjectId,
-                Commit = cbxAutoCommit.Checked,
-                ExtraArguments = args.ToString(),
-            }, autoClose: false);
+            ThreadHelper.JoinableTaskFactory.Run(() =>
+                OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new CherryPickOperation
+                {
+                    CommitId = Revision.ObjectId,
+                    Commit = cbxAutoCommit.Checked,
+                    ExtraArguments = args.ToString(),
+                }, autoClose: false));
 
             MergeConflictHandler.HandleMergeConflicts(UICommands, this, cbxAutoCommit.Checked);
             DialogResult = DialogResult.OK;

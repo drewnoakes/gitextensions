@@ -62,17 +62,19 @@ internal sealed class StashTree : BaseRevisionTree
         }
     }
 
-    public async void StashAll(IWin32Window owner)
+    public void StashAll(IWin32Window owner)
     {
-        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashSaveOperation
-        {
-            IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
-        });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashSaveOperation
+            {
+                IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+            }));
     }
 
-    public async void StashStaged(IWin32Window owner)
+    public void StashStaged(IWin32Window owner)
     {
-        await OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashStagedOperation());
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(owner, UICommands.OperationRunner, new StashStagedOperation()));
     }
 
     public void OpenStash(IWin32Window owner)

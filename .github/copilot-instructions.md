@@ -98,6 +98,12 @@ For example:
   - FlowLayoutPanel: `flpnl` prefix (e.g. `flpnlLocalOptions`)
   - LinkLabel: `lnk` prefix (e.g. `lnkTokenManagement`)
 
+## Async/Threading
+
+* Never use `async void` methods. The vs-threading analyzer (VSTHRD100) enforces this as an error.
+* When calling async methods from synchronous contexts (such as WinForms event handlers), use `ThreadHelper.JoinableTaskFactory.Run()` explicitly.
+* Do not add synchronous wrapper methods to hide the sync/async boundary. Callers should be explicit about switching.
+
 ## Testing
 
 * We use NUnit SDK.

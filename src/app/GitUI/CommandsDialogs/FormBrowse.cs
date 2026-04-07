@@ -1636,24 +1636,27 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
         UpdateStashCount();
     }
 
-    private async void StashChangesToolStripMenuItemClick(object sender, EventArgs e)
+    private void StashChangesToolStripMenuItemClick(object sender, EventArgs e)
     {
-        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
-        {
-            IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
-        });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
+            {
+                IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+            }));
         UpdateStashCount();
     }
 
-    private async void StashStagedToolStripMenuItemClick(object sender, EventArgs e)
+    private void StashStagedToolStripMenuItemClick(object sender, EventArgs e)
     {
-        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashStagedOperation());
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashStagedOperation()));
         UpdateStashCount();
     }
 
-    private async void StashPopToolStripMenuItemClick(object sender, EventArgs e)
+    private void StashPopToolStripMenuItemClick(object sender, EventArgs e)
     {
-        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashPopOperation());
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashPopOperation()));
         UpdateStashCount();
     }
 
@@ -2093,9 +2096,9 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             case Command.QuickPullOrFetch: toolStripButtonPull.PerformButtonClick(); break;
             case Command.QuickPush: UICommands.StartPushDialog(this, true); break;
             case Command.CloseRepository: SetWorkingDir(""); break;
-            case Command.Stash: StashChangesToolStripMenuItemClick(this, EventArgs.Empty); break;
-            case Command.StashStaged: StashStagedToolStripMenuItemClick(this, EventArgs.Empty); break;
-            case Command.StashPop: StashPopToolStripMenuItemClick(this, EventArgs.Empty); break;
+            case Command.Stash: UICommands.StashSave(this, AppSettings.IncludeUntrackedFilesInManualStash); break;
+            case Command.StashStaged: UICommands.StashStaged(this); break;
+            case Command.StashPop: UICommands.StashPop(this); break;
             case Command.OpenCommitsWithDifftool: RevisionGrid.DiffSelectedCommitsWithDifftool(); break;
             case Command.OpenWithDifftool: OpenWithDifftool(); break;
             case Command.OpenWithDifftoolFirstToLocal: OpenWithDifftoolFirstToLocal(); break;

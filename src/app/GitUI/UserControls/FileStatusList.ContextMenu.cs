@@ -1159,17 +1159,20 @@ partial class FileStatusList
         UICommands.StartFileHistoryDialog(this, fileName, revision, showBlame: showBlame);
     }
 
-    private async void StashSubmoduleChanges_Click(object sender, EventArgs e)
+    private void StashSubmoduleChanges_Click(object sender, EventArgs e)
     {
         string[] submodules = [.. SelectedItems.Where(it => it.Item.IsSubmodule).Select(it => it.Item.Name).Distinct()];
-        foreach (string name in submodules)
+        ThreadHelper.JoinableTaskFactory.Run(async () =>
         {
-            IGitUICommands uiCmds = UICommands.WithGitModule(Module.GetSubmodule(name));
-            await OperationProgressDialog.RunAsync(this, uiCmds.OperationRunner, new StashSaveOperation
+            foreach (string name in submodules)
             {
-                IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
-            });
-        }
+                IGitUICommands uiCmds = UICommands.WithGitModule(Module.GetSubmodule(name));
+                await OperationProgressDialog.RunAsync(this, uiCmds.OperationRunner, new StashSaveOperation
+                {
+                    IncludeUntrackedFiles = AppSettings.IncludeUntrackedFilesInManualStash,
+                });
+            }
+        });
 
         RequestRefresh();
     }

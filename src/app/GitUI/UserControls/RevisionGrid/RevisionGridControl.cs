@@ -2476,13 +2476,14 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         UICommands.StartCherryPickDialog(ParentForm, revisions);
     }
 
-    private async void ApplyStashToolStripMenuItemClick(object sender, EventArgs e)
+    private void ApplyStashToolStripMenuItemClick(object sender, EventArgs e)
     {
-        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashApplyOperation { StashName = LatestSelectedRevision!.ObjectId.ToString() });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashApplyOperation { StashName = LatestSelectedRevision!.ObjectId.ToString() }));
         PerformRefreshRevisions();
     }
 
-    private async void PopStashToolStripMenuItemClick(object sender, EventArgs e)
+    private void PopStashToolStripMenuItemClick(object sender, EventArgs e)
     {
         string? stashName = LatestSelectedRevision!.ReflogSelector;
         if (string.IsNullOrEmpty(stashName))
@@ -2490,11 +2491,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             return;
         }
 
-        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashPopOperation { StashName = stashName });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashPopOperation { StashName = stashName }));
         PerformRefreshRevisions();
     }
 
-    private async void DropStashToolStripMenuItemClick(object sender, EventArgs e)
+    private void DropStashToolStripMenuItemClick(object sender, EventArgs e)
     {
         string? stashName = LatestSelectedRevision!.ReflogSelector;
         if (string.IsNullOrEmpty(stashName))
@@ -2535,7 +2537,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
             if (result == TaskDialogButton.Yes)
             {
-                await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName });
+                ThreadHelper.JoinableTaskFactory.Run(() =>
+                    OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName }));
                 PerformRefreshRevisions();
             }
         }

@@ -33,11 +33,12 @@ public partial class FormDeleteTag : GitModuleForm
         EnableOrDisableRemotesCombobox();
     }
 
-    private async void OkClick(object sender, EventArgs e)
+    private void OkClick(object sender, EventArgs e)
     {
         try
         {
-            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new DeleteTagOperation { TagName = Tags.Text });
+            ThreadHelper.JoinableTaskFactory.Run(() =>
+                OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new DeleteTagOperation { TagName = Tags.Text }));
 
             if (deleteTag.Checked && !string.IsNullOrEmpty(Tags.Text))
             {

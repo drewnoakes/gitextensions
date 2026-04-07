@@ -305,38 +305,40 @@ public sealed partial class FormStash : GitModuleForm
         EnablePartialStash();
     }
 
-    private async void StashClick(object sender, EventArgs e)
+    private void StashClick(object sender, EventArgs e)
     {
         using (WaitCursorScope.Enter())
         {
             string msg = !string.IsNullOrWhiteSpace(StashMessage.Text) ? " " + StashMessage.Text.Trim() : string.Empty;
-            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
-            {
-                IncludeUntrackedFiles = chkIncludeUntrackedFiles.Checked,
-                KeepIndex = StashKeepIndex.Checked,
-                Message = msg,
-            });
+            ThreadHelper.JoinableTaskFactory.Run(() =>
+                OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
+                {
+                    IncludeUntrackedFiles = chkIncludeUntrackedFiles.Checked,
+                    KeepIndex = StashKeepIndex.Checked,
+                    Message = msg,
+                }));
             Initialize();
         }
     }
 
-    private async void StashSelectedFiles_Click(object sender, EventArgs e)
+    private void StashSelectedFiles_Click(object sender, EventArgs e)
     {
         using (WaitCursorScope.Enter())
         {
             string msg = !string.IsNullOrWhiteSpace(StashMessage.Text) ? " " + StashMessage.Text.Trim() : string.Empty;
-            await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
-            {
-                IncludeUntrackedFiles = chkIncludeUntrackedFiles.Checked,
-                KeepIndex = StashKeepIndex.Checked,
-                Message = msg,
-                SelectedFiles = Stashed.SelectedItems.Select(i => i.Item.Name).ToList(),
-            });
+            ThreadHelper.JoinableTaskFactory.Run(() =>
+                OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashSaveOperation
+                {
+                    IncludeUntrackedFiles = chkIncludeUntrackedFiles.Checked,
+                    KeepIndex = StashKeepIndex.Checked,
+                    Message = msg,
+                    SelectedFiles = Stashed.SelectedItems.Select(i => i.Item.Name).ToList(),
+                }));
             Initialize();
         }
     }
 
-    private async void ClearClick(object sender, EventArgs e)
+    private void ClearClick(object sender, EventArgs e)
     {
         using (new WaitCursorScope())
         {
@@ -362,7 +364,8 @@ public sealed partial class FormStash : GitModuleForm
                 if (result == TaskDialogButton.Yes)
                 {
                     _lastSelectedStashIndex = Stashes.SelectedIndex;
-                    await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName });
+                    ThreadHelper.JoinableTaskFactory.Run(() =>
+                        OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName }));
                     Initialize();
                 }
 
@@ -374,7 +377,8 @@ public sealed partial class FormStash : GitModuleForm
             else
             {
                 _lastSelectedStashIndex = Stashes.SelectedIndex;
-                await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName });
+                ThreadHelper.JoinableTaskFactory.Run(() =>
+                    OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashDropOperation { StashName = stashName }));
                 Initialize();
             }
         }
@@ -385,9 +389,10 @@ public sealed partial class FormStash : GitModuleForm
         return ((GitStash)Stashes.SelectedItem!).Name;
     }
 
-    private async void ApplyClick(object sender, EventArgs e)
+    private void ApplyClick(object sender, EventArgs e)
     {
-        await OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashApplyOperation { StashName = GetStashName() });
+        ThreadHelper.JoinableTaskFactory.Run(() =>
+            OperationProgressDialog.RunAsync(this, UICommands.OperationRunner, new StashApplyOperation { StashName = GetStashName() }));
         Initialize();
     }
 
