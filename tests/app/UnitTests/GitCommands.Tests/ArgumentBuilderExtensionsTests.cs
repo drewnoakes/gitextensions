@@ -239,7 +239,7 @@ public sealed class ArgumentBuilderExtensionsTests
     }
 
     [TestCase(null)]
-    public void Handle_null_objectid(ObjectId id)
+    public void Handle_null_objectid(ObjectId? id)
     {
         ArgumentBuilder args =
         [

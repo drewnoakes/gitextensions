@@ -25,8 +25,7 @@ partial class CommandsTests
     [Test]
     public void Validate_should_throw_if_tag_revision_invalid()
     {
-        GitCreateTagArgs args = new(TagName, null!);
-        ClassicAssert.Throws<ArgumentException>(() => Commands.CreateTag(args, TagMessageFile, PathUtil.ToPosixPath));
+        ClassicAssert.Throws<ArgumentException>(() => new GitCreateTagArgs(TagName, default));
     }
 
     [TestCase(null)]
