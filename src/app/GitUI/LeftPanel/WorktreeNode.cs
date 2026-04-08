@@ -10,6 +10,16 @@ internal sealed class WorktreeNode(Tree tree, GitWorktree worktree, bool isCurre
     public GitWorktree Worktree { get; } = worktree;
     public bool IsCurrent { get; } = isCurrent;
 
+    internal override void OnSelected()
+    {
+        if (Tree.IgnoreSelectionChangedEvent)
+        {
+            return;
+        }
+
+        SelectRevision();
+    }
+
     internal override void OnDoubleClick()
     {
         if (!IsCurrent && !Worktree.IsDeleted)
@@ -34,6 +44,20 @@ internal sealed class WorktreeNode(Tree tree, GitWorktree worktree, bool isCurre
         {
             ((WorktreeTree)Tree).Refresh();
         }
+    }
+
+    private void SelectRevision()
+    {
+        if (Worktree.Sha1 is null)
+        {
+            return;
+        }
+
+        TreeViewNode.TreeView?.BeginInvoke(() =>
+        {
+            UICommands.BrowseRepo?.GoToRef(Worktree.Sha1, showNoRevisionMsg: true, toggleSelection: Control.ModifierKeys.HasFlag(Keys.Control));
+            TreeViewNode.TreeView?.Focus();
+        });
     }
 
     protected override FontStyle GetFontStyle()
