@@ -14,10 +14,10 @@ namespace GitExtensions.Extensibility.Git;
 /// <remarks>
 /// <para>Instances are immutable and are guaranteed to contain valid, 160-bit (20-byte) SHA1 hashes.</para>
 /// <para>String forms of this object must be in lower case.</para>
-/// <para>Data is stored in a fixed-size 20-byte buffer in big-endian byte order (SHA-1 natural order),
-/// enabling direct hex conversion and SIMD-accelerated equality, comparison, and zero-checks.</para>
+/// <para>Data is stored in big-endian byte order (SHA-1 natural order), enabling direct hex
+/// conversion and SIMD-accelerated equality, comparison, and zero-checks.</para>
 /// </remarks>
-public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
+public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
 {
     private static readonly SearchValues<char> _hexChars = SearchValues.Create("0123456789abcdef");
     private static readonly Random _random = new();
@@ -48,7 +48,28 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
         return new ObjectId(data);
     }
 
+    /// <summary>
+    /// Gets whether this instance is the default (all-zeroes) value, indicating no valid object.
+    /// </summary>
+    public bool IsZero
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            ReadOnlySpan<byte> bytes = _data;
+            ref byte start = ref Unsafe.AsRef(in MemoryMarshal.GetReference(bytes));
+            return Vector128.LoadUnsafe(ref start) == Vector128<byte>.Zero
+                && Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref start, 16)) == 0;
+        }
+    }
+
     public bool IsArtificial => this == WorkTreeId || this == IndexId || this == CombinedDiffId;
+
+    /// <summary>
+    /// Gets whether this instance does not represent a real git object — either
+    /// the default (all-zeroes) value or one of the artificial sentinel values.
+    /// </summary>
+    public bool IsZeroOrArtificial => IsZero || IsArtificial;
 
     private const int _sha1ByteCount = 20;
     public const int Sha1CharCount = 40;
@@ -78,6 +99,9 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int HexNibble(int c)
     {
+        // Branchless lookup: digits 0x30–0x39, uppercase 0x41–0x46, lowercase 0x61–0x66.
+        // Subtract '0'; if result < 10, it's a digit.
+        // Otherwise subtract gap to A/a and check range.
         int digit = c - '0';
         if ((uint)digit < 10)
         {
@@ -156,7 +180,7 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     [Pure]
     public static ObjectId Parse(string s)
     {
-        if (s?.Length is not Sha1CharCount || !TryParse(s.AsSpan(), out ObjectId? id))
+        if (s?.Length is not Sha1CharCount || !TryParse(s.AsSpan(), out ObjectId id))
         {
             throw new FormatException($"Unable to parse object ID \"{s}\".");
         }
@@ -178,7 +202,7 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     [Pure]
     public static ObjectId Parse(string s, Capture capture)
     {
-        if (s is null || capture?.Length is not Sha1CharCount || !TryParse(s.AsSpan(capture.Index, capture.Length), out ObjectId? id))
+        if (s is null || capture?.Length is not Sha1CharCount || !TryParse(s.AsSpan(capture.Index, capture.Length), out ObjectId id))
         {
             throw new FormatException($"Unable to parse object ID \"{s}\".");
         }
@@ -195,9 +219,9 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// overload <see cref="TryParse(string,int,out ObjectId)"/>.
     /// </remarks>
     /// <param name="s">The string to try parsing from.</param>
-    /// <param name="objectId">The parsed <see cref="ObjectId"/>, or <c>null</c> if parsing was unsuccessful.</param>
+    /// <param name="objectId">The parsed <see cref="ObjectId"/>, or <see langword="default"/> if parsing was unsuccessful.</param>
     /// <returns><c>true</c> if parsing was successful, otherwise <c>false</c>.</returns>
-    public static bool TryParse(string? s, [NotNullWhen(returnValue: true)] out ObjectId? objectId)
+    public static bool TryParse(string? s, out ObjectId objectId)
     {
         if (s is null)
         {
@@ -218,9 +242,9 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// </remarks>
     /// <param name="s">The string to try parsing from.</param>
     /// <param name="offset">The position within <paramref name="s"/> to start parsing from.</param>
-    /// <param name="objectId">The parsed <see cref="ObjectId"/>, or <c>null</c> if parsing was unsuccessful.</param>
+    /// <param name="objectId">The parsed <see cref="ObjectId"/>, or <see langword="default"/> if parsing was unsuccessful.</param>
     /// <returns><c>true</c> if parsing was successful, otherwise <c>false</c>.</returns>
-    public static bool TryParse(string? s, int offset, [NotNullWhen(returnValue: true)] out ObjectId? objectId)
+    public static bool TryParse(string? s, int offset, out ObjectId objectId)
     {
         if (s is null || s.Length - offset < Sha1CharCount)
         {
@@ -235,13 +259,13 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// Parses an <see cref="ObjectId"/> from a span of chars.
     /// </summary>
     /// <remarks>
-    /// <para>For parsing to succeed, <paramref name="hex"/> must contain exactly 40 hex characters.</para>
+    /// <para>For parsing to succeed, <paramref name="hex"/> must contain exactly 40 lowercase hex characters.</para>
     /// </remarks>
     /// <param name="hex">The char span to parse.</param>
     /// <param name="objectId">The parsed <see cref="ObjectId"/>.</param>
     /// <returns><c>true</c> if parsing succeeded, otherwise <c>false</c>.</returns>
     [Pure]
-    public static bool TryParse(in ReadOnlySpan<char> hex, [NotNullWhen(returnValue: true)] out ObjectId? objectId)
+    public static bool TryParse(in ReadOnlySpan<char> hex, out ObjectId objectId)
     {
         if (hex.Length != Sha1CharCount)
         {
@@ -270,7 +294,7 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// <param name="objectId">The parsed <see cref="ObjectId"/>.</param>
     /// <returns><c>true</c> if parsing succeeded, otherwise <c>false</c>.</returns>
     [Pure]
-    public static bool TryParse(in ReadOnlySpan<byte> hex, [NotNullWhen(returnValue: true)] out ObjectId? objectId)
+    public static bool TryParse(in ReadOnlySpan<byte> hex, out ObjectId objectId)
     {
         if (hex.Length != Sha1CharCount)
         {
@@ -311,13 +335,10 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
 
     #region IComparable<ObjectId>
 
-    public int CompareTo(ObjectId? other)
+    /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int CompareTo(ObjectId other)
     {
-        if (other is null)
-        {
-            return 1;
-        }
-
         return ((ReadOnlySpan<byte>)_data).SequenceCompareTo(other._data);
     }
 
@@ -359,10 +380,10 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     #region Equality and hashing
 
     /// <inheritdoc />
-    public bool Equals(ObjectId? other)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Equals(ObjectId other)
     {
-        return other is not null &&
-               ((ReadOnlySpan<byte>)_data).SequenceEqual(other._data);
+        return ((ReadOnlySpan<byte>)_data).SequenceEqual(other._data);
     }
 
     /// <inheritdoc />
@@ -371,11 +392,11 @@ public sealed class ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// <inheritdoc />
     public override int GetHashCode()
     {
-        return Unsafe.ReadUnaligned<int>(ref MemoryMarshal.GetReference((ReadOnlySpan<byte>)_data));
+        return Unsafe.ReadUnaligned<int>(ref Unsafe.AsRef(in MemoryMarshal.GetReference((ReadOnlySpan<byte>)_data)));
     }
 
-    public static bool operator ==(ObjectId? left, ObjectId? right) => Equals(left, right);
-    public static bool operator !=(ObjectId? left, ObjectId? right) => !Equals(left, right);
+    public static bool operator ==(ObjectId left, ObjectId right) => left.Equals(right);
+    public static bool operator !=(ObjectId left, ObjectId right) => !left.Equals(right);
 
     #endregion
 }

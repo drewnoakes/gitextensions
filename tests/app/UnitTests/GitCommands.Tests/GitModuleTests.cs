@@ -356,7 +356,7 @@ public sealed partial class GitModuleTests
     }
 
     [Test, TestCaseSource(nameof(StagedStatuses))]
-    public void GetStagedStatus(ObjectId firstRevision, ObjectId secondRevision, ObjectId parentToSecond, StagedStatus status)
+    public void GetStagedStatus(ObjectId? firstRevision, ObjectId? secondRevision, ObjectId? parentToSecond, StagedStatus status)
     {
         StagedStatus stagedStatus = _gitModule.GetTestAccessor().GetStagedStatus(firstRevision, secondRevision, parentToSecond);
         ClassicAssert.AreEqual(status, stagedStatus);

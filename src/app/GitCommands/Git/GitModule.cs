@@ -866,7 +866,7 @@ public sealed partial class GitModule : IGitModule
 
     public string GetCommitCountString(ObjectId fromId, string to)
     {
-        bool cache = !fromId.IsArtificial && ObjectId.TryParse(to, out ObjectId? toId) && !toId.IsArtificial;
+        bool cache = !fromId.IsArtificial && ObjectId.TryParse(to, out ObjectId toId) && !toId.IsArtificial;
         (int? added, int? removed) = GetRevListLeftRightCount(fromId, to, cache);
 
         if (removed is null || added is null)
@@ -1046,12 +1046,12 @@ public sealed partial class GitModule : IGitModule
         GitArgumentBuilder args = new("rev-parse") { "HEAD" };
         ExecutionResult result = GitExecutable.Execute(args, throwOnErrorExit: false);
 
-        return result.ExitedSuccessfully && ObjectId.TryParse(result.StandardOutput, offset: 0, out ObjectId? objectId)
+        return result.ExitedSuccessfully && ObjectId.TryParse(result.StandardOutput, offset: 0, out ObjectId objectId)
             ? objectId
             : null;
     }
 
-    public bool TryResolvePartialCommitId(string objectIdPrefix, [NotNullWhen(returnValue: true)] out ObjectId? objectId)
+    public bool TryResolvePartialCommitId(string objectIdPrefix, out ObjectId objectId)
     {
         // If the prefix is already a full SHA1 then return immediately without invoking a git process.
         if (ObjectId.TryParse(objectIdPrefix, out objectId))
@@ -1101,7 +1101,7 @@ public sealed partial class GitModule : IGitModule
         string submodule = lines[0];
 
         if (submodule.Length < ObjectId.Sha1CharCount + 3
-            || !ObjectId.TryParse(submodule, 1, out ObjectId? commitId))
+            || !ObjectId.TryParse(submodule, 1, out ObjectId commitId))
         {
             return (' ', null);
         }
@@ -1239,7 +1239,7 @@ public sealed partial class GitModule : IGitModule
             string localPath = match.Groups["path"].Value;
             string branch = match.Groups["branch"].Value;
 
-            if (!ObjectId.TryParse(match.Groups["sha"].Value, out ObjectId? currentCommitId))
+            if (!ObjectId.TryParse(match.Groups["sha"].Value, out ObjectId currentCommitId))
             {
                 info = default;
                 return false;
@@ -1497,7 +1497,7 @@ public sealed partial class GitModule : IGitModule
         }
 
         // Reset to index has no revision string
-        string revStr = revision == ObjectId.IndexId ? "" : revision?.ToString() ?? RevParse("HEAD")!.ToString();
+        string revStr = revision == ObjectId.IndexId ? "" : (revision ?? RevParse("HEAD"))?.ToString() ?? "";
 
         // Run batch arguments to work around max command line length on Windows. Fix #6593
         // 3: double quotes + ' '
@@ -2552,8 +2552,8 @@ public sealed partial class GitModule : IGitModule
         {
             staged = StagedStatus.Index;
         }
-        else if (firstId is not null && !firstId.IsArtificial &&
-                 secondId is not null && !secondId.IsArtificial)
+        else if (firstId is not null && !firstId.Value.IsArtificial &&
+                 secondId is not null && !secondId.Value.IsArtificial)
         {
             // This cannot be a worktree/index file
             staged = StagedStatus.None;
@@ -2624,7 +2624,7 @@ public sealed partial class GitModule : IGitModule
             "--max-count=1"
         };
         ExecutionResult executionResult = GitExecutable.Execute(args, throwOnErrorExit: false);
-        if (executionResult.ExitedSuccessfully && ObjectId.TryParse(executionResult.StandardOutput, out ObjectId? treeId))
+        if (executionResult.ExitedSuccessfully && ObjectId.TryParse(executionResult.StandardOutput, out ObjectId treeId))
         {
             IEnumerable<GitItemStatus> files = GetTreeFiles(treeId, full: true)
                 .Select(i =>
@@ -3375,15 +3375,18 @@ public sealed partial class GitModule : IGitModule
                 // The contents of the actual line is output after the above header, prefixed by a TAB. This is to allow adding more header elements later.
                 string text = ReEncodeStringFromLossless(line[1..], encoding);
 
+                // objectId is guaranteed to be set by the preceding git blame header line
+                ObjectId oid = objectId ?? default;
+
                 GitBlameCommit commit;
                 if (hasCommitHeader)
                 {
                     // TODO quite a few nullable suppressions here (via ! character) which should be addressed as they hint at a design flaw
 
-                    if (!commitByObjectId.TryGetValue(objectId!, out GitBlameCommit? commitData))
+                    if (!commitByObjectId.TryGetValue(oid, out GitBlameCommit? commitData))
                     {
                         commit = new GitBlameCommit(
-                            objectId!,
+                            oid,
                             author!,
                             authorMail!,
                             authorTime,
@@ -3394,7 +3397,7 @@ public sealed partial class GitModule : IGitModule
                             committerTimeZone!,
                             summary!,
                             filename!);
-                        commitByObjectId[objectId!] = commit;
+                        commitByObjectId[oid] = commit;
                     }
                     else
                     {
@@ -3421,7 +3424,7 @@ public sealed partial class GitModule : IGitModule
                 }
                 else
                 {
-                    commit = commitByObjectId[objectId!];
+                    commit = commitByObjectId[oid];
                 }
 
                 lines.Add(new GitBlameLine(commit, finalLineNumber, originLineNumber, text));
@@ -3616,7 +3619,7 @@ public sealed partial class GitModule : IGitModule
             return null;
         }
 
-        if (ObjectId.TryParse(revisionExpression, out ObjectId? objectId))
+        if (ObjectId.TryParse(revisionExpression, out ObjectId objectId))
         {
             return objectId;
         }
@@ -3649,7 +3652,7 @@ public sealed partial class GitModule : IGitModule
         ExecutionResult result = GitExecutable.Execute(args, cache: GitCommandCache, throwOnErrorExit: false);
         string output = result.StandardOutput;
 
-        return ObjectId.TryParse(output, offset: 0, out ObjectId? objectId)
+        return ObjectId.TryParse(output, offset: 0, out ObjectId objectId)
             ? objectId
             : null;
     }

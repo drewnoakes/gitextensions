@@ -118,7 +118,7 @@ internal abstract class BaseRevisionNode : Node
 
         TreeViewNode.TreeView?.BeginInvoke(() =>
         {
-            UICommands.BrowseRepo?.GoToRef(ObjectId.ToString(), showNoRevisionMsg: true, toggleSelection: Control.ModifierKeys.HasFlag(Keys.Control));
+            UICommands.BrowseRepo?.GoToRef(ObjectId.Value.ToString(), showNoRevisionMsg: true, toggleSelection: Control.ModifierKeys.HasFlag(Keys.Control));
             TreeViewNode.TreeView?.Focus();
         });
     }
