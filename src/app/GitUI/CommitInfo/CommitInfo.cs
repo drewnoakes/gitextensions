@@ -77,6 +77,7 @@ public partial class CommitInfo : GitModuleControl
     private List<string>? _branches;
     private string? _branchInfo;
     private string? _gitDescribeInfo;
+    private string? _avatarDataUrl;
     private IDictionary<string, int>? _tagsOrderDict;
     private int _revisionInfoHeight;
     private int _commitMessageHeight;
@@ -348,6 +349,7 @@ public partial class CommitInfo : GitModuleControl
         _branchInfo = "";
         _tagInfo = "";
         _gitDescribeInfo = "";
+        _avatarDataUrl = null;
 
         if (_revision is not null && !_revision.IsArtificial && !_revision.IsAutostash)
         {
@@ -441,6 +443,11 @@ public partial class CommitInfo : GitModuleControl
                 if (AppSettings.CommitInfoShowTagThisCommitDerivesFrom)
                 {
                     tasks.Add(LoadDescribeInfoAsync(initialRevision.ObjectId).WithCancellation(cancellationToken));
+                }
+
+                if (AppSettings.ShowAuthorAvatarInCommitInfo && unifiedViewer.Visible)
+                {
+                    tasks.Add(LoadAvatarAsync(initialRevision, cancellationToken));
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -624,6 +631,43 @@ public partial class CommitInfo : GitModuleControl
         }
     }
 
+    private async Task LoadAvatarAsync(GitRevision revision, CancellationToken cancellationToken)
+    {
+        await TaskScheduler.Default;
+        cancellationToken.ThrowIfCancellationRequested();
+
+        string? email = revision.AuthorEmail ?? revision.CommitterEmail;
+        string? name = revision.Author ?? revision.Committer;
+
+        if (string.IsNullOrEmpty(email))
+        {
+            _avatarDataUrl = null;
+            return;
+        }
+
+        try
+        {
+            int size = AppSettings.AuthorImageSizeInCommitInfo;
+            Image? image = await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
+
+            if (image is not null)
+            {
+                using MemoryStream ms = new();
+                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                string base64 = Convert.ToBase64String(ms.ToArray());
+                _avatarDataUrl = $"data:image/png;base64,{base64}";
+            }
+            else
+            {
+                _avatarDataUrl = null;
+            }
+        }
+        catch
+        {
+            _avatarDataUrl = null;
+        }
+    }
+
     private void UpdateRevisionInfo()
     {
         RefsFormatter? refsFormatter = _refsFormatter;
@@ -672,7 +716,7 @@ public partial class CommitInfo : GitModuleControl
             string html = _htmlBuilder.Build(
                 data,
                 rawBody,
-                avatarUrl: null,
+                avatarUrl: _avatarDataUrl,
                 _annotatedTagsInfo ?? string.Empty,
                 _linksInfo ?? string.Empty,
                 _branchInfo ?? string.Empty,

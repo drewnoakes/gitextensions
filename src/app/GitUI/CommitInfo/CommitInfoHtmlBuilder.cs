@@ -76,7 +76,6 @@ internal sealed class CommitInfoHtmlBuilder
                 font-size: 12px;
                 color: {{Css(foreground)}};
                 background: {{Css(background)}};
-                overflow: hidden;
             }
             a { color: {{Css(linkColor)}}; text-decoration: none; }
             a:hover { text-decoration: underline; }
@@ -174,13 +173,10 @@ internal sealed class CommitInfoHtmlBuilder
             .footer-label { color: {{Css(foreground)}}; font-weight: 600; }
             .footer u { text-decoration: none; font-weight: 600; color: {{Css(foreground)}}; }
 
-            /* Wheel forwarding script */
+            /* Tooltip for links */
+            a[title]:hover { cursor: pointer; }
             </style>
             <script>
-            document.addEventListener('wheel', function(e) {
-                e.preventDefault();
-                window.chrome.webview.postMessage(JSON.stringify({ type: 'wheel', delta: Math.round(e.deltaY) }));
-            }, { passive: false });
             document.addEventListener('click', function(e) {
                 var a = e.target.closest('a');
                 if (a && a.href) {
@@ -338,8 +334,13 @@ internal sealed class CommitInfoHtmlBuilder
                 continue;
             }
 
+            string html = section.Replace("\r\n", "<br>").Replace("\n", "<br>");
+
+            // Add title attributes to <a> tags so external URLs show tooltips
+            html = AddTitleToLinks(html);
+
             sb.Append("<div class=\"footer-section\">")
-              .Append(section.Replace("\r\n", "<br>").Replace("\n", "<br>"))
+              .Append(html)
               .Append("</div>");
         }
 
@@ -360,6 +361,31 @@ internal sealed class CommitInfoHtmlBuilder
         }
 
         return author[(start + 1)..author.LastIndexOf('>')];
+    }
+
+    /// <summary>
+    ///  Adds <c>title</c> attributes to <c>&lt;a href='...'&gt;</c> tags
+    ///  so that hovering shows the URL as a tooltip. Skips internal links.
+    /// </summary>
+    private static string AddTitleToLinks(string html)
+    {
+        // Match <a href='url'> or <a href="url"> (from LinkFactory output)
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"<a href=(['""])([^'""]+)\1>",
+            match =>
+            {
+                string url = match.Groups[2].Value;
+
+                // Don't add tooltips for internal navigation links
+                if (url.StartsWith("gitext://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return match.Value;
+                }
+
+                string escaped = WebUtility.HtmlEncode(url);
+                return $"<a href={match.Groups[1].Value}{url}{match.Groups[1].Value} title=\"{escaped}\">";
+            });
     }
 
     private static string Css(Color c) => $"rgb({c.R},{c.G},{c.B})";

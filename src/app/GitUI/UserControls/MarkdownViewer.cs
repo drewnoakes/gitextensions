@@ -138,7 +138,15 @@ public class MarkdownViewer : UserControl
                     if (urlStart > 6 && urlEnd > urlStart)
                     {
                         string url = json[urlStart..urlEnd];
-                        WebMessageReceived?.Invoke(this, url);
+
+                        if (WebMessageReceived is not null)
+                        {
+                            WebMessageReceived.Invoke(this, url);
+                        }
+                        else if (!url.StartsWith("gitext://", StringComparison.OrdinalIgnoreCase))
+                        {
+                            OsShellUtil.OpenUrlInDefaultBrowser(url);
+                        }
                     }
                 }
             }
@@ -163,14 +171,14 @@ public class MarkdownViewer : UserControl
 
     private void WebView_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
-        // Allow initial content load (about:blank and data URIs) but open
-        // clicked links in the default browser instead of navigating.
+        // Allow initial content load and data URIs. All other navigation
+        // (including gitext:// internal links and http:// external links)
+        // is handled by the JavaScript click handler via postMessage.
         if (e.Uri is not null
             && !e.Uri.StartsWith("about:", StringComparison.OrdinalIgnoreCase)
             && !e.Uri.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
         {
             e.Cancel = true;
-            OsShellUtil.OpenUrlInDefaultBrowser(e.Uri);
         }
     }
 

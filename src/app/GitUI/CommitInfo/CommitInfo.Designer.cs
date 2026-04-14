@@ -207,7 +207,6 @@ partial class CommitInfo
         // unifiedViewer
         // 
         unifiedViewer.Dock = DockStyle.Fill;
-        unifiedViewer.DisableScrolling = true;
         unifiedViewer.Name = "unifiedViewer";
         unifiedViewer.Visible = false;
         // 
