@@ -53,6 +53,7 @@ public partial class CommitInfo : GitModuleControl
     private ICommitDataBodyRenderer? _commitDataBodyRenderer;
     private ILinkFactory? _linkFactory;
     private RefsFormatter? _refsFormatter;
+    private CommitInfoHtmlBuilder? _htmlBuilder;
 
     private readonly ICommitDataManager _commitDataManager;
     private readonly IExternalLinksStorage _externalLinksStorage;
@@ -131,6 +132,14 @@ public partial class CommitInfo : GitModuleControl
         // and with Height=0 we won't be receiving any ContentsResizedEvents.
         // To workaround the zero-height - force the min size.
         rtbxCommitMessage.MinimumSize = new(1, 1);
+
+        // Handle link clicks from the unified WebView2 viewer
+        unifiedViewer.WebMessageReceived += (_, url) =>
+        {
+            _linkFactory?.ExecuteLink(url,
+                commandEventArgs => CommandClickedEvent?.Invoke(this, commandEventArgs),
+                ShowAll);
+        };
     }
 
     /// <summary>
@@ -164,12 +173,14 @@ public partial class CommitInfo : GitModuleControl
             _linkFactory = null;
             _commitDataBodyRenderer = null;
             _refsFormatter = null;
+            _htmlBuilder = null;
         }
         else
         {
             _linkFactory = source.UICommands.GetRequiredService<ILinkFactory>();
             _commitDataBodyRenderer = new CommitDataBodyRenderer(() => Module, _linkFactory);
             _refsFormatter = new RefsFormatter(_linkFactory);
+            _htmlBuilder = new CommitInfoHtmlBuilder(_linkFactory, new DateFormatter());
 
             source.UICommandsChanged += delegate { RefreshSortedTags(); };
 
@@ -222,14 +233,23 @@ public partial class CommitInfo : GitModuleControl
         _revision = revision;
         _children = children;
 
+        bool useUnified = AppSettings.RenderMarkdownPreview;
+
         if (revision is null)
         {
             tableLayout.Visible = false;
+            unifiedViewer.Visible = false;
             return;
         }
 
-        tableLayout.Visible = true;
-        commitInfoHeader.ShowCommitInfo(revision, children);
+        tableLayout.Visible = !useUnified;
+        unifiedViewer.Visible = useUnified;
+
+        if (!useUnified)
+        {
+            commitInfoHeader.ShowCommitInfo(revision, children);
+        }
+
         ReloadCommitInfo(cancellationToken);
     }
 
@@ -645,11 +665,32 @@ public partial class CommitInfo : GitModuleControl
             _branchInfo = refsFormatter.FormatBranches(_branches, ShowBranchesAsLinks, limit: !_showAllBranches);
         }
 
-        string body = string.Join(Environment.NewLine + Environment.NewLine,
-            new[] { _annotatedTagsInfo, _linksInfo, _branchInfo, _tagInfo, _gitDescribeInfo }
-                .Where(_ => !string.IsNullOrEmpty(_)));
+        if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
+        {
+            CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
+            string rawBody = (GitExtensions.Extensibility.Extensions.UIExtensions.FormatBodyAndNotes(data.Body, data.Notes) ?? "").Trim();
+            string html = _htmlBuilder.Build(
+                data,
+                rawBody,
+                avatarUrl: null,
+                _annotatedTagsInfo ?? string.Empty,
+                _linksInfo ?? string.Empty,
+                _branchInfo ?? string.Empty,
+                _tagInfo ?? string.Empty,
+                _gitDescribeInfo ?? string.Empty,
+                showRevisionsAsLinks: CommandClickedEvent is not null,
+                renderMarkdown: AppSettings.RenderMarkdownPreview);
+            unifiedViewer.SetHtml(html);
+        }
+        else
+        {
+            string body = string.Join(Environment.NewLine + Environment.NewLine,
+                new[] { _annotatedTagsInfo, _linksInfo, _branchInfo, _tagInfo, _gitDescribeInfo }
+                    .Where(_ => !string.IsNullOrEmpty(_)));
 
-        RevisionInfo.SetXHTMLText(body);
+            RevisionInfo.SetXHTMLText(body);
+        }
+
         return;
 
         static string GetAnnotatedTagsInfo(

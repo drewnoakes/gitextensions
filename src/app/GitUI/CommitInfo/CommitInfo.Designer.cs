@@ -35,6 +35,7 @@ partial class CommitInfo
         showMessagesOfAnnotatedTagsToolStripMenuItem = new ToolStripMenuItem();
         showTagThisCommitDerivesFromMenuItem = new ToolStripMenuItem();
         renderAsMarkdownToolStripMenuItem = new ToolStripMenuItem();
+        unifiedViewer = new GitUI.UserControls.MarkdownViewer();
         toolStripSeparator2 = new ToolStripSeparator();
         addNoteToolStripMenuItem = new ToolStripMenuItem();
         commitInfoHeader = new GitUI.CommitInfo.CommitInfoHeader();
@@ -203,6 +204,13 @@ partial class CommitInfo
         addNoteToolStripMenuItem.Text = "Add &notes";
         addNoteToolStripMenuItem.Click += addNoteToolStripMenuItem_Click;
         // 
+        // unifiedViewer
+        // 
+        unifiedViewer.Dock = DockStyle.Fill;
+        unifiedViewer.DisableScrolling = true;
+        unifiedViewer.Name = "unifiedViewer";
+        unifiedViewer.Visible = false;
+        // 
         // commitInfoHeader
         // 
         commitInfoHeader.AutoSize = true;
@@ -239,6 +247,7 @@ partial class CommitInfo
         AutoScroll = true;
         BackColor = SystemColors.Window;
         ContextMenuStrip = commitInfoContextMenuStrip;
+        Controls.Add(unifiedViewer);
         Controls.Add(tableLayout);
         Margin = new Padding(0);
         Name = "CommitInfo";
@@ -269,6 +278,7 @@ partial class CommitInfo
     private ToolStripMenuItem showMessagesOfAnnotatedTagsToolStripMenuItem;
     private ToolStripMenuItem showTagThisCommitDerivesFromMenuItem;
     private ToolStripMenuItem renderAsMarkdownToolStripMenuItem;
+    private UserControls.MarkdownViewer unifiedViewer;
     private CommitInfoHeader commitInfoHeader;
     private Panel pnlCommitMessage;
     private RichTextBox rtbxCommitMessage;

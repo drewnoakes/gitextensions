@@ -49,6 +49,27 @@ public class MarkdownViewer : UserControl
     }
 
     /// <summary>
+    ///  Sets pre-built HTML content directly, bypassing Markdown conversion.
+    /// </summary>
+    public void SetHtml(string html)
+    {
+        if (_isWebViewReady)
+        {
+            _webView.NavigateToString(html);
+        }
+        else
+        {
+            _pendingHtml = html;
+            EnsureInitializedAsync().FileAndForget();
+        }
+    }
+
+    /// <summary>
+    ///  Raised when a web message is received from the WebView2 content.
+    /// </summary>
+    public event EventHandler<string>? WebMessageReceived;
+
+    /// <summary>
     ///  When <see langword="true"/>, the WebView2 does not scroll internally and
     ///  forwards wheel events to the nearest scrollable WinForms parent.
     ///  Use for embedded panels like CommitInfo. Default is <see langword="false"/>.
@@ -84,13 +105,46 @@ public class MarkdownViewer : UserControl
         settings.IsStatusBarEnabled = false;
         settings.IsZoomControlEnabled = false;
 
-        // Forward mouse wheel events to the parent scroll container.
-        // WebView2 is a separate HWND that captures wheel events, preventing
-        // the WinForms parent (e.g. CommitInfo with AutoScroll) from scrolling.
+        // Handle messages from JavaScript (wheel events, link clicks, etc.)
         _webView.CoreWebView2.WebMessageReceived += (s, args) =>
         {
-            if (int.TryParse(args.WebMessageAsJson, out int delta))
+            string json = args.WebMessageAsJson;
+
+            // Try parsing as a JSON object with a "type" field
+            if (json.Contains("\"type\""))
             {
+                if (json.Contains("\"wheel\""))
+                {
+                    // Extract delta from {"type":"wheel","delta":N}
+                    int deltaStart = json.IndexOf("\"delta\":") + 8;
+                    int deltaEnd = json.IndexOf('}', deltaStart);
+                    if (deltaStart > 7 && deltaEnd > deltaStart
+                        && int.TryParse(json[deltaStart..deltaEnd], out int wheelDelta)
+                        && DisableScrolling)
+                    {
+                        ScrollableControl? scrollParent = FindScrollParent();
+                        if (scrollParent is not null)
+                        {
+                            Point pos = scrollParent.AutoScrollPosition;
+                            scrollParent.AutoScrollPosition = new Point(-pos.X, -pos.Y + wheelDelta);
+                        }
+                    }
+                }
+                else if (json.Contains("\"link\""))
+                {
+                    // Extract url from {"type":"link","url":"..."}
+                    int urlStart = json.IndexOf("\"url\":\"") + 7;
+                    int urlEnd = json.LastIndexOf('"');
+                    if (urlStart > 6 && urlEnd > urlStart)
+                    {
+                        string url = json[urlStart..urlEnd];
+                        WebMessageReceived?.Invoke(this, url);
+                    }
+                }
+            }
+            else if (int.TryParse(json, out int delta) && DisableScrolling)
+            {
+                // Legacy format: plain integer for wheel delta
                 ScrollableControl? scrollParent = FindScrollParent();
                 if (scrollParent is not null)
                 {

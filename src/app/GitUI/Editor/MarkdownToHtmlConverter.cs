@@ -10,7 +10,7 @@ namespace GitUI.Editor;
 /// </summary>
 internal static class MarkdownToHtmlConverter
 {
-    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
+    internal static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UseAutoLinks()
         .UseEmphasisExtras()
         .UseTaskLists()
@@ -40,7 +40,7 @@ internal static class MarkdownToHtmlConverter
             markdown = markdown[1..];
         }
 
-        string bodyHtml = Markdown.ToHtml(markdown, _pipeline);
+        string bodyHtml = Markdown.ToHtml(markdown, Pipeline);
         return WrapInHtmlDocument(bodyHtml, disableScrolling);
     }
 
