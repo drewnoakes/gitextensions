@@ -685,6 +685,18 @@ public partial class CommitInfo : GitModuleControl
         }
     }
 
+    private string? GetOriginUrl()
+    {
+        try
+        {
+            return Module.GetSetting(string.Format(GitCommands.Config.SettingKeyString.RemoteUrl, "origin"));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void UpdateRevisionInfo()
     {
         RefsFormatter? refsFormatter = _refsFormatter;
@@ -854,14 +866,15 @@ public partial class CommitInfo : GitModuleControl
                     _tagInfo ?? string.Empty,
                     _gitDescribeInfo ?? string.Empty,
                     showRevisionsAsLinks: showLinks,
-                    renderMarkdown: renderMarkdown);
+                    renderMarkdown: renderMarkdown,
+                    remoteUrl: GetOriginUrl());
                 unifiedViewer.SetHtml(html);
                 _unifiedViewerInitialized = true;
             }
             else
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
-                string headerHtml = _htmlBuilder.BuildHeaderInner(data, GetAvatarUrl(_revision), showLinks, message.rawBody);
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
                 string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,

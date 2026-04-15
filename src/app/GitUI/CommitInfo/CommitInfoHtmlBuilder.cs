@@ -24,6 +24,10 @@ internal sealed class CommitInfoHtmlBuilder
         _dateFormatter = dateFormatter;
     }
 
+    private const string GitHubSvgIcon = "<svg class=\"link-icon\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z\"/></svg>";
+
+    private const string CopilotSvgIcon = "<svg class=\"link-icon\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M7.998 2c-3.31 0-6 2.688-6 5.997v1.127c0 1.473 1.197 2.668 2.67 2.668h.662c.37 0 .67-.298.67-.667v-3.33a.668.668 0 00-.67-.668h-.662c-.658 0-1.283.2-1.817.548A4.666 4.666 0 017.998 3.33a4.666 4.666 0 014.82 4.345 2.67 2.67 0 00-1.818-.548h-.663a.668.668 0 00-.67.668v3.33c0 .37.3.667.67.667H11c1.473 0 2.67-1.195 2.67-2.668V7.997c0-3.31-2.69-5.997-6-5.997z\"/></svg>";
+
     /// <summary>
     ///  Builds the full HTML document for the CommitInfo panel.
     /// </summary>
@@ -47,7 +51,8 @@ internal sealed class CommitInfoHtmlBuilder
         string tagInfo,
         string gitDescribeInfo,
         bool showRevisionsAsLinks,
-        bool renderMarkdown)
+        bool renderMarkdown,
+        string? remoteUrl = null)
     {
         bool isDark = Application.IsDarkModeEnabled;
 
@@ -264,7 +269,7 @@ internal sealed class CommitInfoHtmlBuilder
         sb.Append("<div id=\"header\" class=\"header\">");
         if (commitData is not null)
         {
-            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks, commitMessageBody));
+            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks, commitMessageBody, remoteUrl));
         }
 
         sb.Append("</div>");
@@ -291,7 +296,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the header section (for incremental updates).
     /// </summary>
-    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null)
+    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null)
     {
         bool isArtificial = commitData.ObjectId.IsArtificial;
         bool authorIsCommitter = string.Equals(commitData.Author, commitData.Committer, StringComparison.CurrentCulture);
@@ -316,9 +321,7 @@ internal sealed class CommitInfoHtmlBuilder
         foreach (string additionalAuthor in additionalAuthors)
         {
             string email = GetEmail(additionalAuthor);
-            string avatarImg = !string.IsNullOrEmpty(email)
-                ? $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />"
-                : "";
+            string avatarImg = GetPersonIcon(email);
             AppendHeaderRow(sb, "Co-author", FormatPersonHtml(additionalAuthor), avatarImg);
         }
 
@@ -340,10 +343,26 @@ internal sealed class CommitInfoHtmlBuilder
 
         if (!isArtificial)
         {
-            string hashStr = commitData.ObjectId.ToString();
+            string hashShort = commitData.ObjectId.ToShortString();
+            string hashFull = commitData.ObjectId.ToString();
             AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash,
-                $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashStr)}</span>" +
-                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashStr}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>");
+                $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashShort)}</span>" +
+                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashFull}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>");
+        }
+
+        // GitHub issue/PR reference from the commit title
+        string? gitHubBaseUrl = GetGitHubBaseUrl(remoteUrl);
+        if (gitHubBaseUrl is not null)
+        {
+            System.Text.RegularExpressions.Match titleMatch =
+                System.Text.RegularExpressions.Regex.Match(commitBody ?? "", @"\(#(\d+)\)");
+            if (titleMatch.Success)
+            {
+                string number = titleMatch.Groups[1].Value;
+                string itemUrl = $"{gitHubBaseUrl}/pull/{number}";
+                AppendHeaderRow(sb, "",
+                    $"{GitHubSvgIcon}<a href=\"{WebUtility.HtmlEncode(itemUrl)}\" title=\"View #{number} on GitHub\">#{number}</a>");
+            }
         }
 
         if (commitData.ChildIds is { Count: > 0 })
@@ -367,9 +386,7 @@ internal sealed class CommitInfoHtmlBuilder
         foreach (string signer in signedOffBy)
         {
             string email = GetEmail(signer);
-            string avatarImg = !string.IsNullOrEmpty(email)
-                ? $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />"
-                : "";
+            string avatarImg = GetPersonIcon(email);
             AppendHeaderRow(sb, "Signed-off-by", FormatPersonHtml(signer), avatarImg);
         }
 
@@ -592,6 +609,13 @@ internal sealed class CommitInfoHtmlBuilder
                 continue;
             }
 
+            // Skip "Contained in no tag/branch" — absence is self-explanatory
+            if (!section.Contains("<a ", StringComparison.OrdinalIgnoreCase)
+                && !section.Contains("<u>", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             string html = section.Replace("\r\n", "<br>").Replace("\n", "<br>");
 
             // Strip redundant "Related links:" prefix — the icons make it self-explanatory
@@ -668,6 +692,58 @@ internal sealed class CommitInfoHtmlBuilder
 
                 return $"<a href={quote}{url}{quote} title=\"{escaped}\">{icon}";
             });
+    }
+
+    private static string GetPersonIcon(string email)
+    {
+        if (string.IsNullOrEmpty(email))
+        {
+            return "";
+        }
+
+        if (email.Contains("noreply@github.com", StringComparison.OrdinalIgnoreCase)
+            && !email.Contains("Copilot", StringComparison.OrdinalIgnoreCase))
+        {
+            return GitHubSvgIcon;
+        }
+
+        if (email.Contains("Copilot", StringComparison.OrdinalIgnoreCase)
+            && email.Contains("github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return CopilotSvgIcon;
+        }
+
+        return $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />";
+    }
+
+    /// <summary>
+    ///  Extracts a GitHub repo base URL (e.g. https://github.com/owner/repo)
+    ///  from a remote URL, or returns null if not a GitHub remote.
+    /// </summary>
+    private static string? GetGitHubBaseUrl(string? remoteUrl)
+    {
+        if (string.IsNullOrEmpty(remoteUrl))
+        {
+            return null;
+        }
+
+        // SSH: git@github.com:owner/repo.git
+        System.Text.RegularExpressions.Match sshMatch =
+            System.Text.RegularExpressions.Regex.Match(remoteUrl, @"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (sshMatch.Success)
+        {
+            return $"https://github.com/{sshMatch.Groups[1].Value}";
+        }
+
+        // HTTPS: https://github.com/owner/repo.git
+        System.Text.RegularExpressions.Match httpsMatch =
+            System.Text.RegularExpressions.Regex.Match(remoteUrl, @"https?://github\.com/([^/]+/[^/]+?)(?:\.git)?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (httpsMatch.Success)
+        {
+            return $"https://github.com/{httpsMatch.Groups[1].Value}";
+        }
+
+        return null;
     }
 
     private static string Css(Color c) => $"rgb({c.R},{c.G},{c.B})";
