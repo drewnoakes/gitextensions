@@ -23,7 +23,6 @@ public class MarkdownViewer : UserControl
         _webView = new WebView2
         {
             Dock = DockStyle.Fill,
-            DefaultBackgroundColor = SystemColors.Window,
         };
 
         _webView.CoreWebView2InitializationCompleted += WebView_CoreWebView2InitializationCompleted;
@@ -152,6 +151,10 @@ public class MarkdownViewer : UserControl
         }
 
         _isWebViewReady = true;
+
+        // Set the WebView2 background to match the themed SystemColors.Window.
+        // This must happen after theme initialization (not in the constructor).
+        _webView.DefaultBackgroundColor = SystemColors.Window;
 
         CoreWebView2Settings settings = _webView.CoreWebView2.Settings;
         settings.AreDefaultContextMenusEnabled = false;
