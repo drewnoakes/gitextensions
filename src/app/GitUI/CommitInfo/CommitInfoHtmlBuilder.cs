@@ -52,12 +52,14 @@ internal sealed class CommitInfoHtmlBuilder
         string gitDescribeInfo,
         bool showRevisionsAsLinks,
         bool renderMarkdown,
-        string? remoteUrl = null)
+        string? remoteUrl = null,
+        Color? themeBackground = null,
+        Color? themeForeground = null)
     {
         bool isDark = Application.IsDarkModeEnabled;
 
-        Color background = SystemColors.Window;
-        Color foreground = SystemColors.WindowText;
+        Color background = themeBackground ?? SystemColors.Window;
+        Color foreground = themeForeground ?? SystemColors.WindowText;
         Color mutedFg = isDark
             ? Color.FromArgb(145, 152, 161)
             : Color.FromArgb(101, 109, 118);
@@ -513,14 +515,11 @@ internal sealed class CommitInfoHtmlBuilder
     /// </summary>
     private static string GravatarUrl(string email, int size)
     {
-        string hash = ComputeMd5Hash(email.Trim().ToLowerInvariant());
-        return $"https://www.gravatar.com/avatar/{hash}?r=g&amp;d=identicon&amp;s={size}";
+        // Delegate to CommitInfo's shared implementation for consistent hashing and fallback
+        string url = CommitInfo.BuildGravatarUrl(email, size);
 
-        static string ComputeMd5Hash(string input)
-        {
-            byte[] hashBytes = System.Security.Cryptography.MD5.HashData(Encoding.ASCII.GetBytes(input));
-            return Convert.ToHexStringLower(hashBytes);
-        }
+        // HTML-encode ampersands for use in attribute values
+        return url.Replace("&", "&amp;");
     }
 
     /// <summary>

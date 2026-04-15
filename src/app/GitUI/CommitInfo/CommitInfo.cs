@@ -679,14 +679,30 @@ public partial class CommitInfo : GitModuleControl
 
         // Build Gravatar URL directly — let WebView2 fetch and cache it.
         int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
-        string hash = ComputeMd5Hash(email.Trim().ToLowerInvariant());
-        return $"https://www.gravatar.com/avatar/{hash}?r=g&d=identicon&s={size}";
+        return BuildGravatarUrl(email, size);
+    }
 
-        static string ComputeMd5Hash(string input)
+    internal static string BuildGravatarUrl(string email, int size)
+    {
+        string hash = ComputeGravatarHash(email);
+        string fallback = AppSettings.AvatarFallbackType switch
         {
-            byte[] hashBytes = System.Security.Cryptography.MD5.HashData(Encoding.ASCII.GetBytes(input));
-            return Convert.ToHexStringLower(hashBytes);
-        }
+            AvatarFallbackType.Identicon => "identicon",
+            AvatarFallbackType.MonsterId => "monsterid",
+            AvatarFallbackType.Wavatar => "wavatar",
+            AvatarFallbackType.Retro => "retro",
+            AvatarFallbackType.Robohash => "robohash",
+            _ => "identicon",
+        };
+
+        return $"https://www.gravatar.com/avatar/{hash}?r=g&d={fallback}&s={size}";
+    }
+
+    private static string ComputeGravatarHash(string email)
+    {
+        byte[] hashBytes = System.Security.Cryptography.MD5.HashData(
+            Encoding.UTF8.GetBytes(email.Trim().ToLowerInvariant()));
+        return Convert.ToHexStringLower(hashBytes);
     }
 
     private string? GetOriginUrl()
@@ -871,7 +887,9 @@ public partial class CommitInfo : GitModuleControl
                     _gitDescribeInfo ?? string.Empty,
                     showRevisionsAsLinks: showLinks,
                     renderMarkdown: renderMarkdown,
-                    remoteUrl: GetOriginUrl());
+                    remoteUrl: GetOriginUrl(),
+                    themeBackground: BackColor,
+                    themeForeground: ForeColor);
                 unifiedViewer.SetHtml(html);
                 _unifiedViewerInitialized = true;
             }
