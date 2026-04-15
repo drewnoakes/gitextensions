@@ -122,17 +122,20 @@ internal sealed class CommitInfoHtmlBuilder
                 grid-template-columns: 90px 24px 1fr;
                 line-height: 1.6;
                 white-space: nowrap;
-                align-items: baseline;
+                align-items: center;
             }
             .header-label {
                 color: {{Css(foreground)}};
                 font-weight: 600;
+                align-self: baseline;
             }
             .header-icon {
-                text-align: center;
-                line-height: 1.6;
+                display: flex;
+                justify-content: center;
+                align-items: center;
             }
             .header-value {
+                align-self: baseline;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
@@ -599,16 +602,9 @@ internal sealed class CommitInfoHtmlBuilder
 
     private static string FormatDateHtml(DateTimeOffset date)
     {
-        string fullDate = LocalizationHelpers.GetFullDateString(date);
+        string fullDate = WebUtility.HtmlEncode(LocalizationHelpers.GetFullDateString(date));
         string relative = WebUtility.HtmlEncode(LocalizationHelpers.GetRelativeDateString(DateTime.UtcNow, date.UtcDateTime));
-
-        // Colour date separators (/, :, spaces between date parts) in muted colour
-        string styledDate = System.Text.RegularExpressions.Regex.Replace(
-            WebUtility.HtmlEncode(fullDate),
-            @"([/:\-])",
-            "<span class=\"date-relative\">$1</span>");
-
-        return $"{styledDate}<span class=\"date-relative\"> {relative}</span>";
+        return $"{fullDate} <span class=\"date-relative\">{relative}</span>";
     }
 
     /// <summary>
