@@ -664,7 +664,21 @@ internal sealed class CommitInfoHtmlBuilder
                 "",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+            // Remove "View on GitHub" commit links — redundant with the header commit hash link
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"(<svg[^>]*>.*?</svg>)?<a [^>]*github\.com/[^>]*/commit/[^>]*>.*?</a>(<br>)?",
+                "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+
             html = AddTitleToLinks(html);
+
+            // Skip if the section is now empty after stripping
+            string stripped = System.Text.RegularExpressions.Regex.Replace(html, @"<br>|<[^>]+>|\s", "");
+            if (stripped.Length == 0)
+            {
+                continue;
+            }
 
             sb.Append("<div class=\"footer-section\">")
               .Append(html)
