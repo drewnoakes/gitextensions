@@ -142,34 +142,39 @@ public partial class CommitInfo : GitModuleControl
                 ShowAll);
         };
 
-        // Show context menu on right-click in the unified viewer
+        // Context menu for the unified viewer
+        ContextMenuStrip unifiedContextMenu = new();
+
+        ToolStripMenuItem copyItem = new("&Copy");
+        copyItem.Click += (s, ev) =>
+        {
+            unifiedViewer.ExecuteCopyAsync().FileAndForget();
+        };
+
+        ToolStripMenuItem markdownItem = new("Render commit message as Markdown");
+        markdownItem.Click += (s, ev) =>
+        {
+            AppSettings.RenderMarkdownPreview = !AppSettings.RenderMarkdownPreview;
+            ReloadCommitInfo();
+        };
+
+        unifiedContextMenu.Items.Add(copyItem);
+        unifiedContextMenu.Items.Add(new ToolStripSeparator());
+        unifiedContextMenu.Items.Add(markdownItem);
+
+        unifiedContextMenu.Opening += (s, ev) =>
+        {
+            markdownItem.Checked = AppSettings.RenderMarkdownPreview;
+        };
+
         unifiedViewer.ContextMenuRequested += (_, screenPoint) =>
         {
-            ContextMenuStrip menu = new();
+            unifiedContextMenu.Show(screenPoint);
+        };
 
-            ToolStripMenuItem copyItem = new("&Copy");
-            copyItem.Click += (s, ev) =>
-            {
-                unifiedViewer.ExecuteCopyAsync().FileAndForget();
-            };
-
-            menu.Items.Add(copyItem);
-            menu.Items.Add(new ToolStripSeparator());
-
-            ToolStripMenuItem markdownItem = new("Render commit message as Markdown")
-            {
-                Checked = AppSettings.RenderMarkdownPreview,
-                CheckOnClick = true,
-            };
-
-            markdownItem.Click += (s, ev) =>
-            {
-                AppSettings.RenderMarkdownPreview = markdownItem.Checked;
-                ReloadCommitInfo();
-            };
-
-            menu.Items.Add(markdownItem);
-            menu.Show(screenPoint);
+        unifiedViewer.DismissRequested += (_, _) =>
+        {
+            unifiedContextMenu.Close();
         };
     }
 

@@ -183,11 +183,13 @@ internal sealed class CommitInfoHtmlBuilder
                 if (a && a.href) {
                     e.preventDefault();
                     window.chrome.webview.postMessage(JSON.stringify({ type: 'link', url: a.href }));
+                } else {
+                    window.chrome.webview.postMessage(JSON.stringify({ type: 'dismiss' }));
                 }
             });
             document.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
-                window.chrome.webview.postMessage(JSON.stringify({ type: 'contextmenu', x: e.screenX, y: e.screenY }));
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'contextmenu', x: e.clientX, y: e.clientY }));
             });
             </script>
             </head>

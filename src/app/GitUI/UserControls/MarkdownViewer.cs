@@ -104,6 +104,11 @@ public class MarkdownViewer : UserControl
     public event EventHandler<Point>? ContextMenuRequested;
 
     /// <summary>
+    ///  Raised when the user clicks in the WebView2 content (to dismiss menus).
+    /// </summary>
+    public event EventHandler? DismissRequested;
+
+    /// <summary>
     ///  When <see langword="true"/>, the WebView2 does not scroll internally and
     ///  forwards wheel events to the nearest scrollable WinForms parent.
     ///  Use for embedded panels like CommitInfo. Default is <see langword="false"/>.
@@ -190,8 +195,14 @@ public class MarkdownViewer : UserControl
                     if (int.TryParse(message[xStart..xEnd], out int x)
                         && int.TryParse(message[yStart..yEnd], out int y))
                     {
-                        ContextMenuRequested?.Invoke(this, new Point(x, y));
+                        // Convert from WebView2 client coordinates to screen coordinates
+                        Point screenPoint = _webView.PointToScreen(new Point(x, y));
+                        ContextMenuRequested?.Invoke(this, screenPoint);
                     }
+                }
+                else if (message.Contains("\"dismiss\""))
+                {
+                    DismissRequested?.Invoke(this, EventArgs.Empty);
                 }
             }
             else if (int.TryParse(message, out int delta) && DisableScrolling)
