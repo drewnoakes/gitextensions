@@ -82,6 +82,7 @@ public partial class CommitInfo : GitModuleControl
     private int _commitMessageHeight;
     private bool _showAllBranches;
     private bool _showAllTags;
+    private bool _unifiedViewerInitialized;
 
     [DefaultValue(false)]
     public bool ShowBranchesAsLinks { get; set; }
@@ -233,8 +234,6 @@ public partial class CommitInfo : GitModuleControl
         _revision = revision;
         _children = children;
 
-        bool useUnified = AppSettings.RenderMarkdownPreview;
-
         if (revision is null)
         {
             tableLayout.Visible = false;
@@ -242,13 +241,9 @@ public partial class CommitInfo : GitModuleControl
             return;
         }
 
-        tableLayout.Visible = !useUnified;
-        unifiedViewer.Visible = useUnified;
-
-        if (!useUnified)
-        {
-            commitInfoHeader.ShowCommitInfo(revision, children);
-        }
+        // Always prefer the unified WebView2 viewer
+        tableLayout.Visible = false;
+        unifiedViewer.Visible = true;
 
         ReloadCommitInfo(cancellationToken);
     }
@@ -363,24 +358,10 @@ public partial class CommitInfo : GitModuleControl
         else
         {
             (string rawBody, string xhtml) message = GetFixCommitMessage();
+            SetCommitMessage(message);
 
-            if (unifiedViewer.Visible && _htmlBuilder is not null)
+            if (!unifiedViewer.Visible)
             {
-                CommitData? data = _revision is not null
-                    ? _commitDataManager.CreateFromRevision(_revision, _children)
-                    : null;
-                string html = _htmlBuilder.Build(
-                    data,
-                    message.rawBody,
-                    avatarUrl: null,
-                    string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
-                    showRevisionsAsLinks: false,
-                    renderMarkdown: AppSettings.RenderMarkdownPreview);
-                unifiedViewer.SetHtml(html);
-            }
-            else
-            {
-                SetCommitMessage(message);
                 RevisionInfo.Clear();
             }
         }
@@ -821,18 +802,41 @@ public partial class CommitInfo : GitModuleControl
         if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
         {
             CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
-            string html = _htmlBuilder.Build(
-                data,
-                message.rawBody,
-                avatarUrl: GetAvatarUrl(_revision),
-                _annotatedTagsInfo ?? string.Empty,
-                _linksInfo ?? string.Empty,
-                _branchInfo ?? string.Empty,
-                _tagInfo ?? string.Empty,
-                _gitDescribeInfo ?? string.Empty,
-                showRevisionsAsLinks: CommandClickedEvent is not null,
-                renderMarkdown: AppSettings.RenderMarkdownPreview);
-            unifiedViewer.SetHtml(html);
+            bool showLinks = CommandClickedEvent is not null;
+            bool renderMarkdown = AppSettings.RenderMarkdownPreview;
+
+            if (!_unifiedViewerInitialized)
+            {
+                // First render: full navigation to set up the page structure
+                string html = _htmlBuilder.Build(
+                    data,
+                    message.rawBody,
+                    avatarUrl: GetAvatarUrl(_revision),
+                    _annotatedTagsInfo ?? string.Empty,
+                    _linksInfo ?? string.Empty,
+                    _branchInfo ?? string.Empty,
+                    _tagInfo ?? string.Empty,
+                    _gitDescribeInfo ?? string.Empty,
+                    showRevisionsAsLinks: showLinks,
+                    renderMarkdown: renderMarkdown);
+                unifiedViewer.SetHtml(html);
+                _unifiedViewerInitialized = true;
+            }
+            else
+            {
+                // Subsequent renders: update DOM sections via JavaScript (no flicker)
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, GetAvatarUrl(_revision), showLinks);
+                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown);
+                string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
+                    _annotatedTagsInfo ?? string.Empty,
+                    _linksInfo ?? string.Empty,
+                    _branchInfo ?? string.Empty,
+                    _tagInfo ?? string.Empty,
+                    _gitDescribeInfo ?? string.Empty);
+                unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
+                unifiedViewer.UpdateElementAsync("message", messageHtml).FileAndForget();
+                unifiedViewer.UpdateElementAsync("footer", footerHtml).FileAndForget();
+            }
         }
         else
         {

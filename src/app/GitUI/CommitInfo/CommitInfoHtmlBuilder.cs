@@ -191,33 +191,22 @@ internal sealed class CommitInfoHtmlBuilder
             """);
 
         // Header
+        sb.Append("<div id=\"header\" class=\"header\">");
         if (commitData is not null)
         {
-            BuildHeader(sb, commitData, avatarUrl, showRevisionsAsLinks);
+            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks));
         }
+
+        sb.Append("</div>");
 
         // Message body
+        sb.Append("<div id=\"message\" class=\"message\">");
         if (!string.IsNullOrWhiteSpace(commitMessageBody))
         {
-            sb.Append("<div id=\"message\" class=\"message\">");
-
-            if (renderMarkdown)
-            {
-                string markdown = commitMessageBody;
-                if (markdown.Length > 0 && markdown[0] == '\uFEFF')
-                {
-                    markdown = markdown[1..];
-                }
-
-                sb.Append(Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline));
-            }
-            else
-            {
-                sb.Append("<pre>").Append(WebUtility.HtmlEncode(commitMessageBody)).Append("</pre>");
-            }
-
-            sb.Append("</div>");
+            sb.Append(BuildMessageInner(commitMessageBody, renderMarkdown));
         }
+
+        sb.Append("</div>");
 
         // Footer
         sb.Append("<div id=\"footer\" class=\"footer\">");
@@ -229,14 +218,17 @@ internal sealed class CommitInfoHtmlBuilder
         return sb.ToString();
     }
 
-    private void BuildHeader(StringBuilder sb, CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks)
+    /// <summary>
+    ///  Builds the inner HTML for the header section (for incremental updates).
+    /// </summary>
+    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks)
     {
         bool isArtificial = commitData.ObjectId.IsArtificial;
         bool authorIsCommitter = string.Equals(commitData.Author, commitData.Committer, StringComparison.CurrentCulture);
         bool datesEqual = commitData.AuthorDate.EqualsExact(commitData.CommitDate);
         string authorEmail = GetEmail(commitData.Author);
 
-        sb.Append("<div class=\"header\">");
+        StringBuilder sb = new();
 
         if (!string.IsNullOrEmpty(avatarUrl))
         {
@@ -245,18 +237,15 @@ internal sealed class CommitInfoHtmlBuilder
 
         sb.Append("<div class=\"header-details\">");
 
-        // Author
         AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author,
             $"<a href=\"mailto:{WebUtility.HtmlEncode(authorEmail)}\">{WebUtility.HtmlEncode(commitData.Author)}</a>");
 
-        // Date(s)
         if (!isArtificial)
         {
             string dateLabel = datesEqual ? ResourceManager.TranslatedStrings.Date : ResourceManager.TranslatedStrings.AuthorDate;
             AppendHeaderRow(sb, dateLabel, WebUtility.HtmlEncode(_dateFormatter.FormatDateAsRelativeLocal(commitData.AuthorDate)));
         }
 
-        // Committer (if different)
         if (!authorIsCommitter)
         {
             string committerEmail = GetEmail(commitData.Committer);
@@ -270,14 +259,12 @@ internal sealed class CommitInfoHtmlBuilder
             }
         }
 
-        // Commit hash
         if (!isArtificial)
         {
             AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash,
                 $"<span class=\"hash\">{WebUtility.HtmlEncode(commitData.ObjectId.ToString())}</span>");
         }
 
-        // Children (excluding artificial commit IDs)
         if (commitData.ChildIds is { Count: > 0 })
         {
             string rendered = RenderObjectIds(commitData.ChildIds, showRevisionsAsLinks);
@@ -287,7 +274,6 @@ internal sealed class CommitInfoHtmlBuilder
             }
         }
 
-        // Parents (excluding artificial commit IDs)
         if (commitData.ParentIds is { Count: > 0 })
         {
             string rendered = RenderObjectIds(commitData.ParentIds, showRevisionsAsLinks);
@@ -297,7 +283,32 @@ internal sealed class CommitInfoHtmlBuilder
             }
         }
 
-        sb.Append("</div></div>");
+        sb.Append("</div>");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    ///  Builds the inner HTML for the message section (for incremental updates).
+    /// </summary>
+    public static string BuildMessageInner(string commitMessageBody, bool renderMarkdown)
+    {
+        if (string.IsNullOrWhiteSpace(commitMessageBody))
+        {
+            return string.Empty;
+        }
+
+        if (renderMarkdown)
+        {
+            string markdown = commitMessageBody;
+            if (markdown.Length > 0 && markdown[0] == '\uFEFF')
+            {
+                markdown = markdown[1..];
+            }
+
+            return Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline);
+        }
+
+        return $"<pre><code>{WebUtility.HtmlEncode(commitMessageBody)}</code></pre>";
     }
 
     private static void AppendHeaderRow(StringBuilder sb, string label, string value)
