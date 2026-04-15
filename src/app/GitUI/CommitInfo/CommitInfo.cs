@@ -836,24 +836,7 @@ public partial class CommitInfo : GitModuleControl
         }
         else
         {
-            bool useMarkdown = AppSettings.RenderMarkdownPreview;
-
-            rtbxCommitMessage.Visible = !useMarkdown;
-            mdCommitMessage.Visible = useMarkdown;
-
-            if (useMarkdown)
-            {
-                mdCommitMessage.MarkdownText = message.rawBody;
-
-                int lineCount = message.rawBody.Split('\n').Length;
-                int estimatedLineHeight = (int)(16 * DpiUtil.ScaleY);
-                _commitMessageHeight = Math.Max(estimatedLineHeight * lineCount, (int)(60 * DpiUtil.ScaleY));
-                PerformLayout();
-            }
-            else
-            {
-                rtbxCommitMessage.SetXHTMLText(message.xhtml);
-            }
+            rtbxCommitMessage.SetXHTMLText(message.xhtml);
         }
     }
 
@@ -895,9 +878,9 @@ public partial class CommitInfo : GitModuleControl
 
     private void CommitMessage_ContentsResized(ContentsResizedEventArgs e)
     {
-        // When the WebView2 markdown viewer is active, don't let the hidden
-        // RichTextBox's ContentsResized override the estimated height.
-        if (mdCommitMessage.Visible)
+        // When the unified WebView2 viewer is active, the tableLayout is hidden
+        // and this resize event is irrelevant.
+        if (unifiedViewer.Visible)
         {
             return;
         }

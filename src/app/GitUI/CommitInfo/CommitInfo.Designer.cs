@@ -23,7 +23,6 @@ partial class CommitInfo
         tableLayout = new TableLayoutPanel();
         pnlCommitMessage = new Panel();
         rtbxCommitMessage = new RichTextBox();
-        mdCommitMessage = new GitUI.UserControls.MarkdownViewer();
         commitInfoContextMenuStrip = new ContextMenuStrip(components);
         copyLinkToolStripMenuItem = new ToolStripMenuItem();
         copyCommitInfoToolStripMenuItem = new ToolStripMenuItem();
@@ -70,7 +69,6 @@ partial class CommitInfo
         pnlCommitMessage.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         pnlCommitMessage.BackColor = SystemColors.Control;
         pnlCommitMessage.Controls.Add(rtbxCommitMessage);
-        pnlCommitMessage.Controls.Add(mdCommitMessage);
         pnlCommitMessage.Location = new Point(0, 112);
         pnlCommitMessage.Margin = new Padding(0);
         pnlCommitMessage.Name = "pnlCommitMessage";
@@ -94,16 +92,6 @@ partial class CommitInfo
         rtbxCommitMessage.LinkClicked += LinkClicked;
         rtbxCommitMessage.KeyDown += RichTextBox_KeyDown;
         rtbxCommitMessage.MouseDown += _RevisionHeader_MouseDown;
-        // 
-        // mdCommitMessage
-        // 
-        mdCommitMessage.Dock = DockStyle.Fill;
-        mdCommitMessage.DisableScrolling = true;
-        mdCommitMessage.Margin = new Padding(0);
-        mdCommitMessage.Name = "mdCommitMessage";
-        mdCommitMessage.Size = new Size(456, 36);
-        mdCommitMessage.TabIndex = 3;
-        mdCommitMessage.Visible = false;
         // 
         // commitInfoContextMenuStrip
         // 
@@ -281,6 +269,5 @@ partial class CommitInfo
     private CommitInfoHeader commitInfoHeader;
     private Panel pnlCommitMessage;
     private RichTextBox rtbxCommitMessage;
-    private UserControls.MarkdownViewer mdCommitMessage;
     private TableLayoutPanel tableLayout;
 }

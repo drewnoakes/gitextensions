@@ -93,6 +93,7 @@ internal sealed class CommitInfoHtmlBuilder
                 width: 60px;
                 height: 60px;
                 border-radius: 6px;
+                background: {{Css(headerBg)}};
             }
             .header-details { flex: 1; min-width: 0; }
             .header-row {
@@ -276,18 +277,24 @@ internal sealed class CommitInfoHtmlBuilder
                 $"<span class=\"hash\">{WebUtility.HtmlEncode(commitData.ObjectId.ToString())}</span>");
         }
 
-        // Children
+        // Children (excluding artificial commit IDs)
         if (commitData.ChildIds is { Count: > 0 })
         {
-            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.GetChildren(commitData.ChildIds.Count),
-                RenderObjectIds(commitData.ChildIds, showRevisionsAsLinks));
+            string rendered = RenderObjectIds(commitData.ChildIds, showRevisionsAsLinks);
+            if (rendered.Length > 0)
+            {
+                AppendHeaderRow(sb, ResourceManager.TranslatedStrings.GetChildren(commitData.ChildIds.Count), rendered);
+            }
         }
 
-        // Parents
+        // Parents (excluding artificial commit IDs)
         if (commitData.ParentIds is { Count: > 0 })
         {
-            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.GetParents(commitData.ParentIds.Count),
-                RenderObjectIds(commitData.ParentIds, showRevisionsAsLinks));
+            string rendered = RenderObjectIds(commitData.ParentIds, showRevisionsAsLinks);
+            if (rendered.Length > 0)
+            {
+                AppendHeaderRow(sb, ResourceManager.TranslatedStrings.GetParents(commitData.ParentIds.Count), rendered);
+            }
         }
 
         sb.Append("</div></div>");
@@ -304,13 +311,15 @@ internal sealed class CommitInfoHtmlBuilder
 
     private string RenderObjectIds(IReadOnlyList<ObjectId> objectIds, bool showAsLinks)
     {
+        IEnumerable<ObjectId> filtered = objectIds.Where(id => !id.IsArtificial);
+
         if (showAsLinks)
         {
-            return string.Join(" ", objectIds.Select(id =>
+            return string.Join(" ", filtered.Select(id =>
                 $"<a href=\"gitext://gotocommit/{id}\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span></a>"));
         }
 
-        return string.Join(" ", objectIds.Select(id =>
+        return string.Join(" ", filtered.Select(id =>
             $"<span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span>"));
     }
 
