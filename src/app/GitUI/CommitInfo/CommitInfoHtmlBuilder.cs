@@ -26,7 +26,7 @@ internal sealed class CommitInfoHtmlBuilder
 
     private const string GitHubSvgIcon = "<svg class=\"link-icon\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z\"/></svg>";
 
-    private const string CopilotSvgIcon = "<svg class=\"link-icon\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M7.998 2c-3.31 0-6 2.688-6 5.997v1.127c0 1.473 1.197 2.668 2.67 2.668h.662c.37 0 .67-.298.67-.667v-3.33a.668.668 0 00-.67-.668h-.662c-.658 0-1.283.2-1.817.548A4.666 4.666 0 017.998 3.33a4.666 4.666 0 014.82 4.345 2.67 2.67 0 00-1.818-.548h-.663a.668.668 0 00-.67.668v3.33c0 .37.3.667.67.667H11c1.473 0 2.67-1.195 2.67-2.668V7.997c0-3.31-2.69-5.997-6-5.997z\"/></svg>";
+    private const string CopilotIcon = "\U0001F916";
 
     /// <summary>
     ///  Builds the full HTML document for the CommitInfo panel.
@@ -82,6 +82,10 @@ internal sealed class CommitInfoHtmlBuilder
                 color: {{Css(foreground)}};
                 background: {{Css(background)}};
             }
+            ::-webkit-scrollbar { width: 10px; }
+            ::-webkit-scrollbar-track { background: {{Css(background)}}; }
+            ::-webkit-scrollbar-thumb { background: {{Css(borderColor)}}; border-radius: 5px; }
+            ::-webkit-scrollbar-thumb:hover { background: {{Css(mutedFg)}}; }
             a { color: {{Css(linkColor)}}; text-decoration: none; }
             a:hover { text-decoration: underline; }
 
@@ -345,23 +349,29 @@ internal sealed class CommitInfoHtmlBuilder
         {
             string hashShort = commitData.ObjectId.ToShortString();
             string hashFull = commitData.ObjectId.ToString();
+            string? gitHubBaseUrl = GetGitHubBaseUrl(remoteUrl);
+
+            string commitUrl = gitHubBaseUrl is not null
+                ? $" <a href=\"{gitHubBaseUrl}/commit/{hashFull}\" title=\"View commit on GitHub\" class=\"author-email\">{GitHubSvgIcon}</a>"
+                : "";
+
             AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash,
                 $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashShort)}</span>" +
-                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashFull}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>");
-        }
+                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashFull}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>{commitUrl}");
 
-        // GitHub issue/PR reference from the commit title
-        string? gitHubBaseUrl = GetGitHubBaseUrl(remoteUrl);
-        if (gitHubBaseUrl is not null)
-        {
-            System.Text.RegularExpressions.Match titleMatch =
-                System.Text.RegularExpressions.Regex.Match(commitBody ?? "", @"\(#(\d+)\)");
-            if (titleMatch.Success)
+            // GitHub PR reference from the commit title
+            if (gitHubBaseUrl is not null)
             {
-                string number = titleMatch.Groups[1].Value;
-                string itemUrl = $"{gitHubBaseUrl}/pull/{number}";
-                AppendHeaderRow(sb, "",
-                    $"{GitHubSvgIcon}<a href=\"{WebUtility.HtmlEncode(itemUrl)}\" title=\"View #{number} on GitHub\">#{number}</a>");
+                System.Text.RegularExpressions.Match titleMatch =
+                    System.Text.RegularExpressions.Regex.Match(commitBody ?? "", @"\(#(\d+)\)");
+                if (titleMatch.Success)
+                {
+                    string number = titleMatch.Groups[1].Value;
+                    string itemUrl = $"{gitHubBaseUrl}/pull/{number}";
+                    AppendHeaderRow(sb, "Pull request",
+                        $"<a href=\"{WebUtility.HtmlEncode(itemUrl)}\" title=\"View #{number} on GitHub\">#{number}</a>",
+                        GitHubSvgIcon);
+                }
             }
         }
 
@@ -411,7 +421,7 @@ internal sealed class CommitInfoHtmlBuilder
         StringBuilder sb = new();
         sb.Append(WebUtility.HtmlEncode(name));
 
-        if (!string.IsNullOrEmpty(email))
+        if (!string.IsNullOrEmpty(email) && !IsNoReplyEmail(email))
         {
             sb.Append($"<a class=\"author-email\" href=\"mailto:{WebUtility.HtmlEncode(email)}\" title=\"Send email to {WebUtility.HtmlEncode(email)}\">{WebUtility.HtmlEncode(email)}</a>");
         }
@@ -701,19 +711,23 @@ internal sealed class CommitInfoHtmlBuilder
             return "";
         }
 
-        if (email.Contains("noreply@github.com", StringComparison.OrdinalIgnoreCase)
-            && !email.Contains("Copilot", StringComparison.OrdinalIgnoreCase))
+        if (email.Contains("Copilot", StringComparison.OrdinalIgnoreCase)
+            && email.Contains("github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return CopilotIcon;
+        }
+
+        if (email.Contains("noreply@github.com", StringComparison.OrdinalIgnoreCase))
         {
             return GitHubSvgIcon;
         }
 
-        if (email.Contains("Copilot", StringComparison.OrdinalIgnoreCase)
-            && email.Contains("github.com", StringComparison.OrdinalIgnoreCase))
-        {
-            return CopilotSvgIcon;
-        }
-
         return $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />";
+    }
+
+    private static bool IsNoReplyEmail(string email)
+    {
+        return email.Contains("noreply", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
