@@ -63,9 +63,9 @@ internal sealed class CommitInfoHtmlBuilder
             : Color.FromArgb(101, 109, 118);
         Color borderColor = background.MakeBackgroundDarkerBy(isDark ? -0.15 : 0.15);
         Color linkColor = isDark
-            ? Color.FromArgb(68, 147, 248)
+            ? Color.FromArgb(88, 166, 255)
             : Color.FromArgb(3, 102, 214);
-        Color headerBg = background.MakeBackgroundDarkerBy(isDark ? -0.03 : 0.03);
+        Color headerBg = background.MakeBackgroundDarkerBy(isDark ? -0.015 : 0.03);
         Color codeBg = background.MakeBackgroundDarkerBy(isDark ? -0.08 : 0.05);
 
         StringBuilder sb = new(4096);
