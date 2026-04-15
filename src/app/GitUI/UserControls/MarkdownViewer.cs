@@ -187,18 +187,9 @@ public class MarkdownViewer : UserControl
                 }
                 else if (message.Contains("\"contextmenu\""))
                 {
-                    int xStart = message.IndexOf("\"x\":") + 4;
-                    int xEnd = message.IndexOf(',', xStart);
-                    int yStart = message.IndexOf("\"y\":") + 4;
-                    int yEnd = message.IndexOf('}', yStart);
-
-                    if (int.TryParse(message[xStart..xEnd], out int x)
-                        && int.TryParse(message[yStart..yEnd], out int y))
-                    {
-                        // Convert from WebView2 client coordinates to screen coordinates
-                        Point screenPoint = _webView.PointToScreen(new Point(x, y));
-                        ContextMenuRequested?.Invoke(this, screenPoint);
-                    }
+                    // Use the current cursor position for accurate screen placement.
+                    // JS clientX/clientY have DPI scaling mismatches with WinForms.
+                    ContextMenuRequested?.Invoke(this, Cursor.Position);
                 }
                 else if (message.Contains("\"dismiss\""))
                 {

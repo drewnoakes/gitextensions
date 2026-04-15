@@ -102,18 +102,34 @@ internal sealed class CommitInfoHtmlBuilder
                 white-space: nowrap;
             }
             .header-label {
-                color: {{Css(mutedFg)}};
+                color: {{Css(foreground)}};
                 min-width: 90px;
                 flex-shrink: 0;
+                font-weight: 600;
             }
             .header-value {
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+            .date-relative {
+                color: {{Css(mutedFg)}};
+                margin-left: 0.5em;
+            }
             .hash {
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
                 font-size: 11px;
             }
+            .hash-row { position: relative; }
+            .copy-btn {
+                display: none;
+                cursor: pointer;
+                margin-left: 6px;
+                color: {{Css(mutedFg)}};
+                font-size: 13px;
+                vertical-align: middle;
+            }
+            .copy-btn:hover { color: {{Css(foreground)}}; }
+            .hash-row:hover .copy-btn { display: inline; }
 
             /* Message section */
             .message {
@@ -249,7 +265,7 @@ internal sealed class CommitInfoHtmlBuilder
         if (!isArtificial)
         {
             string dateLabel = datesEqual ? ResourceManager.TranslatedStrings.Date : ResourceManager.TranslatedStrings.AuthorDate;
-            AppendHeaderRow(sb, dateLabel, WebUtility.HtmlEncode(_dateFormatter.FormatDateAsRelativeLocal(commitData.AuthorDate)));
+            AppendHeaderRow(sb, dateLabel, FormatDateHtml(commitData.AuthorDate));
         }
 
         if (!authorIsCommitter)
@@ -260,15 +276,16 @@ internal sealed class CommitInfoHtmlBuilder
 
             if (!isArtificial && !datesEqual)
             {
-                AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitDate,
-                    WebUtility.HtmlEncode(_dateFormatter.FormatDateAsRelativeLocal(commitData.CommitDate)));
+                AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitDate, FormatDateHtml(commitData.CommitDate));
             }
         }
 
         if (!isArtificial)
         {
+            string hashStr = commitData.ObjectId.ToString();
             AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash,
-                $"<span class=\"hash\">{WebUtility.HtmlEncode(commitData.ObjectId.ToString())}</span>");
+                $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashStr)}</span>" +
+                $"<span class=\"copy-btn\" onclick=\"navigator.clipboard.writeText('{hashStr}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>");
         }
 
         if (commitData.ChildIds is { Count: > 0 })
@@ -333,11 +350,20 @@ internal sealed class CommitInfoHtmlBuilder
         if (showAsLinks)
         {
             return string.Join(" ", filtered.Select(id =>
-                $"<a href=\"gitext://gotocommit/{id}\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span></a>"));
+                $"<span class=\"hash-row\"><a href=\"gitext://gotocommit/{id}\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span></a>" +
+                $"<span class=\"copy-btn\" onclick=\"event.stopPropagation(); navigator.clipboard.writeText('{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
         }
 
         return string.Join(" ", filtered.Select(id =>
-            $"<span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span>"));
+            $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span>" +
+            $"<span class=\"copy-btn\" onclick=\"navigator.clipboard.writeText('{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
+    }
+
+    private static string FormatDateHtml(DateTimeOffset date)
+    {
+        string fullDate = WebUtility.HtmlEncode(LocalizationHelpers.GetFullDateString(date));
+        string relative = WebUtility.HtmlEncode(LocalizationHelpers.GetRelativeDateString(DateTime.UtcNow, date.UtcDateTime));
+        return $"{fullDate}<span class=\"date-relative\">{relative}</span>";
     }
 
     /// <summary>
