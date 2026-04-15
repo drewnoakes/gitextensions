@@ -83,6 +83,7 @@ public partial class CommitInfo : GitModuleControl
     private bool _showAllBranches;
     private bool _showAllTags;
     private bool _unifiedViewerInitialized;
+    private string? _cachedAvatarDataUrl;
 
     [DefaultValue(false)]
     public bool ShowBranchesAsLinks { get; set; }
@@ -383,6 +384,7 @@ public partial class CommitInfo : GitModuleControl
         _branchInfo = "";
         _tagInfo = "";
         _gitDescribeInfo = "";
+        _cachedAvatarDataUrl = null;
 
         if (_revision is not null && !_revision.IsArtificial && !_revision.IsAutostash)
         {
@@ -444,8 +446,13 @@ public partial class CommitInfo : GitModuleControl
             string rawBody = (GitExtensions.Extensibility.Extensions.UIExtensions.FormatBodyAndNotes(data.Body, data.Notes) ?? "").Trim();
             string xhtml = commitDataBodyRenderer.Render(data, showRevisionsAsLinks: CommandClickedEvent is not null);
 
+            // Load avatar via the full provider chain (GitHub → Gravatar → fallback)
+            // The memory cache makes this instant for recently-viewed commits.
+            string? avatarDataUrl = await LoadAvatarDataUrlAsync(_revision, cancellationToken);
+
             await this.SwitchToMainThreadAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+            _cachedAvatarDataUrl = avatarDataUrl;
             SetCommitMessage((rawBody, xhtml));
         }
 
@@ -489,13 +496,6 @@ public partial class CommitInfo : GitModuleControl
 
                 await this.SwitchToMainThreadAsync(cancellationToken);
                 UpdateRevisionInfo();
-
-                // Update avatar with the proper provider chain (GitHub → Gravatar → fallback)
-                // after the initial Gravatar-only URL has been rendered
-                if (AppSettings.ShowAuthorAvatarInCommitInfo && unifiedViewer.Visible)
-                {
-                    LoadProperAvatarAsync(initialRevision, cancellationToken).FileAndForget();
-                }
             });
 
             return;
@@ -671,31 +671,40 @@ public partial class CommitInfo : GitModuleControl
         }
     }
 
-    private async Task LoadProperAvatarAsync(GitRevision revision, CancellationToken cancellationToken)
+    private static async Task<string?> LoadAvatarDataUrlAsync(GitRevision revision, CancellationToken cancellationToken)
     {
+        if (!AppSettings.ShowAuthorAvatarInCommitInfo)
+        {
+            return null;
+        }
+
         string? email = revision.AuthorEmail ?? revision.CommitterEmail;
         string? name = revision.Author ?? revision.Committer;
 
         if (string.IsNullOrEmpty(email))
         {
-            return;
+            return null;
         }
 
+        int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
+
+        // Check the file system cache first — return a file:/// URL if available
+        string cachePath = Path.Join(AppSettings.AvatarImageCachePath, $"{email}.{size}px.png");
+        if (File.Exists(cachePath))
+        {
+            return "file:///" + cachePath.Replace('\\', '/');
+        }
+
+        // Not cached — load via the provider chain (triggers download + cache write)
         try
         {
-            int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
-            Image? image = await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
+            await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (image is not null && unifiedViewer.Visible)
+            // Now the file should be cached
+            if (File.Exists(cachePath))
             {
-                using MemoryStream ms = new();
-                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                string dataUrl = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
-
-                await this.SwitchToMainThreadAsync(cancellationToken);
-                await unifiedViewer.ExecuteScriptAsync(
-                    $"var img = document.querySelector('.avatar'); if (img) img.src = '{dataUrl}';");
+                return "file:///" + cachePath.Replace('\\', '/');
             }
         }
         catch (OperationCanceledException)
@@ -704,8 +713,10 @@ public partial class CommitInfo : GitModuleControl
         }
         catch
         {
-            // Fall back to the Gravatar URL already rendered
         }
+
+        // Fall back to Gravatar URL
+        return BuildGravatarUrl(email, size);
     }
 
     private static string? GetAvatarUrl(GitRevision revision)
@@ -929,7 +940,7 @@ public partial class CommitInfo : GitModuleControl
                 string html = _htmlBuilder.Build(
                     data,
                     message.rawBody,
-                    avatarUrl: GetAvatarUrl(_revision),
+                    avatarUrl: _cachedAvatarDataUrl ?? GetAvatarUrl(_revision),
                     _annotatedTagsInfo ?? string.Empty,
                     _linksInfo ?? string.Empty,
                     _branchInfo ?? string.Empty,
@@ -946,7 +957,7 @@ public partial class CommitInfo : GitModuleControl
             else
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
-                string headerHtml = _htmlBuilder.BuildHeaderInner(data, GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
                 string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,
