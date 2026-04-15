@@ -90,10 +90,17 @@ internal sealed class CommitInfoHtmlBuilder
             }
             .avatar {
                 flex-shrink: 0;
-                width: 60px;
-                height: 60px;
+                width: 90px;
+                height: 90px;
                 border-radius: 6px;
                 background: {{Css(headerBg)}};
+            }
+            .inline-avatar {
+                width: 16px;
+                height: 16px;
+                border-radius: 3px;
+                vertical-align: text-bottom;
+                margin-right: 4px;
             }
             .header-details { flex: 1; min-width: 0; }
             .header-row {
@@ -129,11 +136,17 @@ internal sealed class CommitInfoHtmlBuilder
                 cursor: pointer;
                 margin-left: 6px;
                 color: {{Css(mutedFg)}};
-                font-size: 13px;
+                font-size: 11px;
                 line-height: 1;
+                user-select: none;
             }
             .copy-btn:hover { color: {{Css(foreground)}}; }
             .hash-row:hover .copy-btn { visibility: visible; }
+            .copied-feedback {
+                color: {{Css(mutedFg)}};
+                font-size: 11px;
+                margin-left: 6px;
+            }
             .author-email {
                 color: {{Css(mutedFg)}};
                 text-decoration: none;
@@ -204,7 +217,21 @@ internal sealed class CommitInfoHtmlBuilder
             a[title]:hover { cursor: pointer; }
             </style>
             <script>
+            function copyId(btn, fullHash) {
+                event.stopPropagation();
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'copy', text: fullHash }));
+                var orig = btn.innerHTML;
+                btn.innerHTML = 'Copied';
+                btn.classList.add('copied-feedback');
+                btn.classList.remove('copy-btn');
+                setTimeout(function() {
+                    btn.innerHTML = orig;
+                    btn.classList.remove('copied-feedback');
+                    btn.classList.add('copy-btn');
+                }, 1200);
+            }
             document.addEventListener('click', function(e) {
+                if (e.target.closest('.copy-btn') || e.target.closest('.copied-feedback')) return;
                 var a = e.target.closest('a');
                 if (a && a.href) {
                     e.preventDefault();
@@ -273,6 +300,18 @@ internal sealed class CommitInfoHtmlBuilder
         // Author — name as plain text, email as muted mailto link
         AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author, FormatPersonHtml(commitData.Author));
 
+        // Co-authors from trailers — right after author
+        (IReadOnlyList<string> additionalAuthors, IReadOnlyList<string> signedOffBy) = ExtractTrailers(commitBody);
+
+        foreach (string additionalAuthor in additionalAuthors)
+        {
+            string email = GetEmail(additionalAuthor);
+            string avatarImg = !string.IsNullOrEmpty(email)
+                ? $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />"
+                : "";
+            AppendHeaderRow(sb, "Co-author", avatarImg + FormatPersonHtml(additionalAuthor));
+        }
+
         if (!isArtificial)
         {
             string dateLabel = datesEqual ? ResourceManager.TranslatedStrings.Date : ResourceManager.TranslatedStrings.AuthorDate;
@@ -294,7 +333,7 @@ internal sealed class CommitInfoHtmlBuilder
             string hashStr = commitData.ObjectId.ToString();
             AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash,
                 $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashStr)}</span>" +
-                $"<span class=\"copy-btn\" onclick=\"navigator.clipboard.writeText('{hashStr}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>");
+                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashStr}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>");
         }
 
         if (commitData.ChildIds is { Count: > 0 })
@@ -315,17 +354,13 @@ internal sealed class CommitInfoHtmlBuilder
             }
         }
 
-        // Co-authors and sign-offs from commit message trailers
-        (IReadOnlyList<string> additionalAuthors, IReadOnlyList<string> signedOffBy) = ExtractTrailers(commitBody);
-
-        foreach (string additionalAuthor in additionalAuthors)
-        {
-            AppendHeaderRow(sb, "Co-author", FormatPersonHtml(additionalAuthor));
-        }
-
         foreach (string signer in signedOffBy)
         {
-            AppendHeaderRow(sb, "Signed-off-by", FormatPersonHtml(signer));
+            string email = GetEmail(signer);
+            string avatarImg = !string.IsNullOrEmpty(email)
+                ? $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />"
+                : "";
+            AppendHeaderRow(sb, "Signed-off-by", avatarImg + FormatPersonHtml(signer));
         }
 
         sb.Append("</div>");
@@ -351,7 +386,7 @@ internal sealed class CommitInfoHtmlBuilder
 
         if (!string.IsNullOrEmpty(email))
         {
-            sb.Append($"<a class=\"author-email\" href=\"mailto:{WebUtility.HtmlEncode(email)}\" title=\"Send email to {WebUtility.HtmlEncode(email)}\">&lt;{WebUtility.HtmlEncode(email)}&gt;</a>");
+            sb.Append($"<a class=\"author-email\" href=\"mailto:{WebUtility.HtmlEncode(email)}\" title=\"Send email to {WebUtility.HtmlEncode(email)}\">{WebUtility.HtmlEncode(email)}</a>");
         }
 
         return sb.ToString();
@@ -407,6 +442,47 @@ internal sealed class CommitInfoHtmlBuilder
     }
 
     /// <summary>
+    ///  Returns a Gravatar URL for the given email.
+    /// </summary>
+    private static string GravatarUrl(string email, int size)
+    {
+        string hash = ComputeMd5Hash(email.Trim().ToLowerInvariant());
+        return $"https://www.gravatar.com/avatar/{hash}?r=g&amp;d=identicon&amp;s={size}";
+
+        static string ComputeMd5Hash(string input)
+        {
+            byte[] hashBytes = System.Security.Cryptography.MD5.HashData(Encoding.ASCII.GetBytes(input));
+            return Convert.ToHexStringLower(hashBytes);
+        }
+    }
+
+    /// <summary>
+    ///  Removes Co-authored-by and Signed-off-by trailer lines from the message body.
+    /// </summary>
+    internal static string StripTrailers(string body)
+    {
+        if (string.IsNullOrEmpty(body))
+        {
+            return body;
+        }
+
+        StringBuilder sb = new();
+        foreach (string line in body.Split('\n'))
+        {
+            string trimmed = line.TrimStart();
+            if (trimmed.StartsWith("Co-authored-by:", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("Signed-off-by:", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            sb.AppendLine(line.TrimEnd('\r'));
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
     ///  Builds the inner HTML for the message section (for incremental updates).
     /// </summary>
     public static string BuildMessageInner(string commitMessageBody, bool renderMarkdown)
@@ -416,9 +492,18 @@ internal sealed class CommitInfoHtmlBuilder
             return string.Empty;
         }
 
+        // Remove trailer lines (Co-authored-by, Signed-off-by) from the message
+        // since they are displayed in the header section.
+        string body = StripTrailers(commitMessageBody);
+
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return string.Empty;
+        }
+
         if (renderMarkdown)
         {
-            string markdown = commitMessageBody;
+            string markdown = body;
             if (markdown.Length > 0 && markdown[0] == '\uFEFF')
             {
                 markdown = markdown[1..];
@@ -427,7 +512,7 @@ internal sealed class CommitInfoHtmlBuilder
             return Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline);
         }
 
-        return $"<pre><code>{WebUtility.HtmlEncode(commitMessageBody)}</code></pre>";
+        return $"<pre><code>{WebUtility.HtmlEncode(body)}</code></pre>";
     }
 
     private static void AppendHeaderRow(StringBuilder sb, string label, string value)
@@ -447,12 +532,12 @@ internal sealed class CommitInfoHtmlBuilder
         {
             return string.Join(" ", filtered.Select(id =>
                 $"<span class=\"hash-row\"><a href=\"gitext://gotocommit/{id}\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span></a>" +
-                $"<span class=\"copy-btn\" onclick=\"event.stopPropagation(); navigator.clipboard.writeText('{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
+                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
         }
 
         return string.Join(" ", filtered.Select(id =>
             $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span>" +
-            $"<span class=\"copy-btn\" onclick=\"navigator.clipboard.writeText('{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
+            $"<span class=\"copy-btn\" onclick=\"copyId(this, '{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
     }
 
     private static string FormatDateHtml(DateTimeOffset date)

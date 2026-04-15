@@ -1,4 +1,5 @@
 using GitCommands;
+using GitExtUtils;
 using GitExtUtils.GitUI;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
@@ -197,6 +198,16 @@ public class MarkdownViewer : UserControl
                         {
                             OsShellUtil.OpenUrlInDefaultBrowser(url);
                         }
+                    }
+                }
+                else if (message.Contains("\"copy\""))
+                {
+                    int textStart = message.IndexOf("\"text\":\"") + 8;
+                    int textEnd = message.LastIndexOf('"');
+                    if (textStart > 7 && textEnd > textStart)
+                    {
+                        string text = message[textStart..textEnd];
+                        ClipboardUtil.TrySetText(text);
                     }
                 }
                 else if (message.Contains("\"contextmenu\""))
