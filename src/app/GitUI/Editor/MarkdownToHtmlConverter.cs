@@ -87,10 +87,16 @@ internal static class MarkdownToHtmlConverter
                 line-height: 1.5;
                 word-wrap: break-word;{{(disableScrolling ? "\n                overflow: hidden;" : "")}}
             }
-            ::-webkit-scrollbar { width: 10px; }
+            ::-webkit-scrollbar { width: 14px; }
             ::-webkit-scrollbar-track { background: {{FormatColor(background)}}; }
-            ::-webkit-scrollbar-thumb { background: {{FormatColor(borderColor)}}; border-radius: 5px; }
-            ::-webkit-scrollbar-thumb:hover { background: {{FormatColor(blockquoteFg)}}; }
+            ::-webkit-scrollbar-thumb {
+                background: {{FormatColor(isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(190, 190, 190))}};
+                border-radius: 7px;
+                border: 3px solid {{FormatColor(background)}};
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: {{FormatColor(isDark ? Color.FromArgb(110, 110, 110) : Color.FromArgb(160, 160, 160))}};
+            }
             body > *:first-child { margin-top: 0 !important; }
             body > *:last-child { margin-bottom: 0 !important; }
             h1, h2, h3, h4, h5, h6 {

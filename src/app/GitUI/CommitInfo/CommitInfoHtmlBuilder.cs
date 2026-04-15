@@ -82,10 +82,16 @@ internal sealed class CommitInfoHtmlBuilder
                 color: {{Css(foreground)}};
                 background: {{Css(background)}};
             }
-            ::-webkit-scrollbar { width: 10px; }
+            ::-webkit-scrollbar { width: 14px; }
             ::-webkit-scrollbar-track { background: {{Css(background)}}; }
-            ::-webkit-scrollbar-thumb { background: {{Css(borderColor)}}; border-radius: 5px; }
-            ::-webkit-scrollbar-thumb:hover { background: {{Css(mutedFg)}}; }
+            ::-webkit-scrollbar-thumb {
+                background: {{Css(isDark ? Color.FromArgb(80, 80, 80) : Color.FromArgb(190, 190, 190))}};
+                border-radius: 7px;
+                border: 3px solid {{Css(background)}};
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: {{Css(isDark ? Color.FromArgb(110, 110, 110) : Color.FromArgb(160, 160, 160))}};
+            }
             a { color: {{Css(linkColor)}}; text-decoration: none; }
             a:hover { text-decoration: underline; }
 
@@ -146,7 +152,7 @@ internal sealed class CommitInfoHtmlBuilder
             .copy-btn {
                 visibility: hidden;
                 cursor: pointer;
-                margin-left: 6px;
+                margin-left: 3px;
                 color: {{Css(mutedFg)}};
                 font-size: 11px;
                 line-height: 1;
@@ -316,10 +322,9 @@ internal sealed class CommitInfoHtmlBuilder
 
         sb.Append("<div class=\"header-details\">");
 
-        // Author — name as plain text, email as muted mailto link
+        // --- People section ---
         AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author, FormatPersonHtml(commitData.Author));
 
-        // Co-authors from trailers — right after author
         (IReadOnlyList<string> additionalAuthors, IReadOnlyList<string> signedOffBy) = ExtractTrailers(commitBody);
 
         foreach (string additionalAuthor in additionalAuthors)
@@ -329,21 +334,31 @@ internal sealed class CommitInfoHtmlBuilder
             AppendHeaderRow(sb, "Co-author", FormatPersonHtml(additionalAuthor), avatarImg);
         }
 
+        if (!authorIsCommitter)
+        {
+            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Committer, FormatPersonHtml(commitData.Committer));
+        }
+
+        foreach (string signer in signedOffBy)
+        {
+            string email = GetEmail(signer);
+            string avatarImg = GetPersonIcon(email);
+            AppendHeaderRow(sb, "Signed-off-by", FormatPersonHtml(signer), avatarImg);
+        }
+
+        // --- Dates section ---
         if (!isArtificial)
         {
             string dateLabel = datesEqual ? ResourceManager.TranslatedStrings.Date : ResourceManager.TranslatedStrings.AuthorDate;
             AppendHeaderRow(sb, dateLabel, FormatDateHtml(commitData.AuthorDate));
-        }
 
-        if (!authorIsCommitter)
-        {
-            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Committer, FormatPersonHtml(commitData.Committer));
-
-            if (!isArtificial && !datesEqual)
+            if (!authorIsCommitter && !datesEqual)
             {
                 AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitDate, FormatDateHtml(commitData.CommitDate));
             }
         }
+
+        // --- Metadata section ---
 
         if (!isArtificial)
         {
@@ -351,13 +366,22 @@ internal sealed class CommitInfoHtmlBuilder
             string hashFull = commitData.ObjectId.ToString();
             string? gitHubBaseUrl = GetGitHubBaseUrl(remoteUrl);
 
-            string commitUrl = gitHubBaseUrl is not null
-                ? $" <a href=\"{gitHubBaseUrl}/commit/{hashFull}\" title=\"View commit on GitHub\" class=\"author-email\">{GitHubSvgIcon}</a>"
-                : "";
+            string hashHtml;
+            string iconHtml = "";
+            if (gitHubBaseUrl is not null)
+            {
+                // Hash is a link to GitHub, with GitHub icon in the icon column
+                iconHtml = GitHubSvgIcon;
+                hashHtml = $"<span class=\"hash-row\"><a href=\"{gitHubBaseUrl}/commit/{hashFull}\" title=\"View commit on GitHub\"><span class=\"hash\">{WebUtility.HtmlEncode(hashShort)}</span></a>" +
+                    $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashFull}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>";
+            }
+            else
+            {
+                hashHtml = $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashShort)}</span>" +
+                    $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashFull}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>";
+            }
 
-            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash,
-                $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(hashShort)}</span>" +
-                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{hashFull}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>{commitUrl}");
+            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitHash, hashHtml, iconHtml);
 
             // GitHub PR reference from the commit title
             if (gitHubBaseUrl is not null)
@@ -391,13 +415,6 @@ internal sealed class CommitInfoHtmlBuilder
             {
                 AppendHeaderRow(sb, ResourceManager.TranslatedStrings.GetParents(commitData.ParentIds.Count), rendered);
             }
-        }
-
-        foreach (string signer in signedOffBy)
-        {
-            string email = GetEmail(signer);
-            string avatarImg = GetPersonIcon(email);
-            AppendHeaderRow(sb, "Signed-off-by", FormatPersonHtml(signer), avatarImg);
         }
 
         sb.Append("</div>");
@@ -582,9 +599,16 @@ internal sealed class CommitInfoHtmlBuilder
 
     private static string FormatDateHtml(DateTimeOffset date)
     {
-        string fullDate = WebUtility.HtmlEncode(LocalizationHelpers.GetFullDateString(date));
+        string fullDate = LocalizationHelpers.GetFullDateString(date);
         string relative = WebUtility.HtmlEncode(LocalizationHelpers.GetRelativeDateString(DateTime.UtcNow, date.UtcDateTime));
-        return $"{fullDate}<span class=\"date-relative\">{relative}</span>";
+
+        // Colour date separators (/, :, spaces between date parts) in muted colour
+        string styledDate = System.Text.RegularExpressions.Regex.Replace(
+            WebUtility.HtmlEncode(fullDate),
+            @"([/:\-])",
+            "<span class=\"date-relative\">$1</span>");
+
+        return $"{styledDate}<span class=\"date-relative\"> {relative}</span>";
     }
 
     /// <summary>

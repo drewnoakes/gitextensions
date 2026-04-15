@@ -176,6 +176,10 @@ public partial class CommitInfo : GitModuleControl
         unifiedViewer.DismissRequested += (_, _) =>
         {
             unifiedContextMenu.Close();
+
+            // Focusing the viewer causes WinForms to close any other open
+            // context menus (e.g. the revision grid's right-click menu).
+            unifiedViewer.Focus();
         };
     }
 
