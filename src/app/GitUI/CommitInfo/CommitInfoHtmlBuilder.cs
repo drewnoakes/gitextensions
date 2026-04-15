@@ -100,19 +100,22 @@ internal sealed class CommitInfoHtmlBuilder
                 height: 16px;
                 border-radius: 3px;
                 vertical-align: text-bottom;
-                margin-right: 4px;
             }
             .header-details { flex: 1; min-width: 0; }
             .header-row {
-                display: flex;
+                display: grid;
+                grid-template-columns: 90px 24px 1fr;
                 line-height: 1.6;
                 white-space: nowrap;
+                align-items: baseline;
             }
             .header-label {
                 color: {{Css(foreground)}};
-                min-width: 90px;
-                flex-shrink: 0;
                 font-weight: 600;
+            }
+            .header-icon {
+                text-align: center;
+                line-height: 1.6;
             }
             .header-value {
                 overflow: hidden;
@@ -210,6 +213,13 @@ internal sealed class CommitInfoHtmlBuilder
             .footer a { color: {{Css(linkColor)}}; }
             .footer-section { margin-bottom: 0.5em; }
             .footer-section:last-child { margin-bottom: 0; }
+            .link-icon {
+                width: 14px;
+                height: 14px;
+                vertical-align: text-bottom;
+                margin-right: 3px;
+                opacity: 0.7;
+            }
             .footer-label { color: {{Css(foreground)}}; font-weight: 600; }
             .footer u { text-decoration: none; font-weight: 600; color: {{Css(foreground)}}; }
 
@@ -309,7 +319,7 @@ internal sealed class CommitInfoHtmlBuilder
             string avatarImg = !string.IsNullOrEmpty(email)
                 ? $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />"
                 : "";
-            AppendHeaderRow(sb, "Co-author", avatarImg + FormatPersonHtml(additionalAuthor));
+            AppendHeaderRow(sb, "Co-author", FormatPersonHtml(additionalAuthor), avatarImg);
         }
 
         if (!isArtificial)
@@ -360,7 +370,7 @@ internal sealed class CommitInfoHtmlBuilder
             string avatarImg = !string.IsNullOrEmpty(email)
                 ? $"<img class=\"inline-avatar\" src=\"{GravatarUrl(email, 32)}\" />"
                 : "";
-            AppendHeaderRow(sb, "Signed-off-by", avatarImg + FormatPersonHtml(signer));
+            AppendHeaderRow(sb, "Signed-off-by", FormatPersonHtml(signer), avatarImg);
         }
 
         sb.Append("</div>");
@@ -515,11 +525,13 @@ internal sealed class CommitInfoHtmlBuilder
         return $"<pre><code>{WebUtility.HtmlEncode(body)}</code></pre>";
     }
 
-    private static void AppendHeaderRow(StringBuilder sb, string label, string value)
+    private static void AppendHeaderRow(StringBuilder sb, string label, string value, string icon = "")
     {
         sb.Append("<div class=\"header-row\"><span class=\"header-label\">")
           .Append(WebUtility.HtmlEncode(label))
-          .Append(":</span><span class=\"header-value\">")
+          .Append("</span><span class=\"header-icon\">")
+          .Append(icon)
+          .Append("</span><span class=\"header-value\">")
           .Append(value)
           .Append("</span></div>");
     }
@@ -531,13 +543,14 @@ internal sealed class CommitInfoHtmlBuilder
         if (showAsLinks)
         {
             return string.Join(" ", filtered.Select(id =>
-                $"<span class=\"hash-row\"><a href=\"gitext://gotocommit/{id}\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span></a>" +
-                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
+                $"<span class=\"hash-row\"><a href=\"gitext://gotocommit/{id}\" title=\"Navigate to commit {id.ToShortString()}\">" +
+                $"<span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span></a>" +
+                $"<span class=\"copy-btn\" onclick=\"copyId(this, '{id}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>"));
         }
 
         return string.Join(" ", filtered.Select(id =>
             $"<span class=\"hash-row\"><span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span>" +
-            $"<span class=\"copy-btn\" onclick=\"copyId(this, '{id}')\" title=\"Copy commit ID\">&#x1F4CB;</span></span>"));
+            $"<span class=\"copy-btn\" onclick=\"copyId(this, '{id}')\" title=\"Copy full commit ID\">&#x1F4CB;</span></span>"));
     }
 
     private static string FormatDateHtml(DateTimeOffset date)
@@ -581,7 +594,13 @@ internal sealed class CommitInfoHtmlBuilder
 
             string html = section.Replace("\r\n", "<br>").Replace("\n", "<br>");
 
-            // Add title attributes to <a> tags so external URLs show tooltips
+            // Strip redundant "Related links:" prefix — the icons make it self-explanatory
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"^[^<]*Related links[^<]*:<br>",
+                "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
             html = AddTitleToLinks(html);
 
             sb.Append("<div class=\"footer-section\">")
@@ -614,22 +633,40 @@ internal sealed class CommitInfoHtmlBuilder
     /// </summary>
     private static string AddTitleToLinks(string html)
     {
-        // Match <a href='url'> or <a href="url"> (from LinkFactory output)
         return System.Text.RegularExpressions.Regex.Replace(
             html,
             @"<a href=(['""])([^'""]+)\1>",
             match =>
             {
                 string url = match.Groups[2].Value;
+                string quote = match.Groups[1].Value;
 
-                // Don't add tooltips for internal navigation links
+                if (url.StartsWith("gitext://gotobranch/", StringComparison.OrdinalIgnoreCase))
+                {
+                    string branch = url["gitext://gotobranch/".Length..];
+                    return $"<a href={quote}{url}{quote} title=\"Navigate to branch {WebUtility.HtmlEncode(branch)}\">";
+                }
+
+                if (url.StartsWith("gitext://gototag/", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tag = url["gitext://gototag/".Length..];
+                    return $"<a href={quote}{url}{quote} title=\"Navigate to tag {WebUtility.HtmlEncode(tag)}\">";
+                }
+
                 if (url.StartsWith("gitext://", StringComparison.OrdinalIgnoreCase))
                 {
                     return match.Value;
                 }
 
                 string escaped = WebUtility.HtmlEncode(url);
-                return $"<a href={match.Groups[1].Value}{url}{match.Groups[1].Value} title=\"{escaped}\">";
+
+                // Add a small icon for GitHub links
+                bool isGitHub = url.Contains("github.com", StringComparison.OrdinalIgnoreCase);
+                string icon = isGitHub
+                    ? "<svg class=\"link-icon\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z\"/></svg>"
+                    : "";
+
+                return $"<a href={quote}{url}{quote} title=\"{escaped}\">{icon}";
             });
     }
 
