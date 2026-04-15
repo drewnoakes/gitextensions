@@ -158,7 +158,11 @@ public class MarkdownViewer : UserControl
 
         CoreWebView2Settings settings = _webView.CoreWebView2.Settings;
         settings.AreDefaultContextMenusEnabled = false;
+#if DEBUG
+        settings.AreDevToolsEnabled = true;
+#else
         settings.AreDevToolsEnabled = false;
+#endif
         settings.IsStatusBarEnabled = false;
         settings.IsZoomControlEnabled = false;
 
