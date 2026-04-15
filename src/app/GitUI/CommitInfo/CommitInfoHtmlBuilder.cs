@@ -198,7 +198,7 @@ internal sealed class CommitInfoHtmlBuilder
         // Message body
         if (!string.IsNullOrWhiteSpace(commitMessageBody))
         {
-            sb.Append("<div class=\"message\">");
+            sb.Append("<div id=\"message\" class=\"message\">");
 
             if (renderMarkdown)
             {
@@ -219,11 +219,10 @@ internal sealed class CommitInfoHtmlBuilder
         }
 
         // Footer
+        sb.Append("<div id=\"footer\" class=\"footer\">");
         string footerContent = BuildFooter(annotatedTagsInfo, linksInfo, branchInfo, tagInfo, gitDescribeInfo);
-        if (footerContent.Length > 0)
-        {
-            sb.Append("<div class=\"footer\">").Append(footerContent).Append("</div>");
-        }
+        sb.Append(footerContent);
+        sb.Append("</div>");
 
         sb.Append("</body></html>");
         return sb.ToString();
@@ -313,6 +312,19 @@ internal sealed class CommitInfoHtmlBuilder
 
         return string.Join(" ", objectIds.Select(id =>
             $"<span class=\"hash\">{WebUtility.HtmlEncode(id.ToShortString())}</span>"));
+    }
+
+    /// <summary>
+    ///  Builds only the footer HTML content for incremental updates.
+    /// </summary>
+    public static string BuildFooterHtml(
+        string annotatedTagsInfo,
+        string linksInfo,
+        string branchInfo,
+        string tagInfo,
+        string gitDescribeInfo)
+    {
+        return BuildFooter(annotatedTagsInfo, linksInfo, branchInfo, tagInfo, gitDescribeInfo);
     }
 
     private static string BuildFooter(

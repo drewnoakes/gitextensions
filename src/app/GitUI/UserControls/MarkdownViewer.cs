@@ -65,6 +65,23 @@ public class MarkdownViewer : UserControl
     }
 
     /// <summary>
+    ///  Updates specific elements in the current page by ID, avoiding a full navigation.
+    ///  Falls back to full navigation if the WebView2 isn't ready.
+    /// </summary>
+    public async Task UpdateElementAsync(string elementId, string innerHtml)
+    {
+        if (_isWebViewReady && _webView.CoreWebView2 is not null)
+        {
+            string escaped = innerHtml
+                .Replace("\\", "\\\\")
+                .Replace("`", "\\`")
+                .Replace("$", "\\$");
+            await _webView.CoreWebView2.ExecuteScriptAsync(
+                $"document.getElementById('{elementId}').innerHTML = `{escaped}`;");
+        }
+    }
+
+    /// <summary>
     ///  Raised when a web message is received from the WebView2 content.
     /// </summary>
     public event EventHandler<string>? WebMessageReceived;

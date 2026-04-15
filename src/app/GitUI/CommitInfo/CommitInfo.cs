@@ -77,7 +77,6 @@ public partial class CommitInfo : GitModuleControl
     private List<string>? _branches;
     private string? _branchInfo;
     private string? _gitDescribeInfo;
-    private string? _avatarDataUrl;
     private IDictionary<string, int>? _tagsOrderDict;
     private int _revisionInfoHeight;
     private int _commitMessageHeight;
@@ -349,7 +348,6 @@ public partial class CommitInfo : GitModuleControl
         _branchInfo = "";
         _tagInfo = "";
         _gitDescribeInfo = "";
-        _avatarDataUrl = null;
 
         if (_revision is not null && !_revision.IsArtificial && !_revision.IsAutostash)
         {
@@ -364,8 +362,27 @@ public partial class CommitInfo : GitModuleControl
         }
         else
         {
-            SetCommitMessage(GetFixCommitMessage());
-            RevisionInfo.Clear();
+            (string rawBody, string xhtml) message = GetFixCommitMessage();
+
+            if (unifiedViewer.Visible && _htmlBuilder is not null)
+            {
+                CommitData? data = _revision is not null
+                    ? _commitDataManager.CreateFromRevision(_revision, _children)
+                    : null;
+                string html = _htmlBuilder.Build(
+                    data,
+                    message.rawBody,
+                    avatarUrl: null,
+                    string.Empty, string.Empty, string.Empty, string.Empty, string.Empty,
+                    showRevisionsAsLinks: false,
+                    renderMarkdown: AppSettings.RenderMarkdownPreview);
+                unifiedViewer.SetHtml(html);
+            }
+            else
+            {
+                SetCommitMessage(message);
+                RevisionInfo.Clear();
+            }
         }
 
         return;
@@ -443,11 +460,6 @@ public partial class CommitInfo : GitModuleControl
                 if (AppSettings.CommitInfoShowTagThisCommitDerivesFrom)
                 {
                     tasks.Add(LoadDescribeInfoAsync(initialRevision.ObjectId).WithCancellation(cancellationToken));
-                }
-
-                if (AppSettings.ShowAuthorAvatarInCommitInfo && unifiedViewer.Visible)
-                {
-                    tasks.Add(LoadAvatarAsync(initialRevision, cancellationToken));
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -631,41 +643,28 @@ public partial class CommitInfo : GitModuleControl
         }
     }
 
-    private async Task LoadAvatarAsync(GitRevision revision, CancellationToken cancellationToken)
+    private static string? GetAvatarUrl(GitRevision revision)
     {
-        string? email = revision.AuthorEmail ?? revision.CommitterEmail;
-        string? name = revision.Author ?? revision.Committer;
+        if (!AppSettings.ShowAuthorAvatarInCommitInfo)
+        {
+            return null;
+        }
 
+        string? email = revision.AuthorEmail ?? revision.CommitterEmail;
         if (string.IsNullOrEmpty(email))
         {
-            _avatarDataUrl = null;
-            return;
+            return null;
         }
 
-        try
-        {
-            int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
-            Image? image = await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
-            cancellationToken.ThrowIfCancellationRequested();
+        // Build Gravatar URL directly — let WebView2 fetch and cache it.
+        int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
+        string hash = ComputeMd5Hash(email.Trim().ToLowerInvariant());
+        return $"https://www.gravatar.com/avatar/{hash}?r=g&d=identicon&s={size}";
 
-            if (image is not null)
-            {
-                using MemoryStream ms = new();
-                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                _avatarDataUrl = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
-            }
-            else
-            {
-                _avatarDataUrl = null;
-            }
-        }
-        catch (OperationCanceledException)
+        static string ComputeMd5Hash(string input)
         {
-            throw;
-        }
-        catch
-        {
-            _avatarDataUrl = null;
+            byte[] hashBytes = System.Security.Cryptography.MD5.HashData(Encoding.ASCII.GetBytes(input));
+            return Convert.ToHexStringLower(hashBytes);
         }
     }
 
@@ -712,20 +711,13 @@ public partial class CommitInfo : GitModuleControl
 
         if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
         {
-            CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
-            string rawBody = (GitExtensions.Extensibility.Extensions.UIExtensions.FormatBodyAndNotes(data.Body, data.Notes) ?? "").Trim();
-            string html = _htmlBuilder.Build(
-                data,
-                rawBody,
-                avatarUrl: _avatarDataUrl,
+            string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                 _annotatedTagsInfo ?? string.Empty,
                 _linksInfo ?? string.Empty,
                 _branchInfo ?? string.Empty,
                 _tagInfo ?? string.Empty,
-                _gitDescribeInfo ?? string.Empty,
-                showRevisionsAsLinks: CommandClickedEvent is not null,
-                renderMarkdown: AppSettings.RenderMarkdownPreview);
-            unifiedViewer.SetHtml(html);
+                _gitDescribeInfo ?? string.Empty);
+            unifiedViewer.UpdateElementAsync("footer", footerHtml).FileAndForget();
         }
         else
         {
@@ -826,25 +818,42 @@ public partial class CommitInfo : GitModuleControl
 
     private void SetCommitMessage((string rawBody, string xhtml) message)
     {
-        bool useMarkdown = AppSettings.RenderMarkdownPreview;
-
-        rtbxCommitMessage.Visible = !useMarkdown;
-        mdCommitMessage.Visible = useMarkdown;
-
-        if (useMarkdown)
+        if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
         {
-            mdCommitMessage.MarkdownText = message.rawBody;
-
-            // WebView2 doesn't fire ContentsResized, so set a reasonable
-            // height based on the text length as a rough heuristic.
-            int lineCount = message.rawBody.Split('\n').Length;
-            int estimatedLineHeight = (int)(16 * DpiUtil.ScaleY);
-            _commitMessageHeight = Math.Max(estimatedLineHeight * lineCount, (int)(60 * DpiUtil.ScaleY));
-            PerformLayout();
+            CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
+            string html = _htmlBuilder.Build(
+                data,
+                message.rawBody,
+                avatarUrl: GetAvatarUrl(_revision),
+                _annotatedTagsInfo ?? string.Empty,
+                _linksInfo ?? string.Empty,
+                _branchInfo ?? string.Empty,
+                _tagInfo ?? string.Empty,
+                _gitDescribeInfo ?? string.Empty,
+                showRevisionsAsLinks: CommandClickedEvent is not null,
+                renderMarkdown: AppSettings.RenderMarkdownPreview);
+            unifiedViewer.SetHtml(html);
         }
         else
         {
-            rtbxCommitMessage.SetXHTMLText(message.xhtml);
+            bool useMarkdown = AppSettings.RenderMarkdownPreview;
+
+            rtbxCommitMessage.Visible = !useMarkdown;
+            mdCommitMessage.Visible = useMarkdown;
+
+            if (useMarkdown)
+            {
+                mdCommitMessage.MarkdownText = message.rawBody;
+
+                int lineCount = message.rawBody.Split('\n').Length;
+                int estimatedLineHeight = (int)(16 * DpiUtil.ScaleY);
+                _commitMessageHeight = Math.Max(estimatedLineHeight * lineCount, (int)(60 * DpiUtil.ScaleY));
+                PerformLayout();
+            }
+            else
+            {
+                rtbxCommitMessage.SetXHTMLText(message.xhtml);
+            }
         }
     }
 
