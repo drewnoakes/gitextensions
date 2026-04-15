@@ -167,6 +167,16 @@ public class MarkdownViewer : UserControl
         // This must happen after theme initialization (not in the constructor).
         _webView.DefaultBackgroundColor = SystemColors.Window;
 
+        // Map the avatar cache directory so file:// images can be loaded via a virtual host
+        string avatarCachePath = GitCommands.AppSettings.AvatarImageCachePath;
+        if (Directory.Exists(avatarCachePath))
+        {
+            _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                "gitextensions.avatars",
+                avatarCachePath,
+                CoreWebView2HostResourceAccessKind.Allow);
+        }
+
         CoreWebView2Settings settings = _webView.CoreWebView2.Settings;
         settings.AreDefaultContextMenusEnabled = false;
 #if DEBUG

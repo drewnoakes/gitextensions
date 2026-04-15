@@ -687,12 +687,13 @@ public partial class CommitInfo : GitModuleControl
         }
 
         int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
+        string cacheFileName = $"{email}.{size}px.png";
 
-        // Check the file system cache first — return a file:/// URL if available
-        string cachePath = Path.Join(AppSettings.AvatarImageCachePath, $"{email}.{size}px.png");
+        // Check the file system cache first — use virtual host URL
+        string cachePath = Path.Join(AppSettings.AvatarImageCachePath, cacheFileName);
         if (File.Exists(cachePath))
         {
-            return "file:///" + cachePath.Replace('\\', '/');
+            return $"https://gitextensions.avatars/{Uri.EscapeDataString(cacheFileName)}";
         }
 
         // Not cached — load via the provider chain (triggers download + cache write)
@@ -701,10 +702,9 @@ public partial class CommitInfo : GitModuleControl
             await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Now the file should be cached
             if (File.Exists(cachePath))
             {
-                return "file:///" + cachePath.Replace('\\', '/');
+                return $"https://gitextensions.avatars/{Uri.EscapeDataString(cacheFileName)}";
             }
         }
         catch (OperationCanceledException)
