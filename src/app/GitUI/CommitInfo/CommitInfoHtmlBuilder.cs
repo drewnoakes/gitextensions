@@ -137,8 +137,8 @@ internal sealed class CommitInfoHtmlBuilder
                 font-size: 14px;
             }
             .header-icon .link-icon {
-                width: 16px;
-                height: 16px;
+                width: 14px;
+                height: 14px;
             }
             .header-icon .inline-avatar {
                 width: 16px;
@@ -160,7 +160,7 @@ internal sealed class CommitInfoHtmlBuilder
             .hash-row {
                 display: inline-flex;
                 align-items: center;
-                min-width: 200px;
+                margin-right: 6px;
             }
             .copy-btn {
                 visibility: hidden;
