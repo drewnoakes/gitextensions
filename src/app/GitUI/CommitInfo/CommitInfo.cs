@@ -633,9 +633,6 @@ public partial class CommitInfo : GitModuleControl
 
     private async Task LoadAvatarAsync(GitRevision revision, CancellationToken cancellationToken)
     {
-        await TaskScheduler.Default;
-        cancellationToken.ThrowIfCancellationRequested();
-
         string? email = revision.AuthorEmail ?? revision.CommitterEmail;
         string? name = revision.Author ?? revision.Committer;
 
@@ -647,20 +644,24 @@ public partial class CommitInfo : GitModuleControl
 
         try
         {
-            int size = AppSettings.AuthorImageSizeInCommitInfo;
+            int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
             Image? image = await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (image is not null)
             {
                 using MemoryStream ms = new();
                 image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                string base64 = Convert.ToBase64String(ms.ToArray());
-                _avatarDataUrl = $"data:image/png;base64,{base64}";
+                _avatarDataUrl = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
             }
             else
             {
                 _avatarDataUrl = null;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {

@@ -108,18 +108,16 @@ public class MarkdownViewer : UserControl
         // Handle messages from JavaScript (wheel events, link clicks, etc.)
         _webView.CoreWebView2.WebMessageReceived += (s, args) =>
         {
-            string json = args.WebMessageAsJson;
+            string message = args.TryGetWebMessageAsString() ?? string.Empty;
 
-            // Try parsing as a JSON object with a "type" field
-            if (json.Contains("\"type\""))
+            if (message.Contains("\"type\""))
             {
-                if (json.Contains("\"wheel\""))
+                if (message.Contains("\"wheel\""))
                 {
-                    // Extract delta from {"type":"wheel","delta":N}
-                    int deltaStart = json.IndexOf("\"delta\":") + 8;
-                    int deltaEnd = json.IndexOf('}', deltaStart);
+                    int deltaStart = message.IndexOf("\"delta\":") + 8;
+                    int deltaEnd = message.IndexOf('}', deltaStart);
                     if (deltaStart > 7 && deltaEnd > deltaStart
-                        && int.TryParse(json[deltaStart..deltaEnd], out int wheelDelta)
+                        && int.TryParse(message[deltaStart..deltaEnd], out int wheelDelta)
                         && DisableScrolling)
                     {
                         ScrollableControl? scrollParent = FindScrollParent();
@@ -130,14 +128,13 @@ public class MarkdownViewer : UserControl
                         }
                     }
                 }
-                else if (json.Contains("\"link\""))
+                else if (message.Contains("\"link\""))
                 {
-                    // Extract url from {"type":"link","url":"..."}
-                    int urlStart = json.IndexOf("\"url\":\"") + 7;
-                    int urlEnd = json.LastIndexOf('"');
+                    int urlStart = message.IndexOf("\"url\":\"") + 7;
+                    int urlEnd = message.LastIndexOf('"');
                     if (urlStart > 6 && urlEnd > urlStart)
                     {
-                        string url = json[urlStart..urlEnd];
+                        string url = message[urlStart..urlEnd];
 
                         if (WebMessageReceived is not null)
                         {
@@ -150,9 +147,8 @@ public class MarkdownViewer : UserControl
                     }
                 }
             }
-            else if (int.TryParse(json, out int delta) && DisableScrolling)
+            else if (int.TryParse(message, out int delta) && DisableScrolling)
             {
-                // Legacy format: plain integer for wheel delta
                 ScrollableControl? scrollParent = FindScrollParent();
                 if (scrollParent is not null)
                 {
