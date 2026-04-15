@@ -141,6 +141,36 @@ public partial class CommitInfo : GitModuleControl
                 commandEventArgs => CommandClickedEvent?.Invoke(this, commandEventArgs),
                 ShowAll);
         };
+
+        // Show context menu on right-click in the unified viewer
+        unifiedViewer.ContextMenuRequested += (_, screenPoint) =>
+        {
+            ContextMenuStrip menu = new();
+
+            ToolStripMenuItem copyItem = new("&Copy");
+            copyItem.Click += (s, ev) =>
+            {
+                unifiedViewer.ExecuteCopyAsync().FileAndForget();
+            };
+
+            menu.Items.Add(copyItem);
+            menu.Items.Add(new ToolStripSeparator());
+
+            ToolStripMenuItem markdownItem = new("Render commit message as Markdown")
+            {
+                Checked = AppSettings.RenderMarkdownPreview,
+                CheckOnClick = true,
+            };
+
+            markdownItem.Click += (s, ev) =>
+            {
+                AppSettings.RenderMarkdownPreview = markdownItem.Checked;
+                ReloadCommitInfo();
+            };
+
+            menu.Items.Add(markdownItem);
+            menu.Show(screenPoint);
+        };
     }
 
     /// <summary>

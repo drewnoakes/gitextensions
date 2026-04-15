@@ -185,6 +185,10 @@ internal sealed class CommitInfoHtmlBuilder
                     window.chrome.webview.postMessage(JSON.stringify({ type: 'link', url: a.href }));
                 }
             });
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'contextmenu', x: e.screenX, y: e.screenY }));
+            });
             </script>
             </head>
             <body>

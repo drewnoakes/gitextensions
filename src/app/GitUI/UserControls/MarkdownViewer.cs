@@ -82,9 +82,26 @@ public class MarkdownViewer : UserControl
     }
 
     /// <summary>
+    ///  Copies the current selection in the WebView2 to the clipboard.
+    /// </summary>
+    public async Task ExecuteCopyAsync()
+    {
+        if (_isWebViewReady && _webView.CoreWebView2 is not null)
+        {
+            await _webView.CoreWebView2.ExecuteScriptAsync("document.execCommand('copy')");
+        }
+    }
+
+    /// <summary>
     ///  Raised when a web message is received from the WebView2 content.
     /// </summary>
     public event EventHandler<string>? WebMessageReceived;
+
+    /// <summary>
+    ///  Raised when the user right-clicks in the WebView2 content.
+    ///  The event args contain screen coordinates for menu placement.
+    /// </summary>
+    public event EventHandler<Point>? ContextMenuRequested;
 
     /// <summary>
     ///  When <see langword="true"/>, the WebView2 does not scroll internally and
@@ -161,6 +178,19 @@ public class MarkdownViewer : UserControl
                         {
                             OsShellUtil.OpenUrlInDefaultBrowser(url);
                         }
+                    }
+                }
+                else if (message.Contains("\"contextmenu\""))
+                {
+                    int xStart = message.IndexOf("\"x\":") + 4;
+                    int xEnd = message.IndexOf(',', xStart);
+                    int yStart = message.IndexOf("\"y\":") + 4;
+                    int yEnd = message.IndexOf('}', yStart);
+
+                    if (int.TryParse(message[xStart..xEnd], out int x)
+                        && int.TryParse(message[yStart..yEnd], out int y))
+                    {
+                        ContextMenuRequested?.Invoke(this, new Point(x, y));
                     }
                 }
             }
