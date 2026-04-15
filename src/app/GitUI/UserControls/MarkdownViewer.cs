@@ -65,6 +65,17 @@ public class MarkdownViewer : UserControl
     }
 
     /// <summary>
+    ///  Executes JavaScript in the WebView2 content.
+    /// </summary>
+    public async Task ExecuteScriptAsync(string script)
+    {
+        if (_isWebViewReady && _webView.CoreWebView2 is not null)
+        {
+            await _webView.CoreWebView2.ExecuteScriptAsync(script);
+        }
+    }
+
+    /// <summary>
     ///  Updates specific elements in the current page by ID, avoiding a full navigation.
     ///  Falls back to full navigation if the WebView2 isn't ready.
     /// </summary>

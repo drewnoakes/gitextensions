@@ -489,6 +489,13 @@ public partial class CommitInfo : GitModuleControl
 
                 await this.SwitchToMainThreadAsync(cancellationToken);
                 UpdateRevisionInfo();
+
+                // Update avatar with the proper provider chain (GitHub → Gravatar → fallback)
+                // after the initial Gravatar-only URL has been rendered
+                if (AppSettings.ShowAuthorAvatarInCommitInfo && unifiedViewer.Visible)
+                {
+                    LoadProperAvatarAsync(initialRevision, cancellationToken).FileAndForget();
+                }
             });
 
             return;
@@ -664,6 +671,43 @@ public partial class CommitInfo : GitModuleControl
         }
     }
 
+    private async Task LoadProperAvatarAsync(GitRevision revision, CancellationToken cancellationToken)
+    {
+        string? email = revision.AuthorEmail ?? revision.CommitterEmail;
+        string? name = revision.Author ?? revision.Committer;
+
+        if (string.IsNullOrEmpty(email))
+        {
+            return;
+        }
+
+        try
+        {
+            int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
+            Image? image = await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (image is not null && unifiedViewer.Visible)
+            {
+                using MemoryStream ms = new();
+                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                string dataUrl = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
+
+                await this.SwitchToMainThreadAsync(cancellationToken);
+                await unifiedViewer.ExecuteScriptAsync(
+                    $"var img = document.querySelector('.avatar'); if (img) img.src = '{dataUrl}';");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // Fall back to the Gravatar URL already rendered
+        }
+    }
+
     private static string? GetAvatarUrl(GitRevision revision)
     {
         if (!AppSettings.ShowAuthorAvatarInCommitInfo)
@@ -677,7 +721,9 @@ public partial class CommitInfo : GitModuleControl
             return null;
         }
 
-        // Build Gravatar URL directly — let WebView2 fetch and cache it.
+        // Use Gravatar URL as a fallback. The grid uses a richer provider chain
+        // (GitHub → Gravatar → initials) but for the WebView2 HTML we need a URL.
+        // Most GitHub users also have Gravatar configured or GitHub falls through.
         int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
         return BuildGravatarUrl(email, size);
     }
@@ -685,16 +731,7 @@ public partial class CommitInfo : GitModuleControl
     internal static string BuildGravatarUrl(string email, int size)
     {
         string hash = ComputeGravatarHash(email);
-        string fallback = AppSettings.AvatarFallbackType switch
-        {
-            AvatarFallbackType.Identicon => "identicon",
-            AvatarFallbackType.MonsterId => "monsterid",
-            AvatarFallbackType.Wavatar => "wavatar",
-            AvatarFallbackType.Retro => "retro",
-            AvatarFallbackType.Robohash => "robohash",
-            _ => "identicon",
-        };
-
+        string fallback = SerializeGravatarFallback(AppSettings.AvatarFallbackType);
         return $"https://www.gravatar.com/avatar/{hash}?r=g&d={fallback}&s={size}";
     }
 
@@ -703,6 +740,19 @@ public partial class CommitInfo : GitModuleControl
         byte[] hashBytes = System.Security.Cryptography.MD5.HashData(
             Encoding.UTF8.GetBytes(email.Trim().ToLowerInvariant()));
         return Convert.ToHexStringLower(hashBytes);
+    }
+
+    private static string SerializeGravatarFallback(AvatarFallbackType fallback)
+    {
+        return fallback switch
+        {
+            AvatarFallbackType.Identicon => "identicon",
+            AvatarFallbackType.MonsterId => "monsterid",
+            AvatarFallbackType.Wavatar => "wavatar",
+            AvatarFallbackType.Retro => "retro",
+            AvatarFallbackType.Robohash => "robohash",
+            _ => "identicon",
+        };
     }
 
     private string? GetOriginUrl()
