@@ -167,9 +167,10 @@ public partial class CommitInfo : GitModuleControl
             markdownItem.Checked = AppSettings.RenderMarkdownPreview;
         };
 
-        unifiedViewer.ContextMenuRequested += (_, screenPoint) =>
+        unifiedViewer.ContextMenuRequested += (_, hasSelection) =>
         {
-            unifiedContextMenu.Show(screenPoint);
+            copyItem.Enabled = hasSelection;
+            unifiedContextMenu.Show(Cursor.Position);
         };
 
         unifiedViewer.DismissRequested += (_, _) =>
@@ -860,7 +861,7 @@ public partial class CommitInfo : GitModuleControl
             else
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
-                string headerHtml = _htmlBuilder.BuildHeaderInner(data, GetAvatarUrl(_revision), showLinks);
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, GetAvatarUrl(_revision), showLinks, message.rawBody);
                 string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,

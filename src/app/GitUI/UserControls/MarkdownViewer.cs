@@ -93,15 +93,29 @@ public class MarkdownViewer : UserControl
     }
 
     /// <summary>
+    ///  Returns whether any text is currently selected in the WebView2.
+    /// </summary>
+    public async Task<bool> HasSelectionAsync()
+    {
+        if (_isWebViewReady && _webView.CoreWebView2 is not null)
+        {
+            string result = await _webView.CoreWebView2.ExecuteScriptAsync("window.getSelection().toString().length > 0");
+            return result == "true";
+        }
+
+        return false;
+    }
+
+    /// <summary>
     ///  Raised when a web message is received from the WebView2 content.
     /// </summary>
     public event EventHandler<string>? WebMessageReceived;
 
     /// <summary>
     ///  Raised when the user right-clicks in the WebView2 content.
-    ///  The event args contain screen coordinates for menu placement.
+    ///  The bool indicates whether text is currently selected.
     /// </summary>
-    public event EventHandler<Point>? ContextMenuRequested;
+    public event EventHandler<bool>? ContextMenuRequested;
 
     /// <summary>
     ///  Raised when the user clicks in the WebView2 content (to dismiss menus).
@@ -187,9 +201,8 @@ public class MarkdownViewer : UserControl
                 }
                 else if (message.Contains("\"contextmenu\""))
                 {
-                    // Use the current cursor position for accurate screen placement.
-                    // JS clientX/clientY have DPI scaling mismatches with WinForms.
-                    ContextMenuRequested?.Invoke(this, Cursor.Position);
+                    bool hasSelection = message.Contains("\"hasSelection\":true");
+                    ContextMenuRequested?.Invoke(this, hasSelection);
                 }
                 else if (message.Contains("\"dismiss\""))
                 {

@@ -119,17 +119,27 @@ internal sealed class CommitInfoHtmlBuilder
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
                 font-size: 11px;
             }
-            .hash-row { position: relative; }
+            .hash-row {
+                display: inline-flex;
+                align-items: center;
+                min-width: 200px;
+            }
             .copy-btn {
-                display: none;
+                visibility: hidden;
                 cursor: pointer;
                 margin-left: 6px;
                 color: {{Css(mutedFg)}};
                 font-size: 13px;
-                vertical-align: middle;
+                line-height: 1;
             }
             .copy-btn:hover { color: {{Css(foreground)}}; }
-            .hash-row:hover .copy-btn { display: inline; }
+            .hash-row:hover .copy-btn { visibility: visible; }
+            .author-email {
+                color: {{Css(mutedFg)}};
+                text-decoration: none;
+                margin-left: 0.5em;
+            }
+            .author-email:hover { cursor: pointer; text-decoration: underline; }
 
             /* Message section */
             .message {
@@ -205,7 +215,8 @@ internal sealed class CommitInfoHtmlBuilder
             });
             document.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
-                window.chrome.webview.postMessage(JSON.stringify({ type: 'contextmenu', x: e.clientX, y: e.clientY }));
+                var hasSelection = window.getSelection().toString().length > 0;
+                window.chrome.webview.postMessage(JSON.stringify({ type: 'contextmenu', hasSelection: hasSelection }));
             });
             </script>
             </head>
@@ -216,7 +227,7 @@ internal sealed class CommitInfoHtmlBuilder
         sb.Append("<div id=\"header\" class=\"header\">");
         if (commitData is not null)
         {
-            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks));
+            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks, commitMessageBody));
         }
 
         sb.Append("</div>");
@@ -243,7 +254,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the header section (for incremental updates).
     /// </summary>
-    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks)
+    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null)
     {
         bool isArtificial = commitData.ObjectId.IsArtificial;
         bool authorIsCommitter = string.Equals(commitData.Author, commitData.Committer, StringComparison.CurrentCulture);
@@ -259,8 +270,8 @@ internal sealed class CommitInfoHtmlBuilder
 
         sb.Append("<div class=\"header-details\">");
 
-        AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author,
-            $"<a href=\"mailto:{WebUtility.HtmlEncode(authorEmail)}\">{WebUtility.HtmlEncode(commitData.Author)}</a>");
+        // Author — name as plain text, email as muted mailto link
+        AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author, FormatPersonHtml(commitData.Author));
 
         if (!isArtificial)
         {
@@ -270,9 +281,7 @@ internal sealed class CommitInfoHtmlBuilder
 
         if (!authorIsCommitter)
         {
-            string committerEmail = GetEmail(commitData.Committer);
-            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Committer,
-                $"<a href=\"mailto:{WebUtility.HtmlEncode(committerEmail)}\">{WebUtility.HtmlEncode(commitData.Committer)}</a>");
+            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Committer, FormatPersonHtml(commitData.Committer));
 
             if (!isArtificial && !datesEqual)
             {
@@ -306,8 +315,95 @@ internal sealed class CommitInfoHtmlBuilder
             }
         }
 
+        // Co-authors and sign-offs from commit message trailers
+        (IReadOnlyList<string> additionalAuthors, IReadOnlyList<string> signedOffBy) = ExtractTrailers(commitBody);
+
+        foreach (string additionalAuthor in additionalAuthors)
+        {
+            AppendHeaderRow(sb, "Co-author", FormatPersonHtml(additionalAuthor));
+        }
+
+        foreach (string signer in signedOffBy)
+        {
+            AppendHeaderRow(sb, "Signed-off-by", FormatPersonHtml(signer));
+        }
+
         sb.Append("</div>");
         return sb.ToString();
+    }
+
+    /// <summary>
+    ///  Formats a person as "Name &lt;email&gt;" where name is plain text
+    ///  and email is a muted mailto link with tooltip.
+    /// </summary>
+    private static string FormatPersonHtml(string? person)
+    {
+        if (string.IsNullOrEmpty(person))
+        {
+            return string.Empty;
+        }
+
+        string name = GetName(person);
+        string email = GetEmail(person);
+
+        StringBuilder sb = new();
+        sb.Append(WebUtility.HtmlEncode(name));
+
+        if (!string.IsNullOrEmpty(email))
+        {
+            sb.Append($"<a class=\"author-email\" href=\"mailto:{WebUtility.HtmlEncode(email)}\" title=\"Send email to {WebUtility.HtmlEncode(email)}\">&lt;{WebUtility.HtmlEncode(email)}&gt;</a>");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    ///  Extracts co-authors and sign-off trailers from the commit body.
+    /// </summary>
+    internal static (IReadOnlyList<string> additionalAuthors, IReadOnlyList<string> signedOffBy) ExtractTrailers(string? body)
+    {
+        if (string.IsNullOrEmpty(body))
+        {
+            return ([], []);
+        }
+
+        HashSet<string> additionalAuthors = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> signedOff = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string line in body.Split('\n'))
+        {
+            string trimmed = line.Trim();
+
+            if (trimmed.StartsWith("Co-authored-by:", StringComparison.OrdinalIgnoreCase))
+            {
+                string value = trimmed["Co-authored-by:".Length..].Trim();
+                if (value.Length > 0)
+                {
+                    additionalAuthors.Add(value);
+                }
+            }
+            else if (trimmed.StartsWith("Signed-off-by:", StringComparison.OrdinalIgnoreCase))
+            {
+                string value = trimmed["Signed-off-by:".Length..].Trim();
+                if (value.Length > 0)
+                {
+                    signedOff.Add(value);
+                }
+            }
+        }
+
+        return ([.. additionalAuthors], [.. signedOff]);
+    }
+
+    private static string GetName(string? person)
+    {
+        if (string.IsNullOrEmpty(person))
+        {
+            return string.Empty;
+        }
+
+        int angleStart = person.IndexOf('<');
+        return angleStart > 0 ? person[..angleStart].TrimEnd() : person;
     }
 
     /// <summary>
