@@ -10,6 +10,7 @@ namespace GitUI.UserControls.RevisionGrid.RefContextMenus;
 /// </summary>
 internal sealed class StashRefContextMenuProvider : Translate, IRefContextMenuProvider
 {
+    private readonly TranslationString _viewStash = new("&View stash");
     private readonly TranslationString _applyStash = new("Appl&y stash");
     private readonly TranslationString _popStash = new("Pop &stash");
     private readonly TranslationString _dropStash = new("&Drop stash...");
@@ -18,6 +19,14 @@ internal sealed class StashRefContextMenuProvider : Translate, IRefContextMenuPr
 
     public void Populate(ContextMenuStrip menu, IGitRef? gitRef, string? stashReflogSelector, RefContextMenuContext context)
     {
+        ToolStripMenuItem view = new(_viewStash.Text, Images.Stash);
+        view.Click += (_, _) =>
+        {
+            string? stashName = context.GetLatestSelectedRevision()?.ReflogSelector;
+            context.UICommands.StartStashDialog(menu, initialStash: stashName);
+        };
+        menu.Items.Add(view);
+
         ToolStripMenuItem apply = new(_applyStash.Text, Images.Stash);
         apply.Click += (_, _) =>
         {

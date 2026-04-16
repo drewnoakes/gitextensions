@@ -10118,6 +10118,10 @@ When OpenSSH is used, command line dialogs are shown!
         <source>Pop &amp;stash</source>
         <target />
       </trans-unit>
+      <trans-unit id="_viewStash.Text">
+        <source>&amp;View stash</source>
+        <target />
+      </trans-unit>
     </body>
   </file>
   <file datatype="plaintext" original="StashSelectorContextMenuProvider" source-language="en">
@@ -10132,6 +10136,10 @@ When OpenSSH is used, command line dialogs are shown!
       </trans-unit>
       <trans-unit id="_popStash.Text">
         <source>Pop &amp;stash</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_viewStash.Text">
+        <source>&amp;View stash</source>
         <target />
       </trans-unit>
     </body>
