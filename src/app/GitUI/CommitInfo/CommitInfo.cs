@@ -44,6 +44,8 @@ public partial class CommitInfo : GitModuleControl
 
     private static readonly TranslationString _brokenRefs = new("The repository refs seem to be broken:");
     private static readonly TranslationString _copyLink = new("Copy &link ({0})");
+    private static readonly TranslationString _copyText = new("&Copy");
+    private static readonly TranslationString _renderMarkdownText = new("Render commit message as Markdown");
     private static readonly TranslationString _trsLinksRelatedToRevision = new("Related links:");
     private static readonly TranslationString _derivesFromTag = new("Derives from tag:");
     private static readonly TranslationString _derivesFromNoTag = new("Derives from no tag");
@@ -146,13 +148,13 @@ public partial class CommitInfo : GitModuleControl
         // Context menu for the unified viewer
         ContextMenuStrip unifiedContextMenu = new();
 
-        ToolStripMenuItem copyItem = new("&Copy");
+        ToolStripMenuItem copyItem = new(_copyText.Text);
         copyItem.Click += (s, ev) =>
         {
             unifiedViewer.ExecuteCopyAsync().FileAndForget();
         };
 
-        ToolStripMenuItem markdownItem = new("Render commit message as Markdown");
+        ToolStripMenuItem markdownItem = new(_renderMarkdownText.Text);
         markdownItem.Click += (s, ev) =>
         {
             AppSettings.RenderMarkdownPreview = !AppSettings.RenderMarkdownPreview;
