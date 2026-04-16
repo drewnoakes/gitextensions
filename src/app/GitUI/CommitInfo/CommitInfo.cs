@@ -960,7 +960,7 @@ public partial class CommitInfo : GitModuleControl
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
                 string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
-                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown);
+                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, GetOriginUrl());
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,
                     _linksInfo ?? string.Empty,

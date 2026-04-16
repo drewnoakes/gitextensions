@@ -306,7 +306,7 @@ internal sealed class CommitInfoHtmlBuilder
         sb.Append("<div id=\"message\" class=\"message\">");
         if (!string.IsNullOrWhiteSpace(commitMessageBody))
         {
-            sb.Append(BuildMessageInner(commitMessageBody, renderMarkdown));
+            sb.Append(BuildMessageInner(commitMessageBody, renderMarkdown, remoteUrl));
         }
 
         sb.Append("</div>");
@@ -554,7 +554,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the message section (for incremental updates).
     /// </summary>
-    public static string BuildMessageInner(string commitMessageBody, bool renderMarkdown)
+    public static string BuildMessageInner(string commitMessageBody, bool renderMarkdown, string? remoteUrl = null)
     {
         if (string.IsNullOrWhiteSpace(commitMessageBody))
         {
@@ -570,6 +570,7 @@ internal sealed class CommitInfoHtmlBuilder
             return string.Empty;
         }
 
+        string html;
         if (renderMarkdown)
         {
             string markdown = body;
@@ -578,10 +579,40 @@ internal sealed class CommitInfoHtmlBuilder
                 markdown = markdown[1..];
             }
 
-            return Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline);
+            html = Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline);
+        }
+        else
+        {
+            html = $"<pre><code>{WebUtility.HtmlEncode(body)}</code></pre>";
         }
 
-        return $"<pre><code>{WebUtility.HtmlEncode(body)}</code></pre>";
+        // Turn #NNN references into links to the source control provider
+        string? gitHubBaseUrl = GetGitHubBaseUrl(remoteUrl);
+        if (gitHubBaseUrl is not null)
+        {
+            html = LinkIssueReferences(html, gitHubBaseUrl);
+        }
+
+        return html;
+    }
+
+    /// <summary>
+    ///  Replaces bare <c>#NNN</c> references in rendered HTML with hyperlinks.
+    ///  Skips references that are already inside an <c>&lt;a&gt;</c> tag or HTML attribute.
+    /// </summary>
+    private static string LinkIssueReferences(string html, string baseUrl)
+    {
+        // Match #NNN that is not inside an HTML tag (< ... >) and not already linked.
+        // The negative lookbehind avoids matching inside href="..." or already-linked text.
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"(?<![""'/\w])#(\d+)\b",
+            match =>
+            {
+                string number = match.Groups[1].Value;
+                string url = WebUtility.HtmlEncode($"{baseUrl}/issues/{number}");
+                return $"<a href=\"{url}\" title=\"View #{number} on GitHub\">#{number}</a>";
+            });
     }
 
     private static void AppendHeaderRow(StringBuilder sb, string label, string value, string icon = "")
@@ -680,6 +711,11 @@ internal sealed class CommitInfoHtmlBuilder
                 @"(<svg[^>]*>.*?</svg>)?<a [^>]*github\.com/[^>]*/commit/[^>]*>.*?</a>(<br>)?",
                 "",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            // Clean up orphaned separators left after stripping links (e.g. leading ", ")
+            html = System.Text.RegularExpressions.Regex.Replace(html, @"^(\s*,\s*)+", "");
+            html = System.Text.RegularExpressions.Regex.Replace(html, @"(\s*,\s*)+$", "");
+            html = System.Text.RegularExpressions.Regex.Replace(html, @",\s*,", ",");
 
             html = AddTitleToLinks(html);
 
