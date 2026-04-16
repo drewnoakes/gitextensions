@@ -155,6 +155,9 @@ internal sealed class CommitInfoHtmlBuilder
                 color: {{Css(mutedFg)}};
                 margin-left: 0.5em;
             }
+            .date-sep {
+                color: {{Css(mutedFg)}};
+            }
             .hash {
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
                 font-size: 11px;
@@ -612,6 +615,13 @@ internal sealed class CommitInfoHtmlBuilder
     private static string FormatDateHtml(DateTimeOffset date)
     {
         string fullDate = WebUtility.HtmlEncode(LocalizationHelpers.GetFullDateString(date));
+
+        // Mute date/time separators (/, :, -, .) for visual clarity
+        fullDate = System.Text.RegularExpressions.Regex.Replace(
+            fullDate,
+            @"([/:\-.,])",
+            "<span class=\"date-sep\">$1</span>");
+
         string relative = WebUtility.HtmlEncode(LocalizationHelpers.GetRelativeDateString(DateTime.UtcNow, date.UtcDateTime));
         return $"{fullDate} <span class=\"date-relative\">{relative}</span>";
     }
