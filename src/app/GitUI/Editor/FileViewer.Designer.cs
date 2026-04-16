@@ -489,7 +489,7 @@ partial class FileViewer
         // markdownPreviewButton
         // 
         markdownPreviewButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
-        markdownPreviewButton.Image = Properties.Images.Preview;
+        markdownPreviewButton.Image = Properties.Images.MarkdownPreview;
         markdownPreviewButton.Name = "markdownPreviewButton";
         markdownPreviewButton.Size = new Size(23, 22);
         markdownPreviewButton.ToolTipText = "Toggle Markdown preview";
