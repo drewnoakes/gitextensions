@@ -315,7 +315,7 @@ internal sealed class CommitInfoHtmlBuilder
 
         // Footer
         sb.Append("<div id=\"footer\" class=\"footer\">");
-        string footerContent = BuildFooter(annotatedTagsInfo, linksInfo, branchInfo, tagInfo, gitDescribeInfo);
+        string footerContent = BuildFooter(annotatedTagsInfo, linksInfo, branchInfo, tagInfo, gitDescribeInfo, externalLinks);
         sb.Append(footerContent);
         sb.Append("</div>");
 
@@ -597,7 +597,8 @@ internal sealed class CommitInfoHtmlBuilder
     }
 
     /// <summary>
-    ///  Builds a map from <c>#NNN</c> captions to their resolved URLs using external links.
+    ///  Builds a map from <c>#NNN</c> references to their resolved URLs using external links.
+    ///  Extracts the issue/PR number from the link URL to handle any caption format.
     /// </summary>
     private static Dictionary<string, string> BuildIssueLinkMap(IReadOnlyList<ExternalLink>? externalLinks)
     {
@@ -610,11 +611,13 @@ internal sealed class CommitInfoHtmlBuilder
 
         foreach (ExternalLink link in externalLinks)
         {
-            // Issue/PR links have captions like "#12936" or "PR #12936"
-            if (link.Caption is not null
-                && System.Text.RegularExpressions.Regex.Match(link.Caption, @"^(?:PR\s*)?#(\d+)$") is { Success: true } captionMatch)
+            // Match issue/PR URLs: /issues/NNN, /pull/NNN, /_workitems/edit/NNN
+            if (System.Text.RegularExpressions.Regex.Match(
+                    link.Uri,
+                    @"(?:/issues/|/pull/|/_workitems/edit/)(\d+)\s*$",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase) is { Success: true } urlMatch)
             {
-                string key = $"#{captionMatch.Groups[1].Value}";
+                string key = $"#{urlMatch.Groups[1].Value}";
                 map.TryAdd(key, link.Uri);
             }
         }
@@ -723,9 +726,10 @@ internal sealed class CommitInfoHtmlBuilder
         string linksInfo,
         string branchInfo,
         string tagInfo,
-        string gitDescribeInfo)
+        string gitDescribeInfo,
+        IReadOnlyList<ExternalLink>? externalLinks = null)
     {
-        return BuildFooter(annotatedTagsInfo, linksInfo, branchInfo, tagInfo, gitDescribeInfo);
+        return BuildFooter(annotatedTagsInfo, linksInfo, branchInfo, tagInfo, gitDescribeInfo, externalLinks);
     }
 
     private static string BuildFooter(
@@ -733,7 +737,8 @@ internal sealed class CommitInfoHtmlBuilder
         string linksInfo,
         string branchInfo,
         string tagInfo,
-        string gitDescribeInfo)
+        string gitDescribeInfo,
+        IReadOnlyList<ExternalLink>? externalLinks = null)
     {
         StringBuilder sb = new();
 
@@ -763,19 +768,22 @@ internal sealed class CommitInfoHtmlBuilder
                 "",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-            // Remove "View on GitHub" commit links — redundant with the header commit hash link
-            html = System.Text.RegularExpressions.Regex.Replace(
-                html,
-                @"(<svg[^>]*>.*?</svg>)?<a [^>]*github\.com/[^>]*/commit/[^>]*>.*?</a>",
-                "",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
-
-            // Remove issue/PR links — these are already linked inline in the message body
-            html = System.Text.RegularExpressions.Regex.Replace(
-                html,
-                @"<a [^>]*>(?:PR\s*)?#\d+</a>",
-                "",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            // Remove links whose URLs match external links already shown in the
+            // message body (commit links, issue/PR references). Uses the resolved
+            // ExternalLink URLs so it works regardless of caption format.
+            HashSet<string> urlsToStrip = BuildUrlsToStrip(externalLinks);
+            if (urlsToStrip.Count > 0)
+            {
+                html = System.Text.RegularExpressions.Regex.Replace(
+                    html,
+                    @"<a [^>]*href=['""]?([^'"">\s]+)['""]?[^>]*>.*?</a>",
+                    match =>
+                    {
+                        string href = WebUtility.HtmlDecode(match.Groups[1].Value);
+                        return urlsToStrip.Contains(href) ? "" : match.Value;
+                    },
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            }
 
             // Clean up orphaned separators left after stripping links
             html = System.Text.RegularExpressions.Regex.Replace(html, @"(,\s*)+$", "");
@@ -798,6 +806,28 @@ internal sealed class CommitInfoHtmlBuilder
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    ///  Builds the set of external link URLs that should be stripped from the footer
+    ///  because they are already represented elsewhere (commit link in header,
+    ///  issue/PR references linked inline in the message body).
+    /// </summary>
+    private static HashSet<string> BuildUrlsToStrip(IReadOnlyList<ExternalLink>? externalLinks)
+    {
+        HashSet<string> urls = new(StringComparer.OrdinalIgnoreCase);
+
+        if (externalLinks is null)
+        {
+            return urls;
+        }
+
+        foreach (ExternalLink link in externalLinks)
+        {
+            urls.Add(link.Uri);
+        }
+
+        return urls;
     }
 
     private static string GetEmail(string? author)

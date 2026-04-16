@@ -73,6 +73,7 @@ public partial class CommitInfo : GitModuleControl
     private IReadOnlyList<ObjectId>? _children;
     private string? _linksInfo;
     private IReadOnlyList<ExternalLink>? _externalLinks;
+    private string? _lastRawBody;
     private IDictionary<string, string>? _annotatedTagsMessages;
     private string? _annotatedTagsInfo;
     private List<string>? _tags;
@@ -826,12 +827,22 @@ public partial class CommitInfo : GitModuleControl
 
         if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
         {
+            // Re-render the message body now that external links are available.
+            // SetCommitMessage may have rendered before _externalLinks was populated.
+            if (_lastRawBody is not null && _unifiedViewerInitialized)
+            {
+                bool renderMarkdown = AppSettings.RenderMarkdownPreview;
+                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(_lastRawBody, renderMarkdown, _externalLinks);
+                unifiedViewer.UpdateElementAsync("message", messageHtml).FileAndForget();
+            }
+
             string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                 _annotatedTagsInfo ?? string.Empty,
                 _linksInfo ?? string.Empty,
                 _branchInfo ?? string.Empty,
                 _tagInfo ?? string.Empty,
-                _gitDescribeInfo ?? string.Empty);
+                _gitDescribeInfo ?? string.Empty,
+                _externalLinks);
             unifiedViewer.UpdateElementAsync("footer", footerHtml).FileAndForget();
         }
         else
@@ -933,6 +944,7 @@ public partial class CommitInfo : GitModuleControl
 
     private void SetCommitMessage((string rawBody, string xhtml) message)
     {
+        _lastRawBody = message.rawBody;
         if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
         {
             CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
@@ -970,7 +982,8 @@ public partial class CommitInfo : GitModuleControl
                     _linksInfo ?? string.Empty,
                     _branchInfo ?? string.Empty,
                     _tagInfo ?? string.Empty,
-                    _gitDescribeInfo ?? string.Empty);
+                    _gitDescribeInfo ?? string.Empty,
+                    _externalLinks);
                 unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
                 unifiedViewer.UpdateElementAsync("message", messageHtml).FileAndForget();
                 unifiedViewer.UpdateElementAsync("footer", footerHtml).FileAndForget();
