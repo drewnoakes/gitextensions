@@ -72,6 +72,7 @@ public partial class CommitInfo : GitModuleControl
     private GitRevision? _revision;
     private IReadOnlyList<ObjectId>? _children;
     private string? _linksInfo;
+    private IReadOnlyList<ExternalLink>? _externalLinks;
     private IDictionary<string, string>? _annotatedTagsMessages;
     private string? _annotatedTagsInfo;
     private List<string>? _tags;
@@ -383,6 +384,7 @@ public partial class CommitInfo : GitModuleControl
 
         _annotatedTagsInfo = "";
         _linksInfo = "";
+        _externalLinks = null;
         _branchInfo = "";
         _tagInfo = "";
         _gitDescribeInfo = "";
@@ -514,7 +516,7 @@ public partial class CommitInfo : GitModuleControl
                     return;
                 }
 
-                string linksInfo = GetLinksForRevision(settings);
+                (string linksInfo, IReadOnlyList<ExternalLink> parsedLinks) = GetLinksForRevision(settings);
 
                 // Most commits do not have link; do not switch to main thread if nothing is changed
                 if (_linksInfo == linksInfo)
@@ -524,21 +526,22 @@ public partial class CommitInfo : GitModuleControl
 
                 await this.SwitchToMainThreadAsync(cancellationToken);
                 _linksInfo = linksInfo;
+                _externalLinks = parsedLinks;
 
                 return;
 
-                string GetLinksForRevision(DistributedSettings settings)
+                (string linksInfo, IReadOnlyList<ExternalLink> parsedLinks) GetLinksForRevision(DistributedSettings settings)
                 {
-                    IEnumerable<ExternalLink> links = _gitRevisionExternalLinksParser.Parse(revision, settings);
+                    List<ExternalLink> linksList = [.. _gitRevisionExternalLinksParser.Parse(revision, settings).Distinct()];
                     cancellationToken.ThrowIfCancellationRequested();
-                    string result = string.Join(", ", links.Distinct().Select(link => linkFactory.CreateLink(link.Caption, link.Uri)));
+                    string result = string.Join(", ", linksList.Select(link => linkFactory.CreateLink(link.Caption, link.Uri)));
 
                     if (string.IsNullOrEmpty(result))
                     {
-                        return "";
+                        return ("", linksList);
                     }
 
-                    return $"{WebUtility.HtmlEncode(_trsLinksRelatedToRevision.Text)} {result}";
+                    return ($"{WebUtility.HtmlEncode(_trsLinksRelatedToRevision.Text)} {result}", linksList);
                 }
             }
 
@@ -951,6 +954,7 @@ public partial class CommitInfo : GitModuleControl
                     showRevisionsAsLinks: showLinks,
                     renderMarkdown: renderMarkdown,
                     remoteUrl: GetOriginUrl(),
+                    externalLinks: _externalLinks,
                     themeBackground: BackColor,
                     themeForeground: ForeColor);
                 unifiedViewer.SetHtml(html);
@@ -960,7 +964,7 @@ public partial class CommitInfo : GitModuleControl
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
                 string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
-                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, GetOriginUrl());
+                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, _externalLinks);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,
                     _linksInfo ?? string.Empty,

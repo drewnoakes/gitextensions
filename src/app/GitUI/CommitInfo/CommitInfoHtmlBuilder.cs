@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using GitCommands.ExternalLinks;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUIPluginInterfaces;
@@ -53,6 +54,7 @@ internal sealed class CommitInfoHtmlBuilder
         bool showRevisionsAsLinks,
         bool renderMarkdown,
         string? remoteUrl = null,
+        IReadOnlyList<ExternalLink>? externalLinks = null,
         Color? themeBackground = null,
         Color? themeForeground = null)
     {
@@ -306,7 +308,7 @@ internal sealed class CommitInfoHtmlBuilder
         sb.Append("<div id=\"message\" class=\"message\">");
         if (!string.IsNullOrWhiteSpace(commitMessageBody))
         {
-            sb.Append(BuildMessageInner(commitMessageBody, renderMarkdown, remoteUrl));
+            sb.Append(BuildMessageInner(commitMessageBody, renderMarkdown, externalLinks));
         }
 
         sb.Append("</div>");
@@ -554,7 +556,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the message section (for incremental updates).
     /// </summary>
-    public static string BuildMessageInner(string commitMessageBody, bool renderMarkdown, string? remoteUrl = null)
+    public static string BuildMessageInner(string commitMessageBody, bool renderMarkdown, IReadOnlyList<ExternalLink>? externalLinks = null)
     {
         if (string.IsNullOrWhiteSpace(commitMessageBody))
         {
@@ -570,7 +572,9 @@ internal sealed class CommitInfoHtmlBuilder
             return string.Empty;
         }
 
-        string html;
+        // Build a map of #NNN → URL from external links (issue/PR references)
+        Dictionary<string, string> issueLinks = BuildIssueLinkMap(externalLinks);
+
         if (renderMarkdown)
         {
             string markdown = body;
@@ -579,39 +583,93 @@ internal sealed class CommitInfoHtmlBuilder
                 markdown = markdown[1..];
             }
 
-            html = Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline);
-        }
-        else
-        {
-            html = $"<pre><code>{WebUtility.HtmlEncode(body)}</code></pre>";
+            // Link #NNN references at the markdown level before rendering,
+            // so Markdig treats them as real links.
+            markdown = LinkIssueReferencesInText(markdown, issueLinks);
+
+            return Markdig.Markdown.ToHtml(markdown, Editor.MarkdownToHtmlConverter.Pipeline);
         }
 
-        // Turn #NNN references into links to the source control provider
-        string? gitHubBaseUrl = GetGitHubBaseUrl(remoteUrl);
-        if (gitHubBaseUrl is not null)
-        {
-            html = LinkIssueReferences(html, gitHubBaseUrl);
-        }
-
-        return html;
+        // For plaintext mode, HTML-encode first, then link references as HTML anchors
+        string encoded = WebUtility.HtmlEncode(body);
+        encoded = LinkIssueReferencesInHtml(encoded, issueLinks);
+        return $"<pre><code>{encoded}</code></pre>";
     }
 
     /// <summary>
-    ///  Replaces bare <c>#NNN</c> references in rendered HTML with hyperlinks.
-    ///  Skips references that are already inside an <c>&lt;a&gt;</c> tag or HTML attribute.
+    ///  Builds a map from <c>#NNN</c> captions to their resolved URLs using external links.
     /// </summary>
-    private static string LinkIssueReferences(string html, string baseUrl)
+    private static Dictionary<string, string> BuildIssueLinkMap(IReadOnlyList<ExternalLink>? externalLinks)
     {
-        // Match #NNN that is not inside an HTML tag (< ... >) and not already linked.
-        // The negative lookbehind avoids matching inside href="..." or already-linked text.
+        Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+
+        if (externalLinks is null)
+        {
+            return map;
+        }
+
+        foreach (ExternalLink link in externalLinks)
+        {
+            // Issue/PR links have captions like "#12936" or "PR #12936"
+            if (link.Caption is not null
+                && System.Text.RegularExpressions.Regex.Match(link.Caption, @"^(?:PR\s*)?#(\d+)$") is { Success: true } captionMatch)
+            {
+                string key = $"#{captionMatch.Groups[1].Value}";
+                map.TryAdd(key, link.Uri);
+            }
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    ///  Replaces bare <c>#NNN</c> references in plain text or markdown with links.
+    ///  For markdown, produces <c>[#NNN](url)</c>. Only replaces references that
+    ///  have a matching entry in the issue link map.
+    /// </summary>
+    private static string LinkIssueReferencesInText(string text, Dictionary<string, string> issueLinks)
+    {
+        if (issueLinks.Count == 0)
+        {
+            return text;
+        }
+
         return System.Text.RegularExpressions.Regex.Replace(
-            html,
-            @"(?<![""'/\w])#(\d+)\b",
+            text,
+            @"(?<!\w)#(\d+)\b",
             match =>
             {
-                string number = match.Groups[1].Value;
-                string url = WebUtility.HtmlEncode($"{baseUrl}/issues/{number}");
-                return $"<a href=\"{url}\" title=\"View #{number} on GitHub\">#{number}</a>";
+                string reference = match.Value;
+                return issueLinks.TryGetValue(reference, out string? url)
+                    ? $"[{reference}]({url})"
+                    : reference;
+            });
+    }
+
+    /// <summary>
+    ///  Replaces <c>#NNN</c> references in HTML-encoded text with anchor tags.
+    ///  Used for plaintext (non-markdown) mode where the text is already HTML-encoded.
+    /// </summary>
+    private static string LinkIssueReferencesInHtml(string encodedText, Dictionary<string, string> issueLinks)
+    {
+        if (issueLinks.Count == 0)
+        {
+            return encodedText;
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            encodedText,
+            @"(?<!\w)#(\d+)\b",
+            match =>
+            {
+                string reference = match.Value;
+                if (!issueLinks.TryGetValue(reference, out string? url))
+                {
+                    return reference;
+                }
+
+                string encodedUrl = WebUtility.HtmlEncode(url);
+                return $"<a href=\"{encodedUrl}\">{reference}</a>";
             });
     }
 
@@ -698,24 +756,32 @@ internal sealed class CommitInfoHtmlBuilder
 
             string html = section.Replace("\r\n", "<br>").Replace("\n", "<br>");
 
-            // Strip redundant "Related links:" prefix — the icons make it self-explanatory
+            // Strip redundant "Related links:" prefix
             html = System.Text.RegularExpressions.Regex.Replace(
                 html,
-                @"^[^<]*Related links[^<]*:<br>",
+                @"^[^<]*Related links[^<]*:(\s|<br>)*",
                 "",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             // Remove "View on GitHub" commit links — redundant with the header commit hash link
             html = System.Text.RegularExpressions.Regex.Replace(
                 html,
-                @"(<svg[^>]*>.*?</svg>)?<a [^>]*github\.com/[^>]*/commit/[^>]*>.*?</a>(<br>)?",
+                @"(<svg[^>]*>.*?</svg>)?<a [^>]*github\.com/[^>]*/commit/[^>]*>.*?</a>",
                 "",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
 
-            // Clean up orphaned separators left after stripping links (e.g. leading ", ")
-            html = System.Text.RegularExpressions.Regex.Replace(html, @"^(\s*,\s*)+", "");
-            html = System.Text.RegularExpressions.Regex.Replace(html, @"(\s*,\s*)+$", "");
+            // Remove issue/PR links — these are already linked inline in the message body
+            html = System.Text.RegularExpressions.Regex.Replace(
+                html,
+                @"<a [^>]*>(?:PR\s*)?#\d+</a>",
+                "",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            // Clean up orphaned separators left after stripping links
+            html = System.Text.RegularExpressions.Regex.Replace(html, @"(,\s*)+$", "");
+            html = System.Text.RegularExpressions.Regex.Replace(html, @"^(,\s*)+", "");
             html = System.Text.RegularExpressions.Regex.Replace(html, @",\s*,", ",");
+            html = html.Trim();
 
             html = AddTitleToLinks(html);
 
