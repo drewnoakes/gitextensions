@@ -3,19 +3,11 @@
 namespace GitUI.LeftPanel;
 
 // Top-level nodes used to group SubmoduleNodes
-internal sealed class SubmoduleFolderNode : Node
+internal sealed class SubmoduleFolderNode(Tree tree, string name) : Node(tree)
 {
-    private string _name;
-
-    public SubmoduleFolderNode(Tree tree, string name)
-        : base(tree)
-    {
-        _name = name;
-    }
-
     protected override string DisplayText()
     {
-        return string.Format(_name);
+        return name;
     }
 
     public override void ApplyStyle()
@@ -25,5 +17,29 @@ internal sealed class SubmoduleFolderNode : Node
     }
 
     protected override FontStyle GetFontStyle()
-        => base.GetFontStyle() | FontStyle.Italic;
+    {
+        return base.GetFontStyle() | FontStyle.Italic;
+    }
+
+    /// <summary>
+    ///  Compacts chains of single-child folder nodes by merging their names with "/" separators.
+    ///  For example, a chain "extension" → "src" → "test" → "assets" becomes
+    ///  a single folder node named "extension/src/test/assets".
+    /// </summary>
+    internal void CompactSingleChildFolders()
+    {
+        while (Nodes is [SubmoduleFolderNode childFolder])
+        {
+            name += "/" + childFolder.DisplayText();
+
+            Nodes = childFolder.Nodes;
+        }
+    }
+
+    internal TestAccessor GetTestAccessor() => new(this);
+
+    internal readonly struct TestAccessor(SubmoduleFolderNode node)
+    {
+        public string Name => node.DisplayText();
+    }
 }
