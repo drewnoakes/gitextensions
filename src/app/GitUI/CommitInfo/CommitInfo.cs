@@ -44,6 +44,8 @@ public partial class CommitInfo : GitModuleControl
 
     private static readonly TranslationString _brokenRefs = new("The repository refs seem to be broken:");
     private static readonly TranslationString _copyLink = new("Copy &link ({0})");
+    private static readonly TranslationString _copyText = new("&Copy");
+    private static readonly TranslationString _renderMarkdownText = new("Render commit message as Markdown");
     private static readonly TranslationString _trsLinksRelatedToRevision = new("Related links:");
     private static readonly TranslationString _derivesFromTag = new("Derives from tag:");
     private static readonly TranslationString _derivesFromNoTag = new("Derives from no tag");
@@ -53,6 +55,7 @@ public partial class CommitInfo : GitModuleControl
     private ICommitDataBodyRenderer? _commitDataBodyRenderer;
     private ILinkFactory? _linkFactory;
     private RefsFormatter? _refsFormatter;
+    private CommitInfoHtmlBuilder? _htmlBuilder;
 
     private readonly ICommitDataManager _commitDataManager;
     private readonly IExternalLinksStorage _externalLinksStorage;
@@ -69,6 +72,8 @@ public partial class CommitInfo : GitModuleControl
     private GitRevision? _revision;
     private IReadOnlyList<ObjectId>? _children;
     private string? _linksInfo;
+    private IReadOnlyList<ExternalLink>? _externalLinks;
+    private string? _lastRawBody;
     private IDictionary<string, string>? _annotatedTagsMessages;
     private string? _annotatedTagsInfo;
     private List<string>? _tags;
@@ -81,6 +86,8 @@ public partial class CommitInfo : GitModuleControl
     private int _commitMessageHeight;
     private bool _showAllBranches;
     private bool _showAllTags;
+    private bool _unifiedViewerInitialized;
+    private string? _cachedAvatarDataUrl;
 
     [DefaultValue(false)]
     public bool ShowBranchesAsLinks { get; set; }
@@ -131,6 +138,54 @@ public partial class CommitInfo : GitModuleControl
         // and with Height=0 we won't be receiving any ContentsResizedEvents.
         // To workaround the zero-height - force the min size.
         rtbxCommitMessage.MinimumSize = new(1, 1);
+
+        // Handle link clicks from the unified WebView2 viewer
+        unifiedViewer.WebMessageReceived += (_, url) =>
+        {
+            _linkFactory?.ExecuteLink(url,
+                commandEventArgs => CommandClickedEvent?.Invoke(this, commandEventArgs),
+                ShowAll);
+        };
+
+        // Context menu for the unified viewer
+        ContextMenuStrip unifiedContextMenu = new();
+
+        ToolStripMenuItem copyItem = new(_copyText.Text);
+        copyItem.Click += (s, ev) =>
+        {
+            unifiedViewer.ExecuteCopyAsync().FileAndForget();
+        };
+
+        ToolStripMenuItem markdownItem = new(_renderMarkdownText.Text);
+        markdownItem.Click += (s, ev) =>
+        {
+            AppSettings.RenderMarkdownPreview = !AppSettings.RenderMarkdownPreview;
+            ReloadCommitInfo();
+        };
+
+        unifiedContextMenu.Items.Add(copyItem);
+        unifiedContextMenu.Items.Add(new ToolStripSeparator());
+        unifiedContextMenu.Items.Add(markdownItem);
+
+        unifiedContextMenu.Opening += (s, ev) =>
+        {
+            markdownItem.Checked = AppSettings.RenderMarkdownPreview;
+        };
+
+        unifiedViewer.ContextMenuRequested += (_, hasSelection) =>
+        {
+            copyItem.Enabled = hasSelection;
+            unifiedContextMenu.Show(Cursor.Position);
+        };
+
+        unifiedViewer.DismissRequested += (_, _) =>
+        {
+            unifiedContextMenu.Close();
+
+            // Focusing the viewer causes WinForms to close any other open
+            // context menus (e.g. the revision grid's right-click menu).
+            unifiedViewer.Focus();
+        };
     }
 
     /// <summary>
@@ -164,12 +219,14 @@ public partial class CommitInfo : GitModuleControl
             _linkFactory = null;
             _commitDataBodyRenderer = null;
             _refsFormatter = null;
+            _htmlBuilder = null;
         }
         else
         {
             _linkFactory = source.UICommands.GetRequiredService<ILinkFactory>();
             _commitDataBodyRenderer = new CommitDataBodyRenderer(() => Module, _linkFactory);
             _refsFormatter = new RefsFormatter(_linkFactory);
+            _htmlBuilder = new CommitInfoHtmlBuilder(_linkFactory, new DateFormatter());
 
             source.UICommandsChanged += delegate { RefreshSortedTags(); };
 
@@ -225,11 +282,14 @@ public partial class CommitInfo : GitModuleControl
         if (revision is null)
         {
             tableLayout.Visible = false;
+            unifiedViewer.Visible = false;
             return;
         }
 
-        tableLayout.Visible = true;
-        commitInfoHeader.ShowCommitInfo(revision, children);
+        // Always prefer the unified WebView2 viewer
+        tableLayout.Visible = false;
+        unifiedViewer.Visible = true;
+
         ReloadCommitInfo(cancellationToken);
     }
 
@@ -315,6 +375,7 @@ public partial class CommitInfo : GitModuleControl
         showContainedInTagsToolStripMenuItem.Checked = AppSettings.CommitInfoShowContainedInTags;
         showMessagesOfAnnotatedTagsToolStripMenuItem.Checked = AppSettings.ShowAnnotatedTagsMessages;
         showTagThisCommitDerivesFromMenuItem.Checked = AppSettings.CommitInfoShowTagThisCommitDerivesFrom;
+        renderAsMarkdownToolStripMenuItem.Checked = AppSettings.RenderMarkdownPreview;
 
         _showAllBranches = false;
         _showAllTags = false;
@@ -324,9 +385,11 @@ public partial class CommitInfo : GitModuleControl
 
         _annotatedTagsInfo = "";
         _linksInfo = "";
+        _externalLinks = null;
         _branchInfo = "";
         _tagInfo = "";
         _gitDescribeInfo = "";
+        _cachedAvatarDataUrl = null;
 
         if (_revision is not null && !_revision.IsArtificial && !_revision.IsAutostash)
         {
@@ -341,21 +404,28 @@ public partial class CommitInfo : GitModuleControl
         }
         else
         {
-            rtbxCommitMessage.SetXHTMLText(GetFixCommitMessage());
-            RevisionInfo.Clear();
+            (string rawBody, string xhtml) message = GetFixCommitMessage();
+            SetCommitMessage(message);
+
+            if (!unifiedViewer.Visible)
+            {
+                RevisionInfo.Clear();
+            }
         }
 
         return;
 
-        string GetFixCommitMessage()
+        (string rawBody, string xhtml) GetFixCommitMessage()
         {
             if (_revision is null)
             {
-                return string.Empty;
+                return (string.Empty, string.Empty);
             }
 
             CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
-            return _commitDataBodyRenderer?.Render(data, showRevisionsAsLinks: false) ?? string.Empty;
+            string rawBody = (GitExtensions.Extensibility.Extensions.UIExtensions.FormatBodyAndNotes(data.Body, data.Notes) ?? "").Trim();
+            string xhtml = _commitDataBodyRenderer?.Render(data, showRevisionsAsLinks: false) ?? string.Empty;
+            return (rawBody, xhtml);
         }
 
         async Task UpdateCommitMessageAsync(CancellationToken cancellationToken)
@@ -378,11 +448,17 @@ public partial class CommitInfo : GitModuleControl
                 return;
             }
 
-            string commitMessage = commitDataBodyRenderer.Render(data, showRevisionsAsLinks: CommandClickedEvent is not null);
+            string rawBody = (GitExtensions.Extensibility.Extensions.UIExtensions.FormatBodyAndNotes(data.Body, data.Notes) ?? "").Trim();
+            string xhtml = commitDataBodyRenderer.Render(data, showRevisionsAsLinks: CommandClickedEvent is not null);
+
+            // Load avatar via the full provider chain (GitHub → Gravatar → fallback)
+            // The memory cache makes this instant for recently-viewed commits.
+            string? avatarDataUrl = await LoadAvatarDataUrlAsync(_revision, cancellationToken);
 
             await this.SwitchToMainThreadAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            rtbxCommitMessage.SetXHTMLText(commitMessage);
+            _cachedAvatarDataUrl = avatarDataUrl;
+            SetCommitMessage((rawBody, xhtml));
         }
 
         void StartAsyncDataLoad(DistributedSettings settings, CancellationToken cancellationToken)
@@ -441,7 +517,7 @@ public partial class CommitInfo : GitModuleControl
                     return;
                 }
 
-                string linksInfo = GetLinksForRevision(settings);
+                (string linksInfo, IReadOnlyList<ExternalLink> parsedLinks) = GetLinksForRevision(settings);
 
                 // Most commits do not have link; do not switch to main thread if nothing is changed
                 if (_linksInfo == linksInfo)
@@ -451,21 +527,22 @@ public partial class CommitInfo : GitModuleControl
 
                 await this.SwitchToMainThreadAsync(cancellationToken);
                 _linksInfo = linksInfo;
+                _externalLinks = parsedLinks;
 
                 return;
 
-                string GetLinksForRevision(DistributedSettings settings)
+                (string linksInfo, IReadOnlyList<ExternalLink> parsedLinks) GetLinksForRevision(DistributedSettings settings)
                 {
-                    IEnumerable<ExternalLink> links = _gitRevisionExternalLinksParser.Parse(revision, settings);
+                    List<ExternalLink> linksList = [.. _gitRevisionExternalLinksParser.Parse(revision, settings).Distinct()];
                     cancellationToken.ThrowIfCancellationRequested();
-                    string result = string.Join(", ", links.Distinct().Select(link => linkFactory.CreateLink(link.Caption, link.Uri)));
+                    string result = string.Join(", ", linksList.Select(link => linkFactory.CreateLink(link.Caption, link.Uri)));
 
                     if (string.IsNullOrEmpty(result))
                     {
-                        return "";
+                        return ("", linksList);
                     }
 
-                    return $"{WebUtility.HtmlEncode(_trsLinksRelatedToRevision.Text)} {result}";
+                    return ($"{WebUtility.HtmlEncode(_trsLinksRelatedToRevision.Text)} {result}", linksList);
                 }
             }
 
@@ -600,6 +677,113 @@ public partial class CommitInfo : GitModuleControl
         }
     }
 
+    private static async Task<string?> LoadAvatarDataUrlAsync(GitRevision revision, CancellationToken cancellationToken)
+    {
+        if (!AppSettings.ShowAuthorAvatarInCommitInfo)
+        {
+            return null;
+        }
+
+        string? email = revision.AuthorEmail ?? revision.CommitterEmail;
+        string? name = revision.Author ?? revision.Committer;
+
+        if (string.IsNullOrEmpty(email))
+        {
+            return null;
+        }
+
+        int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
+        string cacheFileName = $"{email}.{size}px.png";
+
+        // Check the file system cache first — use virtual host URL
+        string cachePath = Path.Join(AppSettings.AvatarImageCachePath, cacheFileName);
+        if (File.Exists(cachePath))
+        {
+            return $"https://gitextensions.avatars/{Uri.EscapeDataString(cacheFileName)}";
+        }
+
+        // Not cached — load via the provider chain (triggers download + cache write)
+        try
+        {
+            await Avatars.AvatarService.DefaultProvider.GetAvatarAsync(email, name, size);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (File.Exists(cachePath))
+            {
+                return $"https://gitextensions.avatars/{Uri.EscapeDataString(cacheFileName)}";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+        }
+
+        // Fall back to Gravatar URL
+        return BuildGravatarUrl(email, size);
+    }
+
+    private static string? GetAvatarUrl(GitRevision revision)
+    {
+        if (!AppSettings.ShowAuthorAvatarInCommitInfo)
+        {
+            return null;
+        }
+
+        string? email = revision.AuthorEmail ?? revision.CommitterEmail;
+        if (string.IsNullOrEmpty(email))
+        {
+            return null;
+        }
+
+        // Use Gravatar URL as a fallback. The grid uses a richer provider chain
+        // (GitHub → Gravatar → initials) but for the WebView2 HTML we need a URL.
+        // Most GitHub users also have Gravatar configured or GitHub falls through.
+        int size = (int)(AppSettings.AuthorImageSizeInCommitInfo * DpiUtil.ScaleX);
+        return BuildGravatarUrl(email, size);
+    }
+
+    internal static string BuildGravatarUrl(string email, int size)
+    {
+        string hash = ComputeGravatarHash(email);
+        string fallback = SerializeGravatarFallback(AppSettings.AvatarFallbackType);
+        return $"https://www.gravatar.com/avatar/{hash}?r=g&d={fallback}&s={size}";
+    }
+
+    private static string ComputeGravatarHash(string email)
+    {
+        byte[] hashBytes = System.Security.Cryptography.MD5.HashData(
+            Encoding.UTF8.GetBytes(email.Trim().ToLowerInvariant()));
+        return Convert.ToHexStringLower(hashBytes);
+    }
+
+    private static string SerializeGravatarFallback(AvatarFallbackType fallback)
+    {
+        return fallback switch
+        {
+            AvatarFallbackType.Identicon => "identicon",
+            AvatarFallbackType.MonsterId => "monsterid",
+            AvatarFallbackType.Wavatar => "wavatar",
+            AvatarFallbackType.Retro => "retro",
+            AvatarFallbackType.Robohash => "robohash",
+            _ => "identicon",
+        };
+    }
+
+    private string? GetOriginUrl()
+    {
+        try
+        {
+            return Module.GetSetting(string.Format(GitCommands.Config.SettingKeyString.RemoteUrl, "origin"));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void UpdateRevisionInfo()
     {
         RefsFormatter? refsFormatter = _refsFormatter;
@@ -641,11 +825,35 @@ public partial class CommitInfo : GitModuleControl
             _branchInfo = refsFormatter.FormatBranches(_branches, ShowBranchesAsLinks, limit: !_showAllBranches);
         }
 
-        string body = string.Join(Environment.NewLine + Environment.NewLine,
-            new[] { _annotatedTagsInfo, _linksInfo, _branchInfo, _tagInfo, _gitDescribeInfo }
-                .Where(_ => !string.IsNullOrEmpty(_)));
+        if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
+        {
+            // Re-render the message body now that external links are available.
+            // SetCommitMessage may have rendered before _externalLinks was populated.
+            if (_lastRawBody is not null && _unifiedViewerInitialized)
+            {
+                bool renderMarkdown = AppSettings.RenderMarkdownPreview;
+                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(_lastRawBody, renderMarkdown, _externalLinks);
+                unifiedViewer.UpdateElementAsync("message", messageHtml).FileAndForget();
+            }
 
-        RevisionInfo.SetXHTMLText(body);
+            string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
+                _annotatedTagsInfo ?? string.Empty,
+                _linksInfo ?? string.Empty,
+                _branchInfo ?? string.Empty,
+                _tagInfo ?? string.Empty,
+                _gitDescribeInfo ?? string.Empty,
+                _externalLinks);
+            unifiedViewer.UpdateElementAsync("footer", footerHtml).FileAndForget();
+        }
+        else
+        {
+            string body = string.Join(Environment.NewLine + Environment.NewLine,
+                new[] { _annotatedTagsInfo, _linksInfo, _branchInfo, _tagInfo, _gitDescribeInfo }
+                    .Where(_ => !string.IsNullOrEmpty(_)));
+
+            RevisionInfo.SetXHTMLText(body);
+        }
+
         return;
 
         static string GetAnnotatedTagsInfo(
@@ -728,6 +936,65 @@ public partial class CommitInfo : GitModuleControl
         ReloadCommitInfo();
     }
 
+    private void renderAsMarkdownToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        AppSettings.RenderMarkdownPreview = !AppSettings.RenderMarkdownPreview;
+        ReloadCommitInfo();
+    }
+
+    private void SetCommitMessage((string rawBody, string xhtml) message)
+    {
+        _lastRawBody = message.rawBody;
+        if (unifiedViewer.Visible && _htmlBuilder is not null && _revision is not null)
+        {
+            CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
+            bool showLinks = CommandClickedEvent is not null;
+            bool renderMarkdown = AppSettings.RenderMarkdownPreview;
+
+            if (!_unifiedViewerInitialized)
+            {
+                // First render: full navigation to set up the page structure
+                string html = _htmlBuilder.Build(
+                    data,
+                    message.rawBody,
+                    avatarUrl: _cachedAvatarDataUrl ?? GetAvatarUrl(_revision),
+                    _annotatedTagsInfo ?? string.Empty,
+                    _linksInfo ?? string.Empty,
+                    _branchInfo ?? string.Empty,
+                    _tagInfo ?? string.Empty,
+                    _gitDescribeInfo ?? string.Empty,
+                    showRevisionsAsLinks: showLinks,
+                    renderMarkdown: renderMarkdown,
+                    remoteUrl: GetOriginUrl(),
+                    externalLinks: _externalLinks,
+                    themeBackground: BackColor,
+                    themeForeground: ForeColor);
+                unifiedViewer.SetHtml(html);
+                _unifiedViewerInitialized = true;
+            }
+            else
+            {
+                // Subsequent renders: update DOM sections via JavaScript (no flicker)
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
+                string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, _externalLinks);
+                string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
+                    _annotatedTagsInfo ?? string.Empty,
+                    _linksInfo ?? string.Empty,
+                    _branchInfo ?? string.Empty,
+                    _tagInfo ?? string.Empty,
+                    _gitDescribeInfo ?? string.Empty,
+                    _externalLinks);
+                unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
+                unifiedViewer.UpdateElementAsync("message", messageHtml).FileAndForget();
+                unifiedViewer.UpdateElementAsync("footer", footerHtml).FileAndForget();
+            }
+        }
+        else
+        {
+            rtbxCommitMessage.SetXHTMLText(message.xhtml);
+        }
+    }
+
     private void addNoteToolStripMenuItem_Click(object sender, EventArgs e)
     {
         if (_revision is null)
@@ -766,6 +1033,13 @@ public partial class CommitInfo : GitModuleControl
 
     private void CommitMessage_ContentsResized(ContentsResizedEventArgs e)
     {
+        // When the unified WebView2 viewer is active, the tableLayout is hidden
+        // and this resize event is irrelevant.
+        if (unifiedViewer.Visible)
+        {
+            return;
+        }
+
         _commitMessageHeight = e.NewRectangle.Height;
 
         // at scale factor of 150% there is rendering artifact - the last line is almost lost

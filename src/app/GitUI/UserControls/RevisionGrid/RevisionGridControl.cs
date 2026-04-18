@@ -606,6 +606,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         LoadCustomDifftools();
 
         FindForm()?.Deactivate += (_, _) => _toolTipProvider.Hide();
+        _gridView.MouseLeave += (_, _) => _toolTipProvider.Hide();
     }
 
     public new void Load()

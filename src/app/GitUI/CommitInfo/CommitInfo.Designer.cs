@@ -33,6 +33,8 @@ partial class CommitInfo
         showContainedInTagsToolStripMenuItem = new ToolStripMenuItem();
         showMessagesOfAnnotatedTagsToolStripMenuItem = new ToolStripMenuItem();
         showTagThisCommitDerivesFromMenuItem = new ToolStripMenuItem();
+        renderAsMarkdownToolStripMenuItem = new ToolStripMenuItem();
+        unifiedViewer = new GitUI.UserControls.MarkdownViewer();
         toolStripSeparator2 = new ToolStripSeparator();
         addNoteToolStripMenuItem = new ToolStripMenuItem();
         commitInfoHeader = new GitUI.CommitInfo.CommitInfoHeader();
@@ -103,6 +105,7 @@ partial class CommitInfo
         showContainedInTagsToolStripMenuItem,
         showMessagesOfAnnotatedTagsToolStripMenuItem,
         showTagThisCommitDerivesFromMenuItem,
+        renderAsMarkdownToolStripMenuItem,
         toolStripSeparator2,
         addNoteToolStripMenuItem});
         commitInfoContextMenuStrip.Name = "commitInfoContextMenuStrip";
@@ -170,6 +173,13 @@ partial class CommitInfo
         showTagThisCommitDerivesFromMenuItem.Text = "Show the most recent tag this commit derives from";
         showTagThisCommitDerivesFromMenuItem.Click += showTagThisCommitDerivesFromMenuItem_Click;
         // 
+        // renderAsMarkdownToolStripMenuItem
+        // 
+        renderAsMarkdownToolStripMenuItem.Name = "renderAsMarkdownToolStripMenuItem";
+        renderAsMarkdownToolStripMenuItem.Size = new Size(453, 22);
+        renderAsMarkdownToolStripMenuItem.Text = "Render commit message as Markdown";
+        renderAsMarkdownToolStripMenuItem.Click += renderAsMarkdownToolStripMenuItem_Click;
+        // 
         // toolStripSeparator2
         // 
         toolStripSeparator2.Name = "toolStripSeparator2";
@@ -181,6 +191,12 @@ partial class CommitInfo
         addNoteToolStripMenuItem.Size = new Size(453, 22);
         addNoteToolStripMenuItem.Text = "Add &notes";
         addNoteToolStripMenuItem.Click += addNoteToolStripMenuItem_Click;
+        // 
+        // unifiedViewer
+        // 
+        unifiedViewer.Dock = DockStyle.Fill;
+        unifiedViewer.Name = "unifiedViewer";
+        unifiedViewer.Visible = false;
         // 
         // commitInfoHeader
         // 
@@ -218,6 +234,7 @@ partial class CommitInfo
         AutoScroll = true;
         BackColor = SystemColors.Window;
         ContextMenuStrip = commitInfoContextMenuStrip;
+        Controls.Add(unifiedViewer);
         Controls.Add(tableLayout);
         Margin = new Padding(0);
         Name = "CommitInfo";
@@ -247,6 +264,8 @@ partial class CommitInfo
     private ToolStripMenuItem addNoteToolStripMenuItem;
     private ToolStripMenuItem showMessagesOfAnnotatedTagsToolStripMenuItem;
     private ToolStripMenuItem showTagThisCommitDerivesFromMenuItem;
+    private ToolStripMenuItem renderAsMarkdownToolStripMenuItem;
+    private UserControls.MarkdownViewer unifiedViewer;
     private CommitInfoHeader commitInfoHeader;
     private Panel pnlCommitMessage;
     private RichTextBox rtbxCommitMessage;
