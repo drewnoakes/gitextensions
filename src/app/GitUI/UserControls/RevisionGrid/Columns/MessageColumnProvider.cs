@@ -484,7 +484,9 @@ internal sealed class MessageColumnProvider : ColumnProvider
                 ? RefLabelIcon.Tag
                 : gitRef.IsRemote
                     ? RefLabelIcon.Remote
-                    : RefLabelIcon.Branch;
+                    : gitRef.IsHead && _grid.OtherWorktreeBranchPaths.ContainsKey(gitRef.Name)
+                        ? RefLabelIcon.WorktreeBranch
+                        : RefLabelIcon.Branch;
 
         Font font = gitRef.IsSelected
             ? style.BoldFont

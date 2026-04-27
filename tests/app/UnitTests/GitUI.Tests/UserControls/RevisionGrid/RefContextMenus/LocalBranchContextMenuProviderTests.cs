@@ -27,6 +27,7 @@ public class LocalBranchContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
     }
 
@@ -211,6 +212,7 @@ public class LocalBranchContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -222,6 +224,94 @@ public class LocalBranchContextMenuProviderTests
             .Where(i => i is not ToolStripSeparator)
             .Select(i => i.Text)
             .Should().NotContain(t => t.Contains("Push"));
+    }
+
+    [Test]
+    public void Populate_should_show_open_worktree_when_branch_is_in_another_worktree()
+    {
+        const string worktreePath = @"C:\repo-worktree";
+        RefContextMenuContext worktreeContext = new()
+        {
+            UICommands = _uiCommands,
+            ParentForm = null,
+            CurrentBranchRef = "refs/heads/main",
+            CurrentCheckout = _currentCheckout,
+            IsBareRepository = false,
+            GetRefUnambiguousName = r => r.Name,
+            GetLatestSelectedRevision = () => null,
+            PerformRefreshRevisions = () => { },
+            DropStash = (_, _) => { },
+            GetWorktreePathForBranch = name => name == "feature" ? worktreePath : null,
+        };
+
+        IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, worktreeContext);
+
+        IEnumerable<string?> texts = menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text);
+        texts.Should().Contain(t => t != null && t.Contains("worktree"));
+        texts.Should().NotContain(t => t != null && t.Contains("Checkout"));
+    }
+
+    [Test]
+    public void Populate_should_show_checkout_when_branch_is_not_in_another_worktree()
+    {
+        IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text?.Replace("&", ""))
+            .Should().Contain(t => t != null && t.Contains("Checkout"))
+            .And.NotContain(t => t != null && t.Contains("worktree"));
+    }
+
+    [Test]
+    public void Populate_should_show_delete_branch_and_worktree_when_branch_is_in_another_worktree()
+    {
+        RefContextMenuContext worktreeContext = new()
+        {
+            UICommands = _uiCommands,
+            ParentForm = null,
+            CurrentBranchRef = "refs/heads/main",
+            CurrentCheckout = _currentCheckout,
+            IsBareRepository = false,
+            GetRefUnambiguousName = r => r.Name,
+            GetLatestSelectedRevision = () => null,
+            PerformRefreshRevisions = () => { },
+            DropStash = (_, _) => { },
+            GetWorktreePathForBranch = name => name == "feature" ? @"C:\repo-wt" : null,
+        };
+
+        IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, worktreeContext);
+
+        IEnumerable<string?> texts = menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text?.Replace("&", ""));
+        texts.Should().Contain(t => t != null && t.Contains("Delete branch and worktree"));
+        texts.Should().NotContain(t => t != null && t.Contains("Delete this branch"));
+    }
+
+    [Test]
+    public void Populate_should_show_regular_delete_when_branch_is_not_in_worktree()
+    {
+        IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        IEnumerable<string?> texts = menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text?.Replace("&", ""));
+        texts.Should().Contain(t => t != null && t.Contains("Delete this branch"));
     }
 
     private static IGitRef CreateLocalBranchRef(string name, ObjectId objectId)

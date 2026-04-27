@@ -27,5 +27,8 @@ internal enum RefLabelIcon
     Tag,
 
     /// <summary>Drawer/box icon for stashes.</summary>
-    Stash
+    Stash,
+
+    /// <summary>Tree icon for local branches checked out in another worktree.</summary>
+    WorktreeBranch
 }

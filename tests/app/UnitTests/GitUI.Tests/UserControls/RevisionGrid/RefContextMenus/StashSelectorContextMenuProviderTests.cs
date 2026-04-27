@@ -113,6 +113,7 @@ public class StashSelectorContextMenuProviderTests
             GetLatestSelectedRevision = getLatestSelectedRevision,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
     }
 }

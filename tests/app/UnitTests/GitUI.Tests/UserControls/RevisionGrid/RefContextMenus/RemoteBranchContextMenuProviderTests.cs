@@ -27,6 +27,7 @@ public class RemoteBranchContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
     }
 
@@ -142,6 +143,7 @@ public class RemoteBranchContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
 
         IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());

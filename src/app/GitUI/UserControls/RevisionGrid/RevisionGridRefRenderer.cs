@@ -48,7 +48,7 @@ internal static class RevisionGridRefRenderer
         }
 
         bool hasArrow = icon is RefLabelIcon.ArrowFilled or RefLabelIcon.ArrowNotFilled;
-        bool hasIcon = icon is RefLabelIcon.Head or RefLabelIcon.Branch or RefLabelIcon.Remote or RefLabelIcon.Stash;
+        bool hasIcon = icon is RefLabelIcon.Head or RefLabelIcon.Branch or RefLabelIcon.Remote or RefLabelIcon.Stash or RefLabelIcon.WorktreeBranch;
 
         // | left padding | icon (optional) | gap (if icon and text) | text | arrow (optional) | right padding |
         //                |__|    icon   |__|
@@ -268,6 +268,9 @@ internal static class RevisionGridRefRenderer
                     case RefLabelIcon.Stash:
                         DrawStashIcon();
                         break;
+                    case RefLabelIcon.WorktreeBranch:
+                        DrawWorktreeBranchIcon();
+                        break;
                 }
             }
             finally
@@ -349,6 +352,44 @@ internal static class RevisionGridRefRenderer
                 graphics.DrawLine(pen, left, top + (height * 0.3f), left + (width * 0.5f), top);
                 graphics.DrawLine(pen, left + (width * 0.5f), top, right, top + (height * 0.3f));
             }
+
+            void DrawWorktreeBranchIcon()
+            {
+                float penWidth = Math.Max(1f, iconSize * 0.08f);
+                using Pen pen = new(textColor, penWidth);
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+
+                // Scale SVG coordinates (16×16 viewBox) to icon bounds.
+                float s = iconSize / 16f;
+                PointF Pt(float svgX, float svgY) => new(x + (svgX * s), y + (svgY * s));
+
+                // Canopy blob — 4 cubic beziers tracing the SVG path:
+                //   M13.275 6.804 C10.853 2.416 10.913 .93 8 .93
+                //   S5.147 2.416 2.725 6.804
+                //   S5.087 13.71 8 13.71
+                //   s7.697 -2.518 5.275 -6.906 z
+                //
+                // Reflected cp1 for each S/s computed from the previous cp2.
+                using GraphicsPath canopy = new();
+                canopy.AddBeziers(
+                [
+                    Pt(13.275f, 6.804f),                           // start
+                    Pt(10.853f, 2.416f), Pt(10.913f, 0.93f),  Pt(8f,      0.93f),   // seg 1
+                    Pt(5.087f,  0.93f),  Pt(5.147f,  2.416f), Pt(2.725f,  6.804f),  // seg 2
+                    Pt(0.303f,  11.192f), Pt(5.087f, 13.71f),  Pt(8f,     13.71f),  // seg 3
+                    Pt(10.913f, 13.71f), Pt(15.697f, 11.192f), Pt(13.275f, 6.804f), // seg 4
+                ]);
+                canopy.CloseFigure();
+                graphics.DrawPath(pen, canopy);
+
+                // Trunk and branch lines.
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                graphics.DrawLine(pen, Pt(8f, 7.99f), Pt(8f, 15.071f));        // trunk
+                graphics.DrawLine(pen, Pt(6.338f, 8.563f), Pt(8f, 10.737f));   // left branch
+                graphics.DrawLine(pen, Pt(9.662f, 10.042f), Pt(8f, 12.216f));  // right branch
+            }
         }
     }
 
@@ -368,7 +409,7 @@ internal static class RevisionGridRefRenderer
             : 0;
 
         int backgroundHeight = textHeight + (paddingTopBottom * 2) - 1;
-        bool hasIcon = icon is RefLabelIcon.Head or RefLabelIcon.Branch or RefLabelIcon.Remote or RefLabelIcon.Stash;
+        bool hasIcon = icon is RefLabelIcon.Head or RefLabelIcon.Branch or RefLabelIcon.Remote or RefLabelIcon.Stash or RefLabelIcon.WorktreeBranch;
         int iconSize = hasIcon ? textHeight - (paddingTopBottom * 2) : 0;
 
         int naturalWidth = textWidth + iconSize + (paddingLeftRight * 2) - 1;

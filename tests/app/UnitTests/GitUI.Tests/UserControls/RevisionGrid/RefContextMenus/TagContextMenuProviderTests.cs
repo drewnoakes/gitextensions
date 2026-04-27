@@ -27,6 +27,7 @@ public class TagContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
     }
 
@@ -122,6 +123,7 @@ public class TagContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
 
         IGitRef gitRef = CreateTagRef("v1.0", ObjectId.Random());

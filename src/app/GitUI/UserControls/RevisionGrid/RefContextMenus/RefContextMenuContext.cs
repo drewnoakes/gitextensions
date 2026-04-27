@@ -18,4 +18,10 @@ internal sealed class RefContextMenuContext
     public required Func<GitRevision?> GetLatestSelectedRevision { get; init; }
     public required Action PerformRefreshRevisions { get; init; }
     public required Action<object, EventArgs> DropStash { get; init; }
+
+    /// <summary>
+    ///  Returns the path of the worktree in which the given branch is checked out,
+    ///  or <see langword="null"/> if the branch is not checked out in any other worktree.
+    /// </summary>
+    public required Func<string, string?> GetWorktreePathForBranch { get; init; }
 }

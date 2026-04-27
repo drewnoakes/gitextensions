@@ -25,6 +25,7 @@ public class StashRefContextMenuProviderTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
     }
 

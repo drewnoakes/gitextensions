@@ -155,6 +155,14 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     /// </summary>
     private Lazy<IReadOnlyCollection<string>>? _ambiguousRefs;
 
+    /// <summary>
+    /// Maps branch names (without <c>refs/heads/</c> prefix) to the worktree path where they
+    /// are currently checked out, for all worktrees other than the current one.
+    /// </summary>
+    private IReadOnlyDictionary<string, string> _otherWorktreeBranchPaths = new Dictionary<string, string>();
+
+    internal IReadOnlyDictionary<string, string> OtherWorktreeBranchPaths => _otherWorktreeBranchPaths;
+
     private int _updatingFilters;
 
     private IDisposable? _revisionSubscription;
@@ -944,6 +952,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                   : "");
 
         _gridView.RemoteColors = Module.GetRemoteColors();
+        RefreshWorktrees();
 
         // Revision info is read in three parallel steps:
         // 1. Read current commit, refs, prepare grid etc.
@@ -2355,6 +2364,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     private void ShowRefSpecificContextMenu(IGitRef? gitRef, string? stashReflogSelector)
     {
+        IReadOnlyDictionary<string, string> otherWorktrees = _otherWorktreeBranchPaths;
         RefContextMenuContext context = new()
         {
             UICommands = UICommands,
@@ -2366,6 +2376,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             GetLatestSelectedRevision = () => LatestSelectedRevision,
             PerformRefreshRevisions = () => PerformRefreshRevisions(),
             DropStash = DropStashToolStripMenuItemClick,
+            GetWorktreePathForBranch = branchName => otherWorktrees.TryGetValue(branchName, out string? path) ? path : null,
         };
 
         ContextMenuStrip? menu = _refContextMenuComposer.Build(gitRef, stashReflogSelector, context);
@@ -2381,6 +2392,44 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         _refContextMenu = menu;
         Point cursorPosition = _gridView.PointToClient(Cursor.Position);
         menu.Show(_gridView, cursorPosition);
+    }
+
+    private void RefreshWorktrees()
+    {
+        IGitModule capturedModule = Module;
+        Task.Run(() => capturedModule.GetWorktrees())
+            .ContinueWith(
+                t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        _otherWorktreeBranchPaths = BuildOtherWorktreeBranchPaths(capturedModule, t.Result);
+                        _gridView.Invalidate();
+                    }
+                },
+                TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildOtherWorktreeBranchPaths(IGitModule module, IReadOnlyList<GitWorktree> worktrees)
+    {
+        string currentPath = module.WorkingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        Dictionary<string, string> result = [];
+
+        foreach (GitWorktree wt in worktrees)
+        {
+            if (wt.Branch is null)
+            {
+                continue;
+            }
+
+            string worktreePath = wt.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!string.Equals(worktreePath, currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                result[wt.Branch] = wt.Path;
+            }
+        }
+
+        return result;
     }
 
     private void RebaseOnToolStripMenuItem_DropDownOpening(object sender, EventArgs e)

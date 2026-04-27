@@ -925,6 +925,10 @@ Please make sure that Git for Windows is installed or set the correct command ma
         <source>Copy &amp;link ({0})</source>
         <target />
       </trans-unit>
+      <trans-unit id="_copyText.Text">
+        <source>&amp;Copy</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_derivesFromNoTag.Text">
         <source>Derives from no tag</source>
         <target />
@@ -935,6 +939,10 @@ Please make sure that Git for Windows is installed or set the correct command ma
       </trans-unit>
       <trans-unit id="_plusCommits.Text">
         <source>commits</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_renderMarkdownText.Text">
+        <source>Render commit message as Markdown</source>
         <target />
       </trans-unit>
       <trans-unit id="_repoFailure.Text">
@@ -8578,6 +8586,10 @@ help</source>
       </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">
         <source>&amp;Merge into current branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_openBranchWorktree.Text">
+        <source>Open branch's &amp;worktree</source>
         <target />
       </trans-unit>
       <trans-unit id="_pushBranch.Text">

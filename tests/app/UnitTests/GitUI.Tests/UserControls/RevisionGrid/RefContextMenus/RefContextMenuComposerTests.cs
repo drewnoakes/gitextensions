@@ -23,6 +23,7 @@ public class RefContextMenuComposerTests
             GetLatestSelectedRevision = () => null,
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
         };
     }
 
