@@ -21,6 +21,7 @@ public class RemoteBranchContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = false,
             GetRefUnambiguousName = r => r.Name,
@@ -28,6 +29,7 @@ public class RemoteBranchContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
     }
 
@@ -137,6 +139,7 @@ public class RemoteBranchContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = true,
             GetRefUnambiguousName = r => r.Name,
@@ -144,6 +147,7 @@ public class RemoteBranchContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
 
         IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());
@@ -157,6 +161,35 @@ public class RemoteBranchContextMenuProviderTests
             .Should().NotContain(t => t.Contains("Checkout"))
             .And.NotContain(t => t.Contains("Merge"))
             .And.NotContain(t => t.Contains("Rebase"));
+    }
+
+    [Test]
+    public void Populate_should_include_diff_items_when_not_at_current_head()
+    {
+        IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        IEnumerable<string> texts = menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text!.Replace("&", ""));
+        texts.Should().Contain(t => t.Contains("current") && t.Contains("→"))
+            .And.HaveCountGreaterThanOrEqualTo(2, "both diff directions should appear");
+    }
+
+    [Test]
+    public void Populate_should_not_include_diff_items_when_at_current_head()
+    {
+        IGitRef gitRef = CreateRemoteBranchRef("origin/feature", _currentCheckout);
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text)
+            .Should().NotContain(t => t != null && t.Contains("→"));
     }
 
     private static IGitRef CreateRemoteBranchRef(string name, ObjectId objectId)

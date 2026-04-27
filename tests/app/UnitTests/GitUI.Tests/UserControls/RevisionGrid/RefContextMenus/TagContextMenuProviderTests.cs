@@ -21,6 +21,7 @@ public class TagContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = false,
             GetRefUnambiguousName = r => r.Name,
@@ -28,6 +29,7 @@ public class TagContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
     }
 
@@ -117,6 +119,7 @@ public class TagContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = true,
             GetRefUnambiguousName = r => r.Name,
@@ -124,6 +127,7 @@ public class TagContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
 
         IGitRef gitRef = CreateTagRef("v1.0", ObjectId.Random());

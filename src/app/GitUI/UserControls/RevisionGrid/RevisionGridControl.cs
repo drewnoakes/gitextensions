@@ -2370,6 +2370,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             UICommands = UICommands,
             ParentForm = ParentForm,
             CurrentBranchRef = GitRefName.RefsHeadsPrefix + CurrentBranch.Value,
+            CurrentBranchName = CurrentBranch.Value,
             CurrentCheckout = CurrentCheckout,
             IsBareRepository = Module.IsBareRepository(),
             GetRefUnambiguousName = GetRefUnambiguousName,
@@ -2377,6 +2378,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             PerformRefreshRevisions = () => PerformRefreshRevisions(),
             DropStash = DropStashToolStripMenuItemClick,
             GetWorktreePathForBranch = branchName => otherWorktrees.TryGetValue(branchName, out string? path) ? path : null,
+            ShowFormDiff = ShowFormDiff,
         };
 
         ContextMenuStrip? menu = _refContextMenuComposer.Build(gitRef, stashReflogSelector, context);

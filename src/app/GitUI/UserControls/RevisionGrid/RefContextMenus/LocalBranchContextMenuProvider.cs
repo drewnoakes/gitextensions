@@ -14,6 +14,8 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
     private readonly TranslationString _openBranchWorktree = new("Open branch's &worktree");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
+    private readonly TranslationString _diffCurrentToThis = new("Diff &current → this");
+    private readonly TranslationString _diffThisToCurrent = new("Diff this → cu&rrent");
     private readonly TranslationString _renameBranch = new("R&ename this branch");
     private readonly TranslationString _deleteBranch = new("&Delete this branch");
     private readonly TranslationString _deleteBranchAndWorktree = new("&Delete branch and worktree...");
@@ -60,6 +62,17 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
             ToolStripMenuItem rebase = new(_rebaseOnto.Text, Images.Rebase);
             rebase.Click += (_, _) => context.UICommands.StartRebase(context.ParentForm, refUnambiguousName);
             menu.Items.Add(rebase);
+        }
+
+        if (!isAtCurrentHead && gitRef.ObjectId is ObjectId gitRefObjectId && context.CurrentCheckout is ObjectId currentCheckoutId)
+        {
+            ToolStripMenuItem diffCurrentToThis = new(_diffCurrentToThis.Text, Images.Diff);
+            diffCurrentToThis.Click += (_, _) => context.ShowFormDiff(currentCheckoutId, gitRefObjectId, context.CurrentBranchName, gitRef.Name);
+            menu.Items.Add(diffCurrentToThis);
+
+            ToolStripMenuItem diffThisToCurrent = new(_diffThisToCurrent.Text, Images.Diff);
+            diffThisToCurrent.Click += (_, _) => context.ShowFormDiff(gitRefObjectId, currentCheckoutId, gitRef.Name, context.CurrentBranchName);
+            menu.Items.Add(diffThisToCurrent);
         }
 
         if (menu.Items.Count > 0)

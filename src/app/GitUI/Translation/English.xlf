@@ -8584,6 +8584,14 @@ help</source>
         <source>&amp;Delete this branch</source>
         <target />
       </trans-unit>
+      <trans-unit id="_diffCurrentToThis.Text">
+        <source>Diff &amp;current → this</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_diffThisToCurrent.Text">
+        <source>Diff this → cu&amp;rrent</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">
         <source>&amp;Merge into current branch</source>
         <target />
@@ -8860,6 +8868,14 @@ This will just checkout on the submodule the commit determined by the superproje
       </trans-unit>
       <trans-unit id="_deleteBranch.Text">
         <source>&amp;Delete this branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_diffCurrentToThis.Text">
+        <source>Diff &amp;current → this</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_diffThisToCurrent.Text">
+        <source>Diff this → cu&amp;rrent</source>
         <target />
       </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">

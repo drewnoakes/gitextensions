@@ -13,6 +13,8 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
+    private readonly TranslationString _diffCurrentToThis = new("Diff &current → this");
+    private readonly TranslationString _diffThisToCurrent = new("Diff this → cu&rrent");
     private readonly TranslationString _deleteBranch = new("&Delete this branch");
 
     public bool Handles(IGitRef? gitRef, string? stashReflogSelector) => gitRef?.IsRemote is true;
@@ -43,6 +45,19 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
                 rebase.Click += (_, _) => context.UICommands.StartRebase(context.ParentForm, refUnambiguousName);
                 menu.Items.Add(rebase);
             }
+
+            menu.Items.Add(new ToolStripSeparator());
+        }
+
+        if (!isAtCurrentHead && gitRef.ObjectId is ObjectId gitRefObjectId && context.CurrentCheckout is ObjectId currentCheckoutId)
+        {
+            ToolStripMenuItem diffCurrentToThis = new(_diffCurrentToThis.Text, Images.Diff);
+            diffCurrentToThis.Click += (_, _) => context.ShowFormDiff(currentCheckoutId, gitRefObjectId, context.CurrentBranchName, gitRef.Name);
+            menu.Items.Add(diffCurrentToThis);
+
+            ToolStripMenuItem diffThisToCurrent = new(_diffThisToCurrent.Text, Images.Diff);
+            diffThisToCurrent.Click += (_, _) => context.ShowFormDiff(gitRefObjectId, currentCheckoutId, gitRef.Name, context.CurrentBranchName);
+            menu.Items.Add(diffThisToCurrent);
 
             menu.Items.Add(new ToolStripSeparator());
         }

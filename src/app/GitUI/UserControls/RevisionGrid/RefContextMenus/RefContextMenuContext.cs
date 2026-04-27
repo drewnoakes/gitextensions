@@ -12,6 +12,12 @@ internal sealed class RefContextMenuContext
     public required IGitUICommands UICommands { get; init; }
     public required Form? ParentForm { get; init; }
     public required string CurrentBranchRef { get; init; }
+
+    /// <summary>
+    ///  Gets the display name of the currently checked-out branch (e.g. <c>main</c>).
+    /// </summary>
+    public required string CurrentBranchName { get; init; }
+
     public required ObjectId? CurrentCheckout { get; init; }
     public required bool IsBareRepository { get; init; }
     public required Func<IGitRef, string> GetRefUnambiguousName { get; init; }
@@ -24,4 +30,10 @@ internal sealed class RefContextMenuContext
     ///  or <see langword="null"/> if the branch is not checked out in any other worktree.
     /// </summary>
     public required Func<string, string?> GetWorktreePathForBranch { get; init; }
+
+    /// <summary>
+    ///  Opens the diff form comparing two commits.
+    ///  Parameters are: base commit ID, head commit ID, base display string, head display string.
+    /// </summary>
+    public required Action<ObjectId, ObjectId, string, string> ShowFormDiff { get; init; }
 }

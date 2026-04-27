@@ -21,6 +21,7 @@ public class LocalBranchContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = false,
             GetRefUnambiguousName = r => r.Name,
@@ -28,6 +29,7 @@ public class LocalBranchContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
     }
 
@@ -206,6 +208,7 @@ public class LocalBranchContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = true,
             GetRefUnambiguousName = r => r.Name,
@@ -213,6 +216,7 @@ public class LocalBranchContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -235,6 +239,7 @@ public class LocalBranchContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = false,
             GetRefUnambiguousName = r => r.Name,
@@ -242,6 +247,7 @@ public class LocalBranchContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = name => name == "feature" ? worktreePath : null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -279,6 +285,7 @@ public class LocalBranchContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = _currentCheckout,
             IsBareRepository = false,
             GetRefUnambiguousName = r => r.Name,
@@ -286,6 +293,7 @@ public class LocalBranchContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = name => name == "feature" ? @"C:\repo-wt" : null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -312,6 +320,107 @@ public class LocalBranchContextMenuProviderTests
             .Where(i => i is not ToolStripSeparator)
             .Select(i => i.Text?.Replace("&", ""));
         texts.Should().Contain(t => t != null && t.Contains("Delete this branch"));
+    }
+
+    [Test]
+    public void Populate_should_include_diff_items_for_non_current_head_branch()
+    {
+        IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        IEnumerable<string> texts = menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text!.Replace("&", ""));
+        texts.Should().Contain(t => t.Contains("current") && t.Contains("→"))
+            .And.HaveCountGreaterThanOrEqualTo(2, "both diff directions should appear");
+    }
+
+    [Test]
+    public void Populate_should_not_include_diff_items_when_at_current_head()
+    {
+        IGitRef gitRef = CreateLocalBranchRef("feature", _currentCheckout);
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text)
+            .Should().NotContain(t => t != null && t.Contains("→"));
+    }
+
+    [Test]
+    public void Populate_should_invoke_ShowFormDiff_with_correct_order_for_diff_current_to_this()
+    {
+        ObjectId featureId = ObjectId.Random();
+        IGitRef gitRef = CreateLocalBranchRef("feature", featureId);
+        using ContextMenuStrip menu = new();
+
+        (ObjectId capturedBase, ObjectId capturedHead, string capturedBaseStr, string capturedHeadStr) captured = default;
+        RefContextMenuContext context = new()
+        {
+            UICommands = _uiCommands,
+            ParentForm = null,
+            CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
+            CurrentCheckout = _currentCheckout,
+            IsBareRepository = false,
+            GetRefUnambiguousName = r => r.Name,
+            GetLatestSelectedRevision = () => null,
+            PerformRefreshRevisions = () => { },
+            DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (b, h, bs, hs) => captured = (b, h, bs, hs),
+        };
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
+
+        ToolStripItem diffItem = menu.Items.Cast<ToolStripItem>()
+            .First(i => i is not ToolStripSeparator && i.Text?.Contains("current") is true && i.Text?.Contains("→") is true && !i.Text.StartsWith("Diff this"));
+        diffItem.PerformClick();
+
+        captured.capturedBase.Should().Be(_currentCheckout);
+        captured.capturedHead.Should().Be(featureId);
+        captured.capturedBaseStr.Should().Be("main");
+        captured.capturedHeadStr.Should().Be("feature");
+    }
+
+    [Test]
+    public void Populate_should_invoke_ShowFormDiff_with_correct_order_for_diff_this_to_current()
+    {
+        ObjectId featureId = ObjectId.Random();
+        IGitRef gitRef = CreateLocalBranchRef("feature", featureId);
+        using ContextMenuStrip menu = new();
+
+        (ObjectId capturedBase, ObjectId capturedHead, string capturedBaseStr, string capturedHeadStr) captured = default;
+        RefContextMenuContext context = new()
+        {
+            UICommands = _uiCommands,
+            ParentForm = null,
+            CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
+            CurrentCheckout = _currentCheckout,
+            IsBareRepository = false,
+            GetRefUnambiguousName = r => r.Name,
+            GetLatestSelectedRevision = () => null,
+            PerformRefreshRevisions = () => { },
+            DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (b, h, bs, hs) => captured = (b, h, bs, hs),
+        };
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
+
+        ToolStripItem diffItem = menu.Items.Cast<ToolStripItem>()
+            .First(i => i is not ToolStripSeparator && i.Text?.StartsWith("Diff this") is true);
+        diffItem.PerformClick();
+
+        captured.capturedBase.Should().Be(featureId);
+        captured.capturedHead.Should().Be(_currentCheckout);
+        captured.capturedBaseStr.Should().Be("feature");
+        captured.capturedHeadStr.Should().Be("main");
     }
 
     private static IGitRef CreateLocalBranchRef(string name, ObjectId objectId)

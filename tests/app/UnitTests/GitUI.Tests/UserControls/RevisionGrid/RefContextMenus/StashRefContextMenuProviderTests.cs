@@ -19,6 +19,7 @@ public class StashRefContextMenuProviderTests
             UICommands = _uiCommands,
             ParentForm = null,
             CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
             CurrentCheckout = ObjectId.Random(),
             IsBareRepository = false,
             GetRefUnambiguousName = r => r.Name,
@@ -26,6 +27,7 @@ public class StashRefContextMenuProviderTests
             PerformRefreshRevisions = () => { },
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
         };
     }
 
