@@ -4,6 +4,7 @@ using GitExtUtils.GitUI;
 using GitExtUtils.GitUI.Theming;
 using GitUI.Theming;
 using GitUI.UserControls.RevisionGrid;
+using GitUI.UserControls.RevisionGrid.Graph;
 
 namespace GitUI;
 
@@ -539,12 +540,14 @@ internal static class RevisionGridRefRenderer
 
         if (gitRef.IsHead)
         {
-            return AppColor.Branch.GetThemeColor();
+            int index = RevisionGraphLaneColor.GetColorIndexForBranchName(gitRef.LocalName);
+            return RevisionGraphLaneColor.GetColorForLaneIndex(index);
         }
 
         if (gitRef.IsRemote)
         {
-            return AppColor.RemoteBranch.GetThemeColor();
+            int index = RevisionGraphLaneColor.GetColorIndexForBranchName(gitRef.LocalName);
+            return RevisionGraphLaneColor.GetRemoteVariantColor(index);
         }
 
         if (gitRef.IsStash)

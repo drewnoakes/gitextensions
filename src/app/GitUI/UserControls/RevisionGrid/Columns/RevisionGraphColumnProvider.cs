@@ -248,7 +248,7 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
         {
             if (revision.GitRevision?.Refs.Any(r => IsInBranchGroup(r, branchBaseNames)) is true)
             {
-                WalkAncestors(revision, ancestorIds);
+                WalkRelated(revision, ancestorIds);
             }
         }
 
@@ -260,7 +260,7 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
         static bool IsInBranchGroup(IGitRef r, IReadOnlySet<string> baseNames)
             => (r.IsHead || r.IsRemote) && baseNames.Contains(r.LocalName);
 
-        static void WalkAncestors(RevisionGraphRevision revision, HashSet<ObjectId> result)
+        static void WalkRelated(RevisionGraphRevision revision, HashSet<ObjectId> result)
         {
             Stack<RevisionGraphRevision> stack = new();
             stack.Push(revision);
@@ -275,6 +275,11 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
                 foreach (RevisionGraphRevision parent in current.Parents)
                 {
                     stack.Push(parent);
+                }
+
+                foreach (RevisionGraphRevision child in current.Children)
+                {
+                    stack.Push(child);
                 }
             }
         }
