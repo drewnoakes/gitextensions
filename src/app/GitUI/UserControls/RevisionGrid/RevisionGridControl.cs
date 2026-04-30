@@ -1117,9 +1117,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             });
 
             // Apply settings early, adapt column widths, etc.
-            // For soft refresh, skip this here — calling Refresh() would clear the graph
-            // display cache and flash the column blank. Settings are applied after ReplaceAll.
-            if (!softRefresh)
+            // For soft refresh, skip the full Refresh() here — calling it would clear the graph
+            // display cache and flash the column blank during the swap. Column provider settings
+            // (e.g. ShowRemoteBranches, Notes column visibility) must still be applied so that
+            // filters and column states are correct before the first paint.
+            if (softRefresh)
+            {
+                _gridView.ApplyColumnProviderSettings();
+            }
+            else
             {
                 Refresh();
             }

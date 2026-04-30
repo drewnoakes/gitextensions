@@ -950,6 +950,17 @@ public sealed partial class RevisionDataGridView : DataGridView
 
     public void ApplySettings()
     {
+        ApplyColumnProviderSettings();
+        Refresh();
+    }
+
+    /// <summary>
+    ///  Applies settings to all column providers (fonts, row height, per-column settings) without
+    ///  triggering a graph display-cache clear. Use this during soft refresh to avoid the blank flash
+    ///  that would occur if the full <see cref="Refresh"/> were called before the new graph is ready.
+    /// </summary>
+    internal void ApplyColumnProviderSettings()
+    {
         InitFonts();
         UpdateRowHeight();
 
@@ -957,8 +968,6 @@ public sealed partial class RevisionDataGridView : DataGridView
         {
             columnProvider.ApplySettings();
         }
-
-        Refresh();
     }
 
     public override void Refresh()
