@@ -2888,6 +2888,10 @@ Do you want to continue?</source>
         <source>Archi&amp;ve revision...</source>
         <target />
       </trans-unit>
+      <trans-unit id="autoRefreshToolStripMenuItem.Text">
+        <source>&amp;Auto-refresh</source>
+        <target />
+      </trans-unit>
       <trans-unit id="bisectToolStripMenuItem.Text">
         <source>B&amp;isect...</source>
         <target />
@@ -3182,6 +3186,10 @@ Do you want to continue?</source>
       </trans-unit>
       <trans-unit id="refreshDashboardToolStripMenuItem.Text">
         <source>&amp;Refresh</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="refreshNowToolStripMenuItem.Text">
+        <source>&amp;Refresh now</source>
         <target />
       </trans-unit>
       <trans-unit id="refreshToolStripMenuItem.Text">
@@ -8582,6 +8590,10 @@ help</source>
       </trans-unit>
       <trans-unit id="_deleteBranch.Text">
         <source>&amp;Delete this branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_deleteBranchAndWorktree.Text">
+        <source>&amp;Delete branch and worktree...</source>
         <target />
       </trans-unit>
       <trans-unit id="_diffCurrentToThis.Text">

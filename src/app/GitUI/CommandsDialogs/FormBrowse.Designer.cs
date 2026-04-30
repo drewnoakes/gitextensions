@@ -25,7 +25,9 @@ partial class FormBrowse
         ToolStripSeparator toolStripSeparator14;
         ToolStripSeparator toolStripSeparator11;
         ToolStripMain = new GitUI.ToolStripEx();
-        RefreshButton = new ToolStripButton();
+        RefreshButton = new ToolStripSplitButton();
+        refreshNowToolStripMenuItem = new ToolStripMenuItem();
+        autoRefreshToolStripMenuItem = new ToolStripMenuItem();
         toolStripSeparator0 = new ToolStripSeparator();
         toggleLeftPanel = new ToolStripButton();
         toggleSplitViewLayout = new ToolStripButton();
@@ -226,18 +228,39 @@ partial class FormBrowse
         ToolStripMain.Location = new Point(3, 0);
         ToolStripMain.Name = "ToolStripMain";
         ToolStripMain.Padding = new Padding(0);
-        ToolStripMain.Size = new Size(479, 25);
+        ToolStripMain.Size = new Size(488, 25);
         ToolStripMain.TabIndex = 0;
         ToolStripMain.Text = "Standard";
         // 
         // RefreshButton
         // 
         RefreshButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
+        RefreshButton.DropDownItems.AddRange(new ToolStripItem[] {
+        refreshNowToolStripMenuItem,
+        autoRefreshToolStripMenuItem});
         RefreshButton.Image = Properties.Images.ReloadRevisions;
         RefreshButton.Name = "RefreshButton";
-        RefreshButton.Size = new Size(23, 22);
+        RefreshButton.Size = new Size(32, 22);
         RefreshButton.ToolTipText = "Refresh";
-        RefreshButton.Click += RefreshToolStripMenuItemClick;
+        RefreshButton.ButtonClick += RefreshToolStripMenuItemClick;
+        RefreshButton.DropDownOpening += RefreshButton_DropDownOpening;
+        //
+        // refreshNowToolStripMenuItem
+        //
+        refreshNowToolStripMenuItem.Image = Properties.Images.ReloadRevisions;
+        refreshNowToolStripMenuItem.Name = "refreshNowToolStripMenuItem";
+        refreshNowToolStripMenuItem.Size = new Size(143, 22);
+        refreshNowToolStripMenuItem.Text = "&Refresh now";
+        refreshNowToolStripMenuItem.Click += RefreshToolStripMenuItemClick;
+        //
+        // autoRefreshToolStripMenuItem
+        //
+        autoRefreshToolStripMenuItem.CheckOnClick = true;
+        autoRefreshToolStripMenuItem.Image = Properties.Images.ReloadRevisionsAuto;
+        autoRefreshToolStripMenuItem.Name = "autoRefreshToolStripMenuItem";
+        autoRefreshToolStripMenuItem.Size = new Size(143, 22);
+        autoRefreshToolStripMenuItem.Text = "&Auto-refresh";
+        autoRefreshToolStripMenuItem.Click += AutoRefreshToolStripMenuItemClick;
         // 
         // toolStripSeparator0
         // 
@@ -1496,7 +1519,9 @@ partial class FormBrowse
     private ToolStripSplitButton userShell;
     private ToolStripSeparator toolStripSeparator2;
     private ToolStripButton EditSettings;
-    private ToolStripButton RefreshButton;
+    private ToolStripSplitButton RefreshButton;
+    private ToolStripMenuItem refreshNowToolStripMenuItem;
+    private ToolStripMenuItem autoRefreshToolStripMenuItem;
     private ToolStripPushButton toolStripButtonPush;
     private ToolStripSplitButton toolStripSplitStash;
     private ToolStripMenuItem stashChangesToolStripMenuItem;

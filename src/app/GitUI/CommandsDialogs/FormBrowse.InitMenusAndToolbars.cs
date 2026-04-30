@@ -49,6 +49,8 @@ partial class FormBrowse
         mainMenuStrip.ForeColor = toolForeColor;
         InitToolStripStyles(toolForeColor, Color.Transparent);
 
+        autoRefreshToolStripMenuItem.Checked = AppSettings.AutoRefreshRevisions;
+        UpdateRefreshButtonImage();
         UpdateCommitButtonAndGetBrush(status: null, AppSettings.ShowGitStatusInBrowseToolbar);
 
         FillNextPullActionAsDefaultToolStripMenuItems();
@@ -365,5 +367,14 @@ partial class FormBrowse
         {
             ToolStripMain.ResumeLayout();
         }
+    }
+
+    private void UpdateRefreshButtonImage()
+    {
+        RefreshButton.Image = AppSettings.AutoRefreshRevisions
+            ? Images.ReloadRevisionsAuto
+            : _refreshRevisionsPending && AppSettings.ShowGitStatusInBrowseToolbar && Module.IsValidGitWorkingDir()
+                ? Images.ReloadRevisionsDirty
+                : Images.ReloadRevisions;
     }
 }

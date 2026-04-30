@@ -1,7 +1,6 @@
 ﻿using GitCommands;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
-using GitUI.Properties;
 
 namespace GitUI.CommandsDialogs;
 
@@ -16,10 +15,25 @@ partial class FormBrowse
         RevisionGrid.IndexWatcher.Changed += (_, args) =>
         {
             bool indexChanged = args.IsIndexChanged;
+
             this.InvokeAndForget(() =>
-                RefreshButton.Image = indexChanged && AppSettings.ShowGitStatusInBrowseToolbar && Module.IsValidGitWorkingDir()
-                    ? Images.ReloadRevisionsDirty
-                    : Images.ReloadRevisions);
+            {
+                bool refreshRevisionsPending = indexChanged
+                    && Module.IsValidGitWorkingDir()
+                    && (AppSettings.ShowGitStatusInBrowseToolbar || AppSettings.AutoRefreshRevisions);
+
+                bool shouldAutoRefresh = AppSettings.AutoRefreshRevisions
+                    && refreshRevisionsPending
+                    && !_refreshRevisionsPending;
+
+                _refreshRevisionsPending = refreshRevisionsPending;
+                UpdateRefreshButtonImage();
+
+                if (shouldAutoRefresh)
+                {
+                    UICommands.RepoChangedNotifier.Notify();
+                }
+            });
         };
 
         RevisionGrid.MenuCommands.MenuChanged += (sender, e) => _formBrowseMenus.OnMenuCommandsPropertyChanged();

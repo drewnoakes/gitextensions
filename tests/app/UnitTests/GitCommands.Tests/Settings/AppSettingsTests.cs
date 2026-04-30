@@ -206,6 +206,7 @@ internal sealed class AppSettingsTests
             yield return (properties[nameof(AppSettings.ProvideAutocompletion)], true, false, false);
             yield return (properties[nameof(AppSettings.TruncatePathMethod)], TruncatePathMethod.None, false, false);
             yield return (properties[nameof(AppSettings.ShowGitStatusInBrowseToolbar)], true, false, false);
+            yield return (properties[nameof(AppSettings.AutoRefreshRevisions)], false, false, false);
             yield return (properties[nameof(AppSettings.ShowGitStatusForArtificialCommits)], true, false, false);
             yield return (properties[nameof(AppSettings.RevisionSortOrder)], RevisionSortOrder.GitDefault, false, true);
             yield return (properties[nameof(AppSettings.CommitInfoShowContainedInBranchesLocal)], true, false, false);
