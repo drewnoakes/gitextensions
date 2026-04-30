@@ -10,6 +10,7 @@ using GitCommands.Config;
 using GitCommands.Git;
 using GitCommands.Utils;
 using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.BuildServerIntegration;
 using GitExtensions.Extensibility.Git;
 using GitExtensions.Extensibility.Translations;
 using GitExtUtils;
@@ -937,7 +938,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     /// </summary>
     /// <exception cref="Exception"></exception>
     /// <param name="forceRefresh">Refresh may be required as references may be changed.</param>
-    public void PerformRefreshRevisions(Func<RefsFilter, IReadOnlyList<IGitRef>> getRefs = null!, bool forceRefresh = false)
+    /// <param name="softRefresh">
+    ///  When <see langword="true"/>, keeps the old graph visible during the background load and performs
+    ///  an atomic swap when complete — avoiding the blank-screen flash. Orphaned commits (whose branches
+    ///  were deleted) are preserved in the graph without branch labels.
+    ///  When <see langword="false"/> (the default), the grid is cleared immediately and the spinner is shown.
+    /// </param>
+    public void PerformRefreshRevisions(Func<RefsFilter, IReadOnlyList<IGitRef>> getRefs = null!, bool forceRefresh = false, bool softRefresh = false)
     {
         ThreadHelper.AssertOnUIThread();
 
@@ -976,6 +983,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         Dictionary<ObjectId, GitRevision>? untrackedByStashId = null;
         ILookup<ObjectId, GitRevision>? stashesByParentId = null;
 
+        // For soft refresh: snapshot the existing graph before clearing, and buffer new revisions until complete.
+        // Declared here (before the try block) so local functions below can close over them.
+        IReadOnlyList<GitRevision> previousRevisions = softRefresh
+            ? [.. _gridView.GetAllRevisions().Where(r => !r.ObjectId.IsArtificial)]
+            : [];
+        List<GitRevision>? softRefreshBuffer = softRefresh ? [] : null;
+
         // getRefs (refreshing from Browse) is Lazy already, but not from RevGrid (updating filters etc)
         Lazy<IReadOnlyList<IGitRef>> getUnfilteredRefs = new(() => (getRefs ?? capturedModule.GetRefs)(RefsFilter.NoFilter));
         _ambiguousRefs = new(() => GitRef.GetAmbiguousRefNames(getUnfilteredRefs.Value));
@@ -996,24 +1010,38 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
             FilterChanged?.Invoke(this, new FilterChangedEventArgs(_filterInfo));
 
-            _buildServerWatcher.CancelBuildStatusFetchOperation();
+            // For soft refresh, defer the build-server cancellation until after ReplaceAll so the
+            // currently-fetched build status remains visible during the background load.
+            if (!softRefresh)
+            {
+                _buildServerWatcher.CancelBuildStatusFetchOperation();
+            }
 
             _superprojectCurrentCheckout = null;
 
             IReadOnlyList<ObjectId>? currentlySelectedObjectIds = _gridView.SelectedObjectIds;
             _gridView.SuspendLayout();
             _gridView.SelectionChanged -= OnGridViewSelectionChanged;
-            _gridView.ClearSelection();
-            _gridView.Clear();
-            _gridView.Enabled = true;
-            _gridView.Focus();
-            _gridView.SelectionChanged += OnGridViewSelectionChanged;
-            _gridView.MarkAsDataLoading();
 
-            // Add the spinner controls, removed by SetPage()
-            Controls.Add(_loadingControlSpinner);
-            Controls.Add(_loadingControlText);
-            ShowLoading();
+            if (softRefresh)
+            {
+                // Keep the old graph visible during background load — no clearing, no spinner
+            }
+            else
+            {
+                _gridView.ClearSelection();
+                _gridView.Clear();
+                _gridView.Enabled = true;
+                _gridView.Focus();
+                _gridView.MarkAsDataLoading();
+
+                // Add the spinner controls, removed by SetPage()
+                Controls.Add(_loadingControlSpinner);
+                Controls.Add(_loadingControlText);
+                ShowLoading();
+            }
+
+            _gridView.SelectionChanged += OnGridViewSelectionChanged;
             _gridView.ResumeLayout();
 
             Subject<IReadOnlyList<GitRevision>> observeRevisions = new();
@@ -1089,7 +1117,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             });
 
             // Apply settings early, adapt column widths, etc.
-            Refresh();
+            // For soft refresh, skip this here — calling Refresh() would clear the graph
+            // display cache and flash the column blank. Settings are applied after ReplaceAll.
+            if (!softRefresh)
+            {
+                Refresh();
+            }
 
             if (!showStashes || getStashRevs.Value.Count == 0)
             {
@@ -1301,7 +1334,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             if (!firstRevisionReceived)
             {
                 // Wait for refs,CurrentCheckout and stashes as second step
-                this.InvokeAndForget(() => ShowLoading(showSpinner: false));
+                if (softRefreshBuffer is null)
+                {
+                    this.InvokeAndForget(() => ShowLoading(showSpinner: false));
+                }
+
                 try
                 {
                     semaphoreUpdateGrid.Wait(cancellationToken);
@@ -1357,7 +1394,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     // Insert artificial worktree/index just before HEAD (CurrentCheckout)
                     // If grid is filtered and HEAD not visible, insert in OnRevisionReadCompleted()
                     headIsHandled = true;
-                    _gridView.AddRange(revisionsToDisplay);
+                    if (softRefreshBuffer is not null)
+                    {
+                        softRefreshBuffer.AddRange(revisionsToDisplay);
+                    }
+                    else
+                    {
+                        _gridView.AddRange(revisionsToDisplay);
+                    }
+
                     revisionsToDisplay.Clear();
                     AddArtificialRevisions();
                 }
@@ -1365,7 +1410,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 revisionsToDisplay.Add(revision);
             }
 
-            _gridView.AddRange(revisionsToDisplay);
+            if (softRefreshBuffer is not null)
+            {
+                softRefreshBuffer.AddRange(revisionsToDisplay);
+            }
+            else
+            {
+                _gridView.AddRange(revisionsToDisplay);
+            }
+
             return;
         }
 
@@ -1412,7 +1465,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 Notes = ""
             };
 
-            if (headParents is null)
+            if (softRefreshBuffer is not null)
+            {
+                // For soft refresh, buffer artificial commits; RevisionGraph.Add will position them correctly
+                softRefreshBuffer.Add(workTreeRev);
+                softRefreshBuffer.Add(indexRev);
+            }
+            else if (headParents is null)
             {
                 // Add as normal commits at current position
                 _gridView.AddRange([workTreeRev, indexRev]);
@@ -1430,7 +1489,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         {
             _refreshRevisionsSequence.CancelCurrent();
 
-            _gridView.MarkAsDataLoadingComplete();
+            if (softRefreshBuffer is null)
+            {
+                _gridView.MarkAsDataLoadingComplete();
+            }
+
             this.InvokeAndForget(() => SetPage(new ErrorControl()));
             _isRefreshingRevisions = false;
 
@@ -1448,9 +1511,29 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     await semaphoreUpdateGrid.WaitAsync(cancellationToken);
 
                     bool showArtificial = AddArtificialRevisions();
-                    _gridView.LoadingCompleted();
 
-                    await this.SwitchToMainThreadAsync(cancellationToken);
+                    if (softRefreshBuffer is not null)
+                    {
+                        RevisionDataGridView.PreparedRevisionGraph preparedGraph = RevisionDataGridView.PrepareReplacementGraph(
+                            softRefreshBuffer,
+                            _gridView.ToBeSelectedObjectIds,
+                            _filterInfo.ShowOnlyFirstParent,
+                            CurrentCheckout ?? default,
+                            cancellationToken);
+
+                        await this.SwitchToMainThreadAsync(cancellationToken);
+
+                        // Capture the scroll anchor NOW (on UI thread), so we honour any
+                        // scrolling the user did while the background load was in progress.
+                        ObjectId? scrollAnchorId = _gridView.GetRevision(_gridView.FirstDisplayedScrollingRowIndex)?.ObjectId;
+                        _gridView.ReplaceAll(preparedGraph, scrollAnchorId);
+                    }
+                    else
+                    {
+                        _gridView.LoadingCompleted();
+                        await this.SwitchToMainThreadAsync(cancellationToken);
+                    }
+
                     if (showArtificial)
                     {
                         // There is a context to show something
@@ -1491,7 +1574,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 }
 
                 // All revisions are loaded (but maybe not yet the grid)
-                if (!_gridView.PendingToBeSelected &&
+                if (softRefreshBuffer is null &&
+                    !_gridView.PendingToBeSelected &&
 
                     // objectIds that were not selected after revisions were loaded
                     _gridView.ToBeSelectedObjectIds.Count > 0)
@@ -1518,9 +1602,63 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     _gridView.SetToBeSelectedFromParents(parents);
                 }
 
-                _gridView.LoadingCompleted();
+                if (softRefreshBuffer is not null)
+                {
+                    // Detect orphaned revisions (present in the old graph but absent from the new data) and
+                    // re-add them without their deleted-branch labels so they remain visible in the graph.
+                    HashSet<ObjectId> newIds = [.. softRefreshBuffer.Select(r => r.ObjectId)];
+                    List<GitRevision> orphans = previousRevisions
+                        .Where(r => !newIds.Contains(r.ObjectId))
+                        .Select(orphan =>
+                        {
+                            GitRevision clone = orphan.Clone();
+                            clone.Refs = refsByObjectId![clone.ObjectId].AsReadOnlyList();
+                            return clone;
+                        })
+                        .ToList();
 
-                await this.SwitchToMainThreadAsync(cancellationToken);
+                    // Build a lookup of build status from the old revisions so we can carry it
+                    // forward to the matching new revisions, preventing the build-server column
+                    // from going blank between ReplaceAll and the next build-server fetch.
+                    Dictionary<ObjectId, BuildInfo> oldBuildStatus = previousRevisions
+                        .Where(r => r.BuildStatus is not null)
+                        .ToDictionary(r => r.ObjectId, r => r.BuildStatus!);
+
+                    softRefreshBuffer.AddRange(orphans);
+
+                    foreach (GitRevision newRevision in softRefreshBuffer)
+                    {
+                        if (newRevision.BuildStatus is null &&
+                            oldBuildStatus.TryGetValue(newRevision.ObjectId, out BuildInfo? buildInfo))
+                        {
+                            newRevision.BuildStatus = buildInfo;
+                        }
+                    }
+
+                    RevisionDataGridView.PreparedRevisionGraph preparedGraph = RevisionDataGridView.PrepareReplacementGraph(
+                        softRefreshBuffer,
+                        _gridView.ToBeSelectedObjectIds,
+                        _filterInfo.ShowOnlyFirstParent,
+                        CurrentCheckout ?? default,
+                        cancellationToken);
+
+                    await this.SwitchToMainThreadAsync(cancellationToken);
+
+                    // Cancel the old fetch now that we've copied the data, then atomically swap
+                    // in the new graph. RequestGraphRedraw() (inside ReplaceAll) will trigger
+                    // the async re-render; we do not call Refresh() here as that would clear
+                    // the graph display cache and re-introduce the blank flash.
+                    // Capture the scroll anchor NOW (on UI thread) so we honour any scrolling
+                    // the user did while the background load was in progress.
+                    ObjectId? scrollAnchorId = _gridView.GetRevision(_gridView.FirstDisplayedScrollingRowIndex)?.ObjectId;
+                    _buildServerWatcher.CancelBuildStatusFetchOperation();
+                    _gridView.ReplaceAll(preparedGraph, scrollAnchorId);
+                }
+                else
+                {
+                    _gridView.LoadingCompleted();
+                    await this.SwitchToMainThreadAsync(cancellationToken);
+                }
 
                 SetPage(_gridView);
 

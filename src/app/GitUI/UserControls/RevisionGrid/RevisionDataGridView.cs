@@ -89,6 +89,19 @@ public sealed partial class RevisionDataGridView : DataGridView
 
     public bool UpdatingVisibleRows { get; private set; }
 
+    internal sealed class PreparedRevisionGraph
+    {
+        public PreparedRevisionGraph(RevisionGraph graph, int loadedToBeSelectedRevisionsCount)
+        {
+            Graph = graph;
+            LoadedToBeSelectedRevisionsCount = loadedToBeSelectedRevisionsCount;
+        }
+
+        public RevisionGraph Graph { get; }
+
+        public int LoadedToBeSelectedRevisionsCount { get; }
+    }
+
     // _toBeSelectedGraphIndexesCache is init in Clear()
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public RevisionDataGridView()
@@ -419,6 +432,14 @@ public sealed partial class RevisionDataGridView : DataGridView
             columnProvider.Clear();
         }
 
+        ReloadDrawingSettings();
+
+        // Redraw
+        Invalidate(invalidateChildren: true);
+    }
+
+    private void ReloadDrawingSettings()
+    {
         // Reload settings that will be used during drawing
         _revisionGraphDrawNonRelativesTextGray = AppSettings.RevisionGraphDrawNonRelativesTextGray;
 
@@ -434,9 +455,6 @@ public sealed partial class RevisionDataGridView : DataGridView
 
         _highlightAuthoredRevisions = AppSettings.HighlightAuthoredRevisions;
         _revisionGraphDrawAlternateBackColor = AppSettings.RevisionGraphDrawAlternateBackColor;
-
-        // Redraw
-        Invalidate(invalidateChildren: true);
     }
 
     public void ClearToBeSelected()
@@ -569,6 +587,133 @@ public sealed partial class RevisionDataGridView : DataGridView
 
             return 0;
         }
+    }
+
+    /// <summary>
+    ///  Returns all revisions currently in the graph.
+    /// </summary>
+    /// <returns>All revisions currently loaded in the graph, including artificial ones.</returns>
+    public IEnumerable<GitRevision> GetAllRevisions()
+        => _revisionGraph.Revisions
+            .Select(r => r.GitRevision)
+            .OfType<GitRevision>();
+
+    internal static PreparedRevisionGraph PrepareReplacementGraph(
+        IReadOnlyList<GitRevision> revisions,
+        IReadOnlyList<ObjectId> toBeSelectedObjectIds,
+        bool onlyFirstParent,
+        ObjectId headId,
+        CancellationToken cancellationToken)
+    {
+        RevisionGraph graph = new()
+        {
+            OnlyFirstParent = onlyFirstParent,
+            HeadId = headId
+        };
+
+        HashSet<ObjectId> toBeSelected = [.. toBeSelectedObjectIds];
+        int loadedToBeSelectedRevisionsCount = 0;
+
+        foreach (GitRevision revision in revisions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            graph.Add(revision);
+            if (toBeSelected.Contains(revision.ObjectId))
+            {
+                ++loadedToBeSelectedRevisionsCount;
+            }
+        }
+
+        if (loadedToBeSelectedRevisionsCount < toBeSelectedObjectIds.Count)
+        {
+            // Not all expected revisions were found; settle for a partial (empty) match.
+            loadedToBeSelectedRevisionsCount = toBeSelectedObjectIds.Count;
+        }
+
+        graph.LoadingCompleted();
+        if (graph.Count > 0)
+        {
+            _ = graph.GetNodeForRow(graph.Count - 1);
+        }
+
+        return new PreparedRevisionGraph(graph, loadedToBeSelectedRevisionsCount);
+    }
+
+    /// <summary>
+    ///  Atomically replaces all revisions in the graph with the given set, suppressing
+    ///  redraws during the swap to eliminate the blank-screen flash seen during a regular refresh.
+    /// </summary>
+    /// <remarks>
+    ///  The graph display cache is intentionally NOT cleared here. The stale cache remains
+    ///  visible while the async re-render runs, which avoids the blank-graph flash.
+    ///  <see cref="RequestGraphRedraw"/> schedules the re-render; the column invalidates itself
+    ///  once the new cache is ready.
+    /// </remarks>
+    /// <param name="preparedGraph">The replacement graph, built off the UI thread.</param>
+    /// <param name="anchorObjectId">
+    ///  The <see cref="ObjectId"/> of the commit that was at the top of the viewport before the
+    ///  refresh. After loading, the viewport is scrolled so that commit is still at the top,
+    ///  preserving the user's scroll position even when new commits are prepended to the graph.
+    ///  Pass <see langword="null"/> to leave the scroll position unchanged.
+    /// </param>
+    internal void ReplaceAll(PreparedRevisionGraph preparedGraph, ObjectId? anchorObjectId = null)
+    {
+        ThreadHelper.AssertOnUIThread();
+
+        NativeMethods.SendMessageW(Handle, NativeMethods.WM_SETREDRAW, NativeMethods.FALSE, IntPtr.Zero);
+        try
+        {
+            // Cancel any in-progress background update since we're replacing all data.
+            _updateVisibleRowRangeSequence.CancelCurrent();
+            _backgroundScrollTo = -1;
+            _forceRefresh = false;
+            _visibleRowRange = new VisibleRowRange(fromIndex: 0, count: 0);
+
+            // Save ToBeSelectedObjectIds because ClearToBeSelected() resets them.
+            IReadOnlyList<ObjectId> toBeSelected = ToBeSelectedObjectIds;
+
+            // Wipe the graph data and row count. Column provider caches are intentionally
+            // preserved so the stale graph remains visible until the async re-render completes.
+            SetRowCount(0);
+            _revisionGraph = preparedGraph.Graph;
+            foreach (RevisionGraphColumnProvider columnProvider in _columnProviders.OfType<RevisionGraphColumnProvider>())
+            {
+                columnProvider.ReplaceRevisionGraph(_revisionGraph);
+            }
+
+            ClearToBeSelected();
+
+            // Reload drawing settings (normally done inside Clear()).
+            ReloadDrawingSettings();
+
+            ToBeSelectedObjectIds = toBeSelected;
+            _loadedToBeSelectedRevisionsCount = preparedGraph.LoadedToBeSelectedRevisionsCount;
+            int count = _revisionGraph.Count;
+            SetRowCount(count);
+            SelectRowsIfReady(count);
+
+            // Restore viewport anchor: find the row that the anchored commit now occupies and
+            // scroll to it, so that new commits prepended above the old viewport don't cause
+            // the visible content to jump.
+            if (anchorObjectId is not null
+                && TryGetRevisionIndex(anchorObjectId) is int anchorRow
+                && anchorRow >= 0)
+            {
+                FirstDisplayedScrollingRowIndex = anchorRow;
+            }
+        }
+        finally
+        {
+            NativeMethods.SendMessageW(Handle, NativeMethods.WM_SETREDRAW, NativeMethods.TRUE, IntPtr.Zero);
+        }
+
+        Invalidate(invalidateChildren: true);
+
+        // Trigger an async graph re-render. The stale display cache stays visible until
+        // RenderGraphToCacheAsync completes and calls InvalidateColumn(), at which point
+        // the column repaints with the new graph — no blank-screen flash.
+        RequestGraphRedraw();
     }
 
     public void MarkAsDataLoadingComplete()

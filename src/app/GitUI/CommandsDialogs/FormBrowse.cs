@@ -722,7 +722,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             return;
         }
 
-        RevisionGrid.PerformRefreshRevisions(getRefs, forceRefresh: true);
+        RevisionGrid.PerformRefreshRevisions(getRefs, forceRefresh: true, softRefresh: true);
 
         InternalInitialize();
         ToolStripFilters.RefreshRevisionFunction(getRefs);
@@ -981,6 +981,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             if (!isDashboard)
             {
                 refreshToolStripMenuItem.ShortcutKeys = Keys.F5;
+                hardRefreshToolStripMenuItem.ShortcutKeys = Keys.F5 | Keys.Shift;
             }
             else
             {
@@ -1332,6 +1333,12 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     {
         // Broadcast RepoChanged in case repo was changed outside of GE
         UICommands.RepoChangedNotifier.Notify();
+    }
+
+    private void HardRefreshToolStripMenuItemClick(object sender, EventArgs e)
+    {
+        // Full refresh: clears and reloads the entire graph (equivalent to old F5 behaviour)
+        RevisionGrid.PerformRefreshRevisions(forceRefresh: true, softRefresh: false);
     }
 
     private void RefreshButton_DropDownOpening(object sender, EventArgs e)
