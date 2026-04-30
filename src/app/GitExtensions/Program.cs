@@ -20,6 +20,7 @@ namespace GitExtensions;
 
 internal static class Program
 {
+    private const string WindowTitleArgumentName = "--window-title";
     private static readonly ServiceContainer _serviceContainer = new();
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -100,7 +101,8 @@ internal static class Program
 
     private static void RunApplication()
     {
-        string[] args = Environment.GetCommandLineArgs();
+        string[] args = RemoveWindowTitleArgument(Environment.GetCommandLineArgs(), out string? windowTitlePrefix);
+        AppTitleGenerator.SetWindowTitlePrefix(windowTitlePrefix);
 
         // This form created to obtain UI synchronization context only
         using (new Form())
@@ -209,6 +211,37 @@ internal static class Program
         }
 
         AppSettings.SaveSettings();
+    }
+
+    private static string[] RemoveWindowTitleArgument(string[] args, out string? windowTitlePrefix)
+    {
+        windowTitlePrefix = null;
+        List<string> filteredArgs = new(capacity: args.Length);
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (arg.Equals(WindowTitleArgumentName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 < args.Length)
+                {
+                    windowTitlePrefix = args[++i];
+                }
+
+                continue;
+            }
+
+            string argumentPrefix = $"{WindowTitleArgumentName}=";
+            if (arg.StartsWith(argumentPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                windowTitlePrefix = arg[argumentPrefix.Length..];
+                continue;
+            }
+
+            filteredArgs.Add(arg);
+        }
+
+        return [.. filteredArgs];
     }
 
     private static string? GetWorkingDir(string[] args)

@@ -81,14 +81,14 @@ public class CopyContextMenuItemTests
         _copyContextMenuItem.ShowDropDown();
 
         _copyContextMenuItem.DropDownItems.Count.Should().Be(8);
-        _copyContextMenuItem.DropDownItems[0].Text.Should().Be(TranslatedStrings.Branches);
-        _copyContextMenuItem.DropDownItems[1].Text.Should().EndWith("branch1");
-        _copyContextMenuItem.DropDownItems[2].Text.Should().EndWith("branch2");
-        _copyContextMenuItem.DropDownItems[3].Should().BeOfType<ToolStripSeparator>();
-        _copyContextMenuItem.DropDownItems[4].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetCommitHash(1), 'C'));
-        _copyContextMenuItem.DropDownItems[5].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetMessage(1), 'M'));
-        _copyContextMenuItem.DropDownItems[6].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetAuthor(1), 'A'));
-        _copyContextMenuItem.DropDownItems[7].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.Date, 'D'));
+        _copyContextMenuItem.DropDownItems[0].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetCommitHash(1), 'C'));
+        _copyContextMenuItem.DropDownItems[1].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetMessage(1), 'M'));
+        _copyContextMenuItem.DropDownItems[2].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetAuthor(1), 'A'));
+        _copyContextMenuItem.DropDownItems[3].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.Date, 'D'));
+        _copyContextMenuItem.DropDownItems[4].Should().BeOfType<ToolStripSeparator>();
+        _copyContextMenuItem.DropDownItems[5].Text.Should().Be(TranslatedStrings.Branches);
+        _copyContextMenuItem.DropDownItems[6].Text.Should().EndWith("branch1");
+        _copyContextMenuItem.DropDownItems[7].Text.Should().EndWith("branch2");
     }
 
     [Test]
@@ -107,14 +107,14 @@ public class CopyContextMenuItemTests
         _copyContextMenuItem.ShowDropDown();
 
         _copyContextMenuItem.DropDownItems.Count.Should().Be(8);
-        _copyContextMenuItem.DropDownItems[0].Text.Should().Be(TranslatedStrings.Tags);
-        _copyContextMenuItem.DropDownItems[1].Text.Should().EndWith("tag1");
-        _copyContextMenuItem.DropDownItems[2].Text.Should().EndWith("tag2");
-        _copyContextMenuItem.DropDownItems[3].Should().BeOfType<ToolStripSeparator>();
-        _copyContextMenuItem.DropDownItems[4].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetCommitHash(1), 'C'));
-        _copyContextMenuItem.DropDownItems[5].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetMessage(1), 'M'));
-        _copyContextMenuItem.DropDownItems[6].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetAuthor(1), 'A'));
-        _copyContextMenuItem.DropDownItems[7].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.Date, 'D'));
+        _copyContextMenuItem.DropDownItems[0].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetCommitHash(1), 'C'));
+        _copyContextMenuItem.DropDownItems[1].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetMessage(1), 'M'));
+        _copyContextMenuItem.DropDownItems[2].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetAuthor(1), 'A'));
+        _copyContextMenuItem.DropDownItems[3].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.Date, 'D'));
+        _copyContextMenuItem.DropDownItems[4].Should().BeOfType<ToolStripSeparator>();
+        _copyContextMenuItem.DropDownItems[5].Text.Should().Be(TranslatedStrings.Tags);
+        _copyContextMenuItem.DropDownItems[6].Text.Should().EndWith("tag1");
+        _copyContextMenuItem.DropDownItems[7].Text.Should().EndWith("tag2");
     }
 
     [Test]
@@ -135,18 +135,18 @@ public class CopyContextMenuItemTests
         _copyContextMenuItem.ShowDropDown();
 
         _copyContextMenuItem.DropDownItems.Count.Should().Be(12);
-        _copyContextMenuItem.DropDownItems[0].Text.Should().Be(TranslatedStrings.Branches);
-        _copyContextMenuItem.DropDownItems[1].Text.Should().EndWith("branch1");
-        _copyContextMenuItem.DropDownItems[2].Text.Should().EndWith("branch2");
-        _copyContextMenuItem.DropDownItems[3].Should().BeOfType<ToolStripSeparator>();
-        _copyContextMenuItem.DropDownItems[4].Text.Should().Be(TranslatedStrings.Tags);
-        _copyContextMenuItem.DropDownItems[5].Text.Should().EndWith("tag1");
-        _copyContextMenuItem.DropDownItems[6].Text.Should().EndWith("tag2");
-        _copyContextMenuItem.DropDownItems[7].Should().BeOfType<ToolStripSeparator>();
-        _copyContextMenuItem.DropDownItems[8].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetCommitHash(1), 'C'));
-        _copyContextMenuItem.DropDownItems[9].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetMessage(1), 'M'));
-        _copyContextMenuItem.DropDownItems[10].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetAuthor(1), 'A'));
-        _copyContextMenuItem.DropDownItems[11].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.Date, 'D'));
+        _copyContextMenuItem.DropDownItems[0].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetCommitHash(1), 'C'));
+        _copyContextMenuItem.DropDownItems[1].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetMessage(1), 'M'));
+        _copyContextMenuItem.DropDownItems[2].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.GetAuthor(1), 'A'));
+        _copyContextMenuItem.DropDownItems[3].Text.Should().StartWith(AddHotKey(ResourceManager.TranslatedStrings.Date, 'D'));
+        _copyContextMenuItem.DropDownItems[4].Should().BeOfType<ToolStripSeparator>();
+        _copyContextMenuItem.DropDownItems[5].Text.Should().Be(TranslatedStrings.Tags);
+        _copyContextMenuItem.DropDownItems[6].Text.Should().EndWith("tag1");
+        _copyContextMenuItem.DropDownItems[7].Text.Should().EndWith("tag2");
+        _copyContextMenuItem.DropDownItems[8].Should().BeOfType<ToolStripSeparator>();
+        _copyContextMenuItem.DropDownItems[9].Text.Should().Be(TranslatedStrings.Branches);
+        _copyContextMenuItem.DropDownItems[10].Text.Should().EndWith("branch1");
+        _copyContextMenuItem.DropDownItems[11].Text.Should().EndWith("branch2");
     }
 
     [Test]

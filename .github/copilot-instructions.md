@@ -109,6 +109,11 @@ For example:
 * Use `AwesomeAssertions` for assertions, i.e. do not use `ClassicAssert`.
 * When you encounter a flaky test failure, take the time to understand the root cause and fix it. Do not dismiss it as a pre-existing issue. Flaky tests erode confidence and should be fixed or removed.
 
+## Manual verification
+
+* When launching Git Extensions from an agent session for manual verification, pass `--window-title="<session/worktree identifier>"` so the main window title clearly identifies which agent/worktree produced it.
+  For example: `.\artifacts\Debug\bin\GitExtensions\net10.0-windows\GitExtensions.exe browse --window-title="agent: my-session"`.
+
 ## Commit Messages
 
 * Use https://www.conventionalcommits.org/en/v1.0.0/ for commit messages.

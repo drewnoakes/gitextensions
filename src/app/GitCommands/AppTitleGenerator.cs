@@ -25,6 +25,7 @@ public interface IAppTitleGenerator
 public sealed class AppTitleGenerator : IAppTitleGenerator
 {
     private readonly IRepositoryDescriptionProvider _descriptionProvider;
+    private static string? _windowTitlePrefix;
 #if DEBUG
     private static string? _extraInfo;
 #endif
@@ -39,7 +40,7 @@ public sealed class AppTitleGenerator : IAppTitleGenerator
     {
         if (string.IsNullOrWhiteSpace(workingDir) || !isValidWorkingDir)
         {
-            return AppSettings.ApplicationName;
+            return AddWindowTitlePrefix(AppSettings.ApplicationName);
         }
 
         if (string.IsNullOrWhiteSpace(branchName))
@@ -53,9 +54,9 @@ public sealed class AppTitleGenerator : IAppTitleGenerator
         string description = _descriptionProvider.Get(workingDir);
 
 #if DEBUG
-        return $"{pathName}{description} ({branchName}) - {AppSettings.ApplicationName}{_extraInfo}";
+        return AddWindowTitlePrefix($"{pathName}{description} ({branchName}) - {AppSettings.ApplicationName}{_extraInfo}");
 #else
-        return $"{pathName}{description} ({branchName}) - {AppSettings.ApplicationName}";
+        return AddWindowTitlePrefix($"{pathName}{description} ({branchName}) - {AppSettings.ApplicationName}");
 #endif
 
         static string? GetFileName(string? path)
@@ -78,6 +79,11 @@ public sealed class AppTitleGenerator : IAppTitleGenerator
         }
     }
 
+    public static void SetWindowTitlePrefix(string? windowTitlePrefix)
+    {
+        _windowTitlePrefix = string.IsNullOrWhiteSpace(windowTitlePrefix) ? null : windowTitlePrefix.Trim();
+    }
+
     public static void Initialise(string sha, string buildBranch)
     {
 #if DEBUG
@@ -94,5 +100,10 @@ public sealed class AppTitleGenerator : IAppTitleGenerator
             _extraInfo = " [DEBUG]";
         }
 #endif
+    }
+
+    private static string AddWindowTitlePrefix(string title)
+    {
+        return string.IsNullOrWhiteSpace(_windowTitlePrefix) ? title : $"{_windowTitlePrefix} - {title}";
     }
 }
