@@ -243,16 +243,21 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
             return;
         }
 
-        HashSet<ObjectId> ancestorIds = [];
+        // Compute the lane color index from the branch name so we can trace the visual lane
+        // rather than the full ancestry (full-ancestry walks cover the whole graph for any
+        // long-lived branch, which would make the hover have no visible effect).
+        int laneColor = RevisionGraphLaneColor.GetColorIndexForBranchName(branchBaseNames.First());
+
+        HashSet<ObjectId> highlightedIds = [];
         foreach (RevisionGraphRevision revision in _revisionGraph.Revisions)
         {
             if (revision.GitRevision?.Refs.Any(r => IsInBranchGroup(r, branchBaseNames)) is true)
             {
-                WalkRelated(revision, ancestorIds);
+                WalkLane(revision, laneColor, highlightedIds);
             }
         }
 
-        _hoverHighlightedIds = ancestorIds.Count > 0 ? ancestorIds : null;
+        _hoverHighlightedIds = highlightedIds.Count > 0 ? highlightedIds : null;
         _hoverHighlightDirty = true;
 
         return;
@@ -260,10 +265,11 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
         static bool IsInBranchGroup(IGitRef r, IReadOnlySet<string> baseNames)
             => (r.IsHead || r.IsRemote) && baseNames.Contains(r.LocalName);
 
-        static void WalkRelated(RevisionGraphRevision revision, HashSet<ObjectId> result)
+        static void WalkLane(RevisionGraphRevision startRevision, int laneColor, HashSet<ObjectId> result)
         {
             Stack<RevisionGraphRevision> stack = new();
-            stack.Push(revision);
+            stack.Push(startRevision);
+
             while (stack.Count > 0)
             {
                 RevisionGraphRevision current = stack.Pop();
@@ -272,14 +278,27 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
                     continue;
                 }
 
-                foreach (RevisionGraphRevision parent in current.Parents)
+                // Walk ancestors: follow only segments that are painted in the branch's lane color.
+                // This stops at merge points where the lane color changes to a different branch.
+                foreach (RevisionGraphSegment segment in current.GetStartSegments())
                 {
-                    stack.Push(parent);
+                    if (segment.LaneInfo?.Color == laneColor)
+                    {
+                        stack.Push(segment.Parent);
+                    }
                 }
 
+                // Walk descendants: include children whose segment back to us is in the same lane color.
                 foreach (RevisionGraphRevision child in current.Children)
                 {
-                    stack.Push(child);
+                    foreach (RevisionGraphSegment childSegment in child.GetStartSegments())
+                    {
+                        if (childSegment.Parent == current && childSegment.LaneInfo?.Color == laneColor)
+                        {
+                            stack.Push(child);
+                            break;
+                        }
+                    }
                 }
             }
         }

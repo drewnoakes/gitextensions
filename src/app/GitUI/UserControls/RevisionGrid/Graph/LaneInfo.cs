@@ -36,12 +36,11 @@ public sealed class LaneInfo
         int? leftLaneColor = segmentToTheLeft?.LaneInfo?.Color;
         int? rightLaneColor = segmentToTheRight?.LaneInfo?.Color;
 
-        // When the lane starts at a named branch, prefer that branch's stable color.
+        // When the lane starts at a named branch, always use that branch's stable color
+        // regardless of neighbor conflicts — this keeps the lane color consistent with
+        // the branch label capsule, which also uses the branch-name hash.
         int? preferredColor = GetColorIndexFromBranchRef(startRevision);
-        if (preferredColor is not null
-            && preferredColor != leftLaneColor
-            && preferredColor != rightLaneColor
-            && preferredColor != derivedFromColor)
+        if (preferredColor is not null)
         {
             return preferredColor.Value;
         }

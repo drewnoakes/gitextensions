@@ -493,15 +493,15 @@ internal static class RevisionGridRefRenderer
             strokePath.AddArc(precedingRight, shapeTop, diameter, diameter, -90, 180);
             strokePath.AddLine(shapeLeft + (2 * radius), shapeBottom, shapeLeft, shapeBottom);
 
-            if (highlight)
-            {
-                bool isDark = SystemColors.Window.GetBrightness() < 0.5f;
-                Color borderColor = isDark
-                    ? ColorHelper.Lerp(headColor, Color.White, 0.6f)
-                    : ColorHelper.Lerp(headColor, Color.Black, 0.4f);
-                using Pen highlightPen = new(borderColor, 2f);
-                graphics.DrawPath(highlightPen, strokePath);
-            }
+            // Always draw a visible border so the remote bubble reads as a distinct element.
+            bool isDark = SystemColors.Window.GetBrightness() < 0.5f;
+            float highlightFactor = highlight ? 0.8f : 0.5f;
+            Color borderColor = isDark
+                ? ColorHelper.Lerp(headColor, Color.White, highlightFactor)
+                : ColorHelper.Lerp(headColor, Color.Black, highlightFactor);
+            float borderWidth = highlight ? 2f : 1.25f;
+            using Pen borderPen = new(borderColor, borderWidth);
+            graphics.DrawPath(borderPen, strokePath);
         }
         finally
         {

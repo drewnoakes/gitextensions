@@ -365,17 +365,8 @@ internal static class GraphRenderer
             return RevisionGraphLaneColor.NonRelativeBrush;
         }
 
-        if (isHoverHighlighted is true)
-        {
-            return RevisionGraphLaneColor.GetBrushForLane(laneInfo.Color);
-        }
-
-        // No hover active — apply normal draw-style logic.
-        if (!isRelative && (revisionGraphDrawStyle is RevisionGraphDrawStyle.DrawNonRelativesGray or RevisionGraphDrawStyle.HighlightSelected))
-        {
-            return RevisionGraphLaneColor.NonRelativeBrush;
-        }
-
+        // No hover active — always show every lane in its branch color so the graph is
+        // fully colored at rest, with dimming only applied during label hover.
         return RevisionGraphLaneColor.GetBrushForLane(laneInfo.Color);
     }
 
