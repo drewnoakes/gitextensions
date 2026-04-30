@@ -89,6 +89,19 @@ public sealed partial class RevisionDataGridView : DataGridView
 
     public bool UpdatingVisibleRows { get; private set; }
 
+    internal sealed class PreparedRevisionGraph
+    {
+        public PreparedRevisionGraph(RevisionGraph graph, int loadedToBeSelectedRevisionsCount)
+        {
+            Graph = graph;
+            LoadedToBeSelectedRevisionsCount = loadedToBeSelectedRevisionsCount;
+        }
+
+        public RevisionGraph Graph { get; }
+
+        public int LoadedToBeSelectedRevisionsCount { get; }
+    }
+
     // _toBeSelectedGraphIndexesCache is init in Clear()
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public RevisionDataGridView()
@@ -585,6 +598,48 @@ public sealed partial class RevisionDataGridView : DataGridView
             .Select(r => r.GitRevision)
             .OfType<GitRevision>();
 
+    internal static PreparedRevisionGraph PrepareReplacementGraph(
+        IReadOnlyList<GitRevision> revisions,
+        IReadOnlyList<ObjectId> toBeSelectedObjectIds,
+        bool onlyFirstParent,
+        ObjectId headId,
+        CancellationToken cancellationToken)
+    {
+        RevisionGraph graph = new()
+        {
+            OnlyFirstParent = onlyFirstParent,
+            HeadId = headId
+        };
+
+        HashSet<ObjectId> toBeSelected = [.. toBeSelectedObjectIds];
+        int loadedToBeSelectedRevisionsCount = 0;
+
+        foreach (GitRevision revision in revisions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            graph.Add(revision);
+            if (toBeSelected.Contains(revision.ObjectId))
+            {
+                ++loadedToBeSelectedRevisionsCount;
+            }
+        }
+
+        if (loadedToBeSelectedRevisionsCount < toBeSelectedObjectIds.Count)
+        {
+            // Not all expected revisions were found; settle for a partial (empty) match.
+            loadedToBeSelectedRevisionsCount = toBeSelectedObjectIds.Count;
+        }
+
+        graph.LoadingCompleted();
+        if (graph.Count > 0)
+        {
+            _ = graph.GetNodeForRow(graph.Count - 1);
+        }
+
+        return new PreparedRevisionGraph(graph, loadedToBeSelectedRevisionsCount);
+    }
+
     /// <summary>
     ///  Atomically replaces all revisions in the graph with the given set, suppressing
     ///  redraws during the swap to eliminate the blank-screen flash seen during a regular refresh.
@@ -595,14 +650,14 @@ public sealed partial class RevisionDataGridView : DataGridView
     ///  <see cref="RequestGraphRedraw"/> schedules the re-render; the column invalidates itself
     ///  once the new cache is ready.
     /// </remarks>
-    /// <param name="revisions">The new set of revisions to display.</param>
+    /// <param name="preparedGraph">The replacement graph, built off the UI thread.</param>
     /// <param name="anchorObjectId">
     ///  The <see cref="ObjectId"/> of the commit that was at the top of the viewport before the
     ///  refresh. After loading, the viewport is scrolled so that commit is still at the top,
     ///  preserving the user's scroll position even when new commits are prepended to the graph.
     ///  Pass <see langword="null"/> to leave the scroll position unchanged.
     /// </param>
-    public void ReplaceAll(IReadOnlyList<GitRevision> revisions, ObjectId? anchorObjectId = null)
+    internal void ReplaceAll(PreparedRevisionGraph preparedGraph, ObjectId? anchorObjectId = null)
     {
         ThreadHelper.AssertOnUIThread();
 
@@ -621,31 +676,19 @@ public sealed partial class RevisionDataGridView : DataGridView
             // Wipe the graph data and row count. Column provider caches are intentionally
             // preserved so the stale graph remains visible until the async re-render completes.
             SetRowCount(0);
-            _revisionGraph.Clear();
+            _revisionGraph = preparedGraph.Graph;
+            foreach (RevisionGraphColumnProvider columnProvider in _columnProviders.OfType<RevisionGraphColumnProvider>())
+            {
+                columnProvider.ReplaceRevisionGraph(_revisionGraph);
+            }
+
             ClearToBeSelected();
 
             // Reload drawing settings (normally done inside Clear()).
             ReloadDrawingSettings();
 
             ToBeSelectedObjectIds = toBeSelected;
-            _loadedToBeSelectedRevisionsCount = 0;
-
-            foreach (GitRevision revision in revisions)
-            {
-                _forceRefresh |= _revisionGraph.Add(revision);
-                if (ToBeSelectedObjectIds.Contains(revision.ObjectId))
-                {
-                    ++_loadedToBeSelectedRevisionsCount;
-                }
-            }
-
-            if (_loadedToBeSelectedRevisionsCount < ToBeSelectedObjectIds.Count)
-            {
-                // Not all expected revisions were found; settle for a partial (empty) match
-                _loadedToBeSelectedRevisionsCount = ToBeSelectedObjectIds.Count;
-            }
-
-            _revisionGraph.LoadingCompleted();
+            _loadedToBeSelectedRevisionsCount = preparedGraph.LoadedToBeSelectedRevisionsCount;
             int count = _revisionGraph.Count;
             SetRowCount(count);
             SelectRowsIfReady(count);
@@ -664,6 +707,8 @@ public sealed partial class RevisionDataGridView : DataGridView
         {
             NativeMethods.SendMessageW(Handle, NativeMethods.WM_SETREDRAW, NativeMethods.TRUE, IntPtr.Zero);
         }
+
+        Invalidate(invalidateChildren: true);
 
         // Trigger an async graph re-render. The stale display cache stays visible until
         // RenderGraphToCacheAsync completes and calls InvalidateColumn(), at which point

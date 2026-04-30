@@ -1019,7 +1019,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             IReadOnlyList<ObjectId>? currentlySelectedObjectIds = _gridView.SelectedObjectIds;
             _gridView.SuspendLayout();
             _gridView.SelectionChanged -= OnGridViewSelectionChanged;
-            _gridView.ClearSelection();
 
             if (softRefresh)
             {
@@ -1027,6 +1026,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             }
             else
             {
+                _gridView.ClearSelection();
                 _gridView.Clear();
                 _gridView.Enabled = true;
                 _gridView.Focus();
@@ -1511,12 +1511,19 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
                     if (softRefreshBuffer is not null)
                     {
+                        RevisionDataGridView.PreparedRevisionGraph preparedGraph = RevisionDataGridView.PrepareReplacementGraph(
+                            softRefreshBuffer,
+                            _gridView.ToBeSelectedObjectIds,
+                            _filterInfo.ShowOnlyFirstParent,
+                            CurrentCheckout ?? default,
+                            cancellationToken);
+
                         await this.SwitchToMainThreadAsync(cancellationToken);
 
                         // Capture the scroll anchor NOW (on UI thread), so we honour any
                         // scrolling the user did while the background load was in progress.
                         ObjectId? scrollAnchorId = _gridView.GetRevision(_gridView.FirstDisplayedScrollingRowIndex)?.ObjectId;
-                        _gridView.ReplaceAll(softRefreshBuffer, scrollAnchorId);
+                        _gridView.ReplaceAll(preparedGraph, scrollAnchorId);
                     }
                     else
                     {
@@ -1599,6 +1606,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     HashSet<ObjectId> newIds = [.. softRefreshBuffer.Select(r => r.ObjectId)];
                     List<GitRevision> orphans = previousRevisions
                         .Where(r => !newIds.Contains(r.ObjectId))
+                        .Select(orphan =>
+                        {
+                            GitRevision clone = orphan.Clone();
+                            clone.Refs = refsByObjectId![clone.ObjectId].AsReadOnlyList();
+                            return clone;
+                        })
                         .ToList();
 
                     // Build a lookup of build status from the old revisions so we can carry it
@@ -1608,14 +1621,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                         .Where(r => r.BuildStatus is not null)
                         .ToDictionary(r => r.ObjectId, r => r.BuildStatus!);
 
-                    await this.SwitchToMainThreadAsync(cancellationToken);
-
-                    // Update refs and carry build status forward on the UI thread to avoid races.
-                    foreach (GitRevision orphan in orphans)
-                    {
-                        orphan.Refs = refsByObjectId![orphan.ObjectId].AsReadOnlyList();
-                        softRefreshBuffer.Add(orphan);
-                    }
+                    softRefreshBuffer.AddRange(orphans);
 
                     foreach (GitRevision newRevision in softRefreshBuffer)
                     {
@@ -1626,6 +1632,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                         }
                     }
 
+                    RevisionDataGridView.PreparedRevisionGraph preparedGraph = RevisionDataGridView.PrepareReplacementGraph(
+                        softRefreshBuffer,
+                        _gridView.ToBeSelectedObjectIds,
+                        _filterInfo.ShowOnlyFirstParent,
+                        CurrentCheckout ?? default,
+                        cancellationToken);
+
+                    await this.SwitchToMainThreadAsync(cancellationToken);
+
                     // Cancel the old fetch now that we've copied the data, then atomically swap
                     // in the new graph. RequestGraphRedraw() (inside ReplaceAll) will trigger
                     // the async re-render; we do not call Refresh() here as that would clear
@@ -1634,7 +1649,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     // the user did while the background load was in progress.
                     ObjectId? scrollAnchorId = _gridView.GetRevision(_gridView.FirstDisplayedScrollingRowIndex)?.ObjectId;
                     _buildServerWatcher.CancelBuildStatusFetchOperation();
-                    _gridView.ReplaceAll(softRefreshBuffer, scrollAnchorId);
+                    _gridView.ReplaceAll(preparedGraph, scrollAnchorId);
                 }
                 else
                 {
