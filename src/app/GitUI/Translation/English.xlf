@@ -3184,6 +3184,10 @@ Do you want to continue?</source>
         <source>&amp;Refresh</source>
         <target />
       </trans-unit>
+      <trans-unit id="hardRefreshToolStripMenuItem.Text">
+        <source>&amp;Full Refresh</source>
+        <target />
+      </trans-unit>
       <trans-unit id="refreshToolStripMenuItem.Text">
         <source>&amp;Refresh</source>
         <target />
