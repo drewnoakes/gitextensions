@@ -13,10 +13,17 @@ public class AppTitleGeneratorTests
     [SetUp]
     public void Setup()
     {
+        AppTitleGenerator.SetWindowTitlePrefix(null);
         _repositoryDescriptionProvider = Substitute.For<IRepositoryDescriptionProvider>();
         _repositoryDescriptionProvider.Get(Arg.Any<string>()).Returns(ShortName);
 
         _appTitleGenerator = new AppTitleGenerator(_repositoryDescriptionProvider);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        AppTitleGenerator.SetWindowTitlePrefix(null);
     }
 
     [TestCase(null)]
@@ -34,6 +41,17 @@ public class AppTitleGeneratorTests
     {
         string title = _appTitleGenerator.Generate("a", false, null);
         title.Should().Be(AppSettings.ApplicationName);
+    }
+
+    [Test]
+    public void Generate_should_include_window_title_prefix()
+    {
+        const string windowTitlePrefix = "agent session";
+        AppTitleGenerator.SetWindowTitlePrefix(windowTitlePrefix);
+
+        string title = _appTitleGenerator.Generate("a", true, null, defaultBranchName: _defaultBranchName);
+
+        title.Should().StartWith($"{windowTitlePrefix} - {ShortName} ({_defaultBranchName}) - {AppSettings.ApplicationName}");
     }
 
     [Test]

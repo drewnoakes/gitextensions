@@ -134,6 +134,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private readonly System.Windows.Forms.Timer _selectionTimer;
     private readonly RevisionGraphColumnProvider _revisionGraphColumnProvider;
     private readonly MessageColumnProvider _messageColumnProvider;
+    private readonly CommitIdColumnProvider _commitIdColumnProvider;
     private readonly DataGridViewColumn? _maximizedColumn;
     private DataGridViewColumn? _lastVisibleResizableColumn;
     private readonly ArtificialCommitChangeCount _workTreeChangeCount = new();
@@ -298,6 +299,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         _gridView.CellMouseMove += OnGridViewCellMouseMove;
         _gridView.CellMouseEnter += _gridView_CellMouseEnter;
         _gridView.CellMouseLeave += OnGridViewCellMouseLeave;
+        _gridView.CellMouseUp += OnGridViewCellMouseUp;
 
         // Allow to drop patch file on revision grid
         _gridView.AllowDrop = true;
@@ -315,7 +317,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         _gridView.AddColumn(new AvatarColumnProvider(_gridView, AvatarService.DefaultProvider, AvatarService.CacheCleaner));
         _gridView.AddColumn(new AuthorNameColumnProvider(this, _authorHighlighting));
         _gridView.AddColumn(new DateColumnProvider(this));
-        _gridView.AddColumn(new CommitIdColumnProvider(this));
+        _commitIdColumnProvider = new CommitIdColumnProvider(this);
+        _gridView.AddColumn(_commitIdColumnProvider);
         _gridView.AddColumn(_buildServerWatcher.ColumnProvider);
         _maximizedColumn = _gridView.Columns.Cast<DataGridViewColumn>()
             .FirstOrDefault(column => column.Resizable == DataGridViewTriState.True && column.AutoSizeMode == DataGridViewAutoSizeColumnMode.Fill);
@@ -1843,6 +1846,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             return;
         }
 
+        if (IsCommitIdCopyButtonHit(new Point(e.X, e.Y), out _))
+        {
+            return;
+        }
+
         DoubleClickRevision?.Invoke(this, new DoubleClickRevisionEventArgs(GetSelectedRevisionOrDefault()));
 
         if (!DoubleClickDoesNotOpenCommitInfo)
@@ -1855,6 +1863,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     {
         DataGridView.HitTestInfo hti = _gridView.HitTest(e.X, e.Y);
         _latestSelectedRowIndex = hti.RowIndex;
+
+        if (e.Button == MouseButtons.Left && TryCopyCommitId(hti, new Point(e.X, e.Y)))
+        {
+            return;
+        }
 
         if (Control.ModifierKeys.HasFlag(Keys.Alt))
         {
@@ -1879,6 +1892,15 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     {
         _toolTipProvider.OnCellMouseMove(e);
 
+        if (e.RowIndex >= 0 && e.ColumnIndex == _commitIdColumnProvider.Index)
+        {
+            ClearRefHighlight();
+            UpdateCommitIdCopyButton(e);
+            return;
+        }
+
+        ClearCommitIdCopyButton();
+
         if (e.RowIndex < 0 || e.ColumnIndex != _messageColumnProvider.Index)
         {
             ClearRefHighlight();
@@ -1900,6 +1922,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     private void OnGridViewCellMouseLeave(object? sender, DataGridViewCellEventArgs e)
     {
+        ClearCommitIdCopyButton();
         ClearRefHighlight();
     }
 
@@ -1915,6 +1938,125 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         {
             _gridView.Cursor = Cursors.Default;
         }
+    }
+
+    private void ClearCommitIdCopyButton()
+    {
+        InvalidateCommitIdCell(_commitIdColumnProvider.ClearCopyButtonRow());
+    }
+
+    private static Point GetGridClientPoint(DataGridViewCellMouseEventArgs e, Rectangle cellBounds)
+    {
+        return new Point(cellBounds.X + e.X, cellBounds.Y + e.Y);
+    }
+
+    private void InvalidateCommitIdButtonRows(int oldRowIndex, int newRowIndex)
+    {
+        if (oldRowIndex == newRowIndex)
+        {
+            return;
+        }
+
+        InvalidateCommitIdCell(oldRowIndex);
+        InvalidateCommitIdCell(newRowIndex);
+    }
+
+    private void InvalidateCommitIdCell(int rowIndex)
+    {
+        if (IsValidRevisionIndex(rowIndex) &&
+            _commitIdColumnProvider.Index >= 0 &&
+            _commitIdColumnProvider.Column.Visible)
+        {
+            _gridView.InvalidateCell(_commitIdColumnProvider.Index, rowIndex);
+        }
+    }
+
+    private bool IsCommitIdCopyButtonHit(Point clientPoint, [NotNullWhen(returnValue: true)] out GitRevision? revision)
+    {
+        revision = null;
+
+        DataGridView.HitTestInfo hti = _gridView.HitTest(clientPoint.X, clientPoint.Y);
+        if (hti.RowIndex < 0 || hti.ColumnIndex != _commitIdColumnProvider.Index)
+        {
+            return false;
+        }
+
+        revision = GetRevision(hti.RowIndex);
+        return revision is not null &&
+            !revision.IsArtificial &&
+            _commitIdColumnProvider.IsCopyButtonHit(hti.RowIndex, clientPoint);
+    }
+
+    private bool SetCommitIdCopyButtonPressed(DataGridViewCellMouseEventArgs e, bool pressed)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex != _commitIdColumnProvider.Index)
+        {
+            return false;
+        }
+
+        GitRevision? revision = GetRevision(e.RowIndex);
+        if (revision is null || revision.IsArtificial)
+        {
+            return false;
+        }
+
+        Rectangle cellBounds = _gridView.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, cutOverflow: false);
+        Point clientPoint = GetGridClientPoint(e, cellBounds);
+        if (!_commitIdColumnProvider.IsCopyButtonHit(e.RowIndex, clientPoint))
+        {
+            return false;
+        }
+
+        (int oldRowIndex, int newRowIndex) = _commitIdColumnProvider.SetCopyButtonRow(e.RowIndex);
+        InvalidateCommitIdButtonRows(oldRowIndex, newRowIndex);
+        if (_commitIdColumnProvider.SetCopyButtonPressed(pressed))
+        {
+            InvalidateCommitIdCell(e.RowIndex);
+        }
+
+        return true;
+    }
+
+    private bool TryCopyCommitId(DataGridView.HitTestInfo hti, Point clientPoint)
+    {
+        if (hti.RowIndex < 0 || hti.ColumnIndex != _commitIdColumnProvider.Index)
+        {
+            return false;
+        }
+
+        GitRevision? revision = GetRevision(hti.RowIndex);
+        if (revision is null ||
+            revision.IsArtificial ||
+            !_commitIdColumnProvider.IsCopyButtonHit(hti.RowIndex, clientPoint))
+        {
+            return false;
+        }
+
+        ClipboardUtil.TrySetText(revision.Guid);
+        return true;
+    }
+
+    private void UpdateCommitIdCopyButton(DataGridViewCellMouseEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex != _commitIdColumnProvider.Index)
+        {
+            ClearCommitIdCopyButton();
+            return;
+        }
+
+        GitRevision? revision = GetRevision(e.RowIndex);
+        if (revision is null || revision.IsArtificial)
+        {
+            ClearCommitIdCopyButton();
+            return;
+        }
+
+        (int oldRowIndex, int newRowIndex) = _commitIdColumnProvider.SetCopyButtonRow(e.RowIndex);
+        InvalidateCommitIdButtonRows(oldRowIndex, newRowIndex);
+
+        Rectangle cellBounds = _gridView.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, cutOverflow: false);
+        Point clientPoint = GetGridClientPoint(e, cellBounds);
+        _gridView.Cursor = _commitIdColumnProvider.IsCopyButtonHit(e.RowIndex, clientPoint) ? Cursors.Hand : Cursors.Default;
     }
 
     private void UpdateLaneHighlight(IGitRef? gitRef)
@@ -1940,6 +2082,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     {
         try
         {
+            if (e.Button == MouseButtons.Left && SetCommitIdCopyButtonPressed(e, pressed: true))
+            {
+                return;
+            }
+
             if (e.Button == MouseButtons.Left && e.ColumnIndex == _buildServerWatcher.ColumnProvider.Index)
             {
                 OpenBuildReport(GetRevision(e.RowIndex));
@@ -1979,6 +2126,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         {
             // Checks for bounds seems not enough. See https://github.com/gitextensions/gitextensions/issues/8475
         }
+    }
+
+    private void OnGridViewCellMouseUp(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        InvalidateCommitIdCell(_commitIdColumnProvider.ResetCopyButtonPressed());
     }
 
     #endregion

@@ -116,37 +116,6 @@ public sealed class CopyContextMenuItem : ToolStripMenuItem
 
         _itemNumber = 0;
 
-        // Add items for branches
-        if (branchNames.Count != 0)
-        {
-            ToolStripMenuItem caption = new() { Text = TranslatedStrings.Branches };
-            MenuUtil.SetAsCaptionMenuItem(caption, Owner!);
-            DropDownItems.Add(caption);
-
-            foreach (string name in branchNames)
-            {
-                AddItem(name, textToCopy: name, Images.Branch.AdaptLightness(), hotkey: null);
-            }
-
-            DropDownItems.Add(new ToolStripSeparator());
-        }
-
-        // Add items for tags
-        if (tagNames.Count != 0)
-        {
-            ToolStripMenuItem caption = new() { Text = TranslatedStrings.Tags };
-            MenuUtil.SetAsCaptionMenuItem(caption, Owner!);
-            DropDownItems.Add(caption);
-
-            foreach (string name in tagNames)
-            {
-                AddItem(name, textToCopy: name, Images.Tag, hotkey: null);
-            }
-
-            DropDownItems.Add(new ToolStripSeparator());
-        }
-
-        // Add other items
         int count = revisions.Count;
         AddItem(ResourceManager.TranslatedStrings.GetCommitHash(count), r => r.Guid, Images.CommitId, 'C');
         AddItem(ResourceManager.TranslatedStrings.GetMessage(count), r => r.Body ?? r.Subject, Images.Message, 'M');
@@ -162,7 +131,29 @@ public sealed class CopyContextMenuItem : ToolStripMenuItem
             AddItem(ResourceManager.TranslatedStrings.GetCommitDate(count), r => r.CommitDate.ToString(), Images.Date, 'D');
         }
 
+        AddRefItems(TranslatedStrings.Tags, tagNames, Images.Tag);
+        AddRefItems(TranslatedStrings.Branches, branchNames, Images.Branch.AdaptLightness());
+
         DropDown.ResumeLayout();
+    }
+
+    private void AddRefItems(string captionText, List<string> names, Image image)
+    {
+        if (names.Count == 0)
+        {
+            return;
+        }
+
+        DropDownItems.Add(new ToolStripSeparator());
+
+        ToolStripMenuItem caption = new() { Text = captionText };
+        MenuUtil.SetAsCaptionMenuItem(caption, Owner!);
+        DropDownItems.Add(caption);
+
+        foreach (string name in names)
+        {
+            AddItem(name, textToCopy: name, image, hotkey: null);
+        }
     }
 
     private string PrependItemNumber(string name)
