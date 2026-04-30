@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using GitCommands;
 using GitExtUtils;
 using GitExtUtils.GitUI;
@@ -12,6 +14,8 @@ namespace GitUI.UserControls;
 /// </summary>
 public class MarkdownViewer : UserControl
 {
+    private const uint WebView2ControllerInvalidState = 0x8007139F;
+
     private readonly WebView2 _webView;
     private string _markdownText = string.Empty;
     private string? _pendingHtml;
@@ -26,6 +30,7 @@ public class MarkdownViewer : UserControl
         };
 
         _webView.CoreWebView2InitializationCompleted += WebView_CoreWebView2InitializationCompleted;
+        _webView.HandleCreated += WebView_HandleCreated;
         _webView.NavigationStarting += WebView_NavigationStarting;
 
         // Bubble mouse events so the floating toolbar in FileViewer works.
@@ -60,7 +65,7 @@ public class MarkdownViewer : UserControl
         else
         {
             _pendingHtml = html;
-            EnsureInitializedAsync().FileAndForget();
+            RequestInitialization();
         }
     }
 
@@ -142,22 +147,45 @@ public class MarkdownViewer : UserControl
 
     private async Task EnsureInitializedAsync()
     {
-        if (_isWebViewReady || _isInitializing)
+        if (_isWebViewReady || _isInitializing || !CanInitializeWebView())
         {
             return;
         }
 
         _isInitializing = true;
 
-        CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(
-            userDataFolder: Path.Combine(Path.GetTempPath(), "GitExtensions_WebView2"));
-        await _webView.EnsureCoreWebView2Async(environment);
+        try
+        {
+            CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(
+                userDataFolder: Path.Combine(Path.GetTempPath(), "GitExtensions_WebView2"));
+
+            if (!CanInitializeWebView())
+            {
+                return;
+            }
+
+            await _webView.EnsureCoreWebView2Async(environment);
+        }
+        catch (COMException exception) when ((uint)exception.HResult == WebView2ControllerInvalidState)
+        {
+            Trace.WriteLine(exception);
+        }
+        finally
+        {
+            if (!_isWebViewReady)
+            {
+                _isInitializing = false;
+            }
+        }
     }
 
     private void WebView_CoreWebView2InitializationCompleted(object? sender, CoreWebView2InitializationCompletedEventArgs e)
     {
         if (!e.IsSuccess)
         {
+            _isInitializing = false;
+            Trace.WriteLine(e.InitializationException);
+
             return;
         }
 
@@ -294,9 +322,16 @@ public class MarkdownViewer : UserControl
             // EnsureCoreWebView2Async must run on the UI thread (STA).
             // RenderMarkdown is called from property setters on the UI thread,
             // so we can safely fire-and-forget here.
-            EnsureInitializedAsync().FileAndForget();
+            RequestInitialization();
         }
     }
+
+    private bool CanInitializeWebView()
+        => !IsDisposed
+            && !Disposing
+            && !_webView.IsDisposed
+            && !_webView.Disposing
+            && _webView.IsHandleCreated;
 
     private ScrollableControl? FindScrollParent()
     {
@@ -311,11 +346,25 @@ public class MarkdownViewer : UserControl
         return null;
     }
 
+    private void RequestInitialization()
+    {
+        if (_pendingHtml is not null && !_isWebViewReady && !_isInitializing && CanInitializeWebView())
+        {
+            EnsureInitializedAsync().FileAndForget();
+        }
+    }
+
+    private void WebView_HandleCreated(object? sender, EventArgs e)
+    {
+        RequestInitialization();
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             _webView.CoreWebView2InitializationCompleted -= WebView_CoreWebView2InitializationCompleted;
+            _webView.HandleCreated -= WebView_HandleCreated;
             _webView.NavigationStarting -= WebView_NavigationStarting;
             _webView.Dispose();
         }
