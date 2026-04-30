@@ -228,6 +228,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     private OutputHistoryControllerBase? _outputHistoryController;
 
     private readonly Dictionary<Brush, Icon> _overlayIconByBrush = [];
+    private bool _refreshRevisionsPending;
 
     private UpdateTargets _selectedRevisionUpdatedTargets = UpdateTargets.None;
 
@@ -1331,6 +1332,29 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     {
         // Broadcast RepoChanged in case repo was changed outside of GE
         UICommands.RepoChangedNotifier.Notify();
+    }
+
+    private void RefreshButton_DropDownOpening(object sender, EventArgs e)
+    {
+        autoRefreshToolStripMenuItem.Checked = AppSettings.AutoRefreshRevisions;
+    }
+
+    private void AutoRefreshToolStripMenuItemClick(object sender, EventArgs e)
+    {
+        AppSettings.AutoRefreshRevisions = autoRefreshToolStripMenuItem.Checked;
+
+        if (!AppSettings.AutoRefreshRevisions && !AppSettings.ShowGitStatusInBrowseToolbar)
+        {
+            _refreshRevisionsPending = false;
+        }
+
+        RevisionGrid.IndexWatcher.RefreshWatchingState();
+        UpdateRefreshButtonImage();
+
+        if (AppSettings.AutoRefreshRevisions && _refreshRevisionsPending && Module.IsValidGitWorkingDir())
+        {
+            UICommands.RepoChangedNotifier.Notify();
+        }
     }
 
     private void RefreshDashboardToolStripMenuItemClick(object sender, EventArgs e)

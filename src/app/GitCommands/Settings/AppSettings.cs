@@ -551,6 +551,12 @@ public static partial class AppSettings
         set => SetBool("showgitstatusinbrowsetoolbar", value);
     }
 
+    public static bool AutoRefreshRevisions
+    {
+        get => GetBool("autorefreshrevisions", false);
+        set => SetBool("autorefreshrevisions", value);
+    }
+
     public static bool ShowGitStatusForArtificialCommits
     {
         get => GetBool("showgitstatusforartificialcommits", true);

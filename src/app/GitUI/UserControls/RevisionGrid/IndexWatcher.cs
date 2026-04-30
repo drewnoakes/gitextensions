@@ -48,7 +48,7 @@ public sealed class IndexWatcher : IDisposable
         {
             try
             {
-                _enabled = AppSettings.ShowGitStatusInBrowseToolbar;
+                _enabled = ShouldWatchChanges;
 
                 _gitDirPath = Module.WorkingDirGitDir;
 
@@ -122,6 +122,12 @@ public sealed class IndexWatcher : IDisposable
         IndexChanged = false;
     }
 
+    /// <summary>Refreshes whether file system watchers should currently be enabled.</summary>
+    public void RefreshWatchingState()
+    {
+        RefreshWatcher();
+    }
+
     /// <summary>
     /// Disable events, reset icon.
     /// </summary>
@@ -134,11 +140,13 @@ public sealed class IndexWatcher : IDisposable
 
     private void RefreshWatcher()
     {
-        if (_gitDirPath != Module.WorkingDirGitDir || _enabled != AppSettings.ShowGitStatusInBrowseToolbar)
+        if (_gitDirPath != Module.WorkingDirGitDir || _enabled != ShouldWatchChanges)
         {
             SetFileSystemWatcher();
         }
     }
+
+    private static bool ShouldWatchChanges => AppSettings.ShowGitStatusInBrowseToolbar || AppSettings.AutoRefreshRevisions;
 
     public void Dispose()
     {
