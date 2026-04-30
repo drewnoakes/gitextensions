@@ -1,4 +1,5 @@
-﻿using GitExtensions.Extensibility;
+using GitExtensions.Extensibility;
+using GitExtensions.Extensibility.Git;
 using GitUIPluginInterfaces;
 
 namespace GitCommands.Git;
@@ -58,7 +59,7 @@ public sealed class RevisionDiffProvider : IRevisionDiffProvider
     private static ArgumentString GetInternal(string? firstRevision, string? secondRevision, string? fileName = null, string? oldFileName = null, bool isTracked = true)
     {
         // Combined Diff artificial commit should not be included in diffs
-        if (firstRevision == GitRevision.CombinedDiffGuid || secondRevision == GitRevision.CombinedDiffGuid)
+        if (IsCombinedDiff(firstRevision) || IsCombinedDiff(secondRevision))
         {
             throw new ArgumentOutOfRangeException(nameof(firstRevision), firstRevision,
                 "CombinedDiff artificial commit cannot be explicitly compared: " +
@@ -134,26 +135,63 @@ public sealed class RevisionDiffProvider : IRevisionDiffProvider
     /// </summary>
     private static string ArtificialToDiffOptions(string? rev)
     {
-        switch (rev)
+        if (string.IsNullOrEmpty(rev))
         {
-            case GitRevision.WorkTreeGuid:
-            case "":
-            case null:
-                return "";
-            case "^":
-            case GitRevision.WorkTreeGuid + "^":
-            case GitRevision.IndexGuid:
-                return StagedOpt;
-            case "^^":
-            case GitRevision.WorkTreeGuid + "^^":
-            case GitRevision.IndexGuid + "^":
-                return "\"HEAD\"";
-            case "^^^":
-            case GitRevision.WorkTreeGuid + "^^^":
-            case GitRevision.IndexGuid + "^^":
-                return "HEAD^";
-            default:
-                return rev.QuoteNE();
+            return "";
         }
+
+        int parentDepth = 0;
+        ReadOnlySpan<char> revision = rev.AsSpan();
+        while (revision.Length > 0 && revision[^1] == '^')
+        {
+            parentDepth++;
+            revision = revision[..^1];
+        }
+
+        if (revision.Length == 0)
+        {
+            return parentDepth switch
+            {
+                1 => StagedOpt,
+                2 => "\"HEAD\"",
+                3 => "HEAD^",
+                _ => rev.QuoteNE()
+            };
+        }
+
+        if (ObjectId.TryParse(revision, out ObjectId objectId))
+        {
+            if (objectId.IsArtificialWorkTree)
+            {
+                return parentDepth switch
+                {
+                    0 => "",
+                    1 => StagedOpt,
+                    2 => "\"HEAD\"",
+                    3 => "HEAD^",
+                    _ => rev.QuoteNE()
+                };
+            }
+
+            if (objectId.IsArtificialIndex)
+            {
+                return parentDepth switch
+                {
+                    0 => StagedOpt,
+                    1 => "\"HEAD\"",
+                    2 => "HEAD^",
+                    _ => rev.QuoteNE()
+                };
+            }
+        }
+
+        return rev.QuoteNE();
+    }
+
+    private static bool IsCombinedDiff(string? revision)
+    {
+        return revision is not null
+            && ObjectId.TryParse(revision, out ObjectId objectId)
+            && objectId.IsArtificialCombinedDiff;
     }
 }

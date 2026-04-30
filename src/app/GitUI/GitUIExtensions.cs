@@ -56,6 +56,7 @@ public static partial class GitUIExtensions
         }
 
         ObjectId? firstId = item.FirstRevision?.ObjectId ?? item.SecondRevision.FirstParentId;
+        IGitModule module = fileViewer.ActiveModule;
 
         openWithDiffTool ??= OpenWithDiffTool;
 
@@ -75,7 +76,7 @@ public static partial class GitUIExtensions
                 : $"{item.BaseA}..{firstId} {item.BaseB}..{item.SecondRevision.ObjectId}";
             await fileViewer.ViewTextAsync(fileName: null, $"git range-diff {range} -- {additionalCommandInfo}", cancellationToken: cancellationToken);
 
-            ExecutionResult result = await fileViewer.Module.GetRangeDiffAsync(
+            ExecutionResult result = await module.GetRangeDiffAsync(
                     firstId!.Value,
                     item.SecondRevision.ObjectId,
                     item.BaseA,
@@ -83,7 +84,7 @@ public static partial class GitUIExtensions
                     fileViewer.GetExtraDiffArguments(isRangeDiff: true),
                     additionalCommandInfo,
                     useGitColoring: true,
-                    commandConfiguration: RangeDiffHighlightService.GetGitCommandConfiguration(fileViewer.Module),
+                    commandConfiguration: RangeDiffHighlightService.GetGitCommandConfiguration(module),
                     cancellationToken);
 
             if (!result.ExitedSuccessfully)
@@ -103,8 +104,8 @@ public static partial class GitUIExtensions
 
         if (!string.IsNullOrWhiteSpace(item.Item.GrepString))
         {
-            IGitCommandConfiguration commandConfiguration = GrepHighlightService.GetGitCommandConfiguration(fileViewer.Module);
-            ExecutionResult result = await fileViewer.Module.GetGrepFileAsync(
+            IGitCommandConfiguration commandConfiguration = GrepHighlightService.GetGitCommandConfiguration(module);
+            ExecutionResult result = await module.GetGrepFileAsync(
                     item.SecondRevision.ObjectId,
                     item.Item.Name,
                     fileViewer.GetExtraGrepArguments(),
@@ -128,12 +129,12 @@ public static partial class GitUIExtensions
 
         if (firstId == ObjectId.CombinedDiffId)
         {
-            bool result = fileViewer.Module.GetCombinedDiffContent(item.SecondRevision.ObjectId, item.Item.Name,
+            bool result = module.GetCombinedDiffContent(item.SecondRevision.ObjectId, item.Item.Name,
                 fileViewer.GetExtraDiffArguments(isCombinedDiff: true),
                 fileViewer.Encoding,
                 out string diffOfConflict,
                 useGitColoring: fileViewer.PatchUseGitColoring,
-                commandConfiguration: CombinedDiffHighlightService.GetGitCommandConfiguration(fileViewer.Module, AppSettings.UseGitColoring.Value),
+                commandConfiguration: CombinedDiffHighlightService.GetGitCommandConfiguration(module, AppSettings.UseGitColoring.Value),
                 cancellationToken);
 
             if (!result)
@@ -159,12 +160,12 @@ public static partial class GitUIExtensions
 
                 // Patch already evaluated, normal case for e.g. FileStatusList
                 ? await statusTask
-                : await SubmoduleHelpers.GetSubmoduleDiffChangesAsync(fileViewer.Module, item.Item.Name, item.Item.OldName, firstId, item.SecondRevision.ObjectId, cancellationToken);
+                : await SubmoduleHelpers.GetSubmoduleDiffChangesAsync(module, item.Item.Name, item.Item.OldName, firstId, item.SecondRevision.ObjectId, cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
             string subText = status is null
                 ? $"Failed to get status for submodule \"{item.Item.Name}\""
-                : await Task.Run(() => SubmoduleResources.GetSubmoduleStatusText(fileViewer.Module, status))
+                : await Task.Run(() => SubmoduleResources.GetSubmoduleStatusText(module, status))
                     .ConfigureAwait(false);
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
@@ -180,7 +181,7 @@ public static partial class GitUIExtensions
             // set file name as null to not change the restore lineno
             await fileViewer.ViewTextAsync(fileName: null, $"git difftool {diffArgs} -- {item.Item.Name}", cancellationToken: cancellationToken);
 
-            ExecutionResult result = await fileViewer.Module.GetSingleDifftoolAsync(firstId, item.SecondRevision.ObjectId, item.Item.Name, item.Item.OldName,
+            ExecutionResult result = await module.GetSingleDifftoolAsync(firstId, item.SecondRevision.ObjectId, item.Item.Name, item.Item.OldName,
                 diffArgs,
                 cacheResult: true,
                 extraCacheKey,
@@ -208,7 +209,7 @@ public static partial class GitUIExtensions
 
         void OpenWithDiffTool()
         {
-            fileViewer.Module.OpenWithDifftool(
+            module.OpenWithDifftool(
                 item.Item.Name,
                 item.Item.OldName,
                 firstId?.ToString(),
@@ -226,7 +227,7 @@ public static partial class GitUIExtensions
             Patch? patch;
             string? errorMessage;
 
-            IGitModule module = fileViewer.Module;
+            IGitModule module = fileViewer.ActiveModule;
             bool isSkipWorktree = file.IsSkipWorktree;
             if (isSkipWorktree)
             {

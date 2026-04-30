@@ -55,6 +55,12 @@ public sealed partial class BlameControl : GitModuleControl
     private readonly IGitBlameParser _gitBlameParser;
     private bool _loading;
 
+    /// <summary>Gets or sets the module used for the current blame operation.</summary>
+    internal IGitModule? ActiveModuleOverride { get; set; }
+
+    /// <summary>Gets the module used by blame operations.</summary>
+    private IGitModule ActiveModule => ActiveModuleOverride ?? Module;
+
     public BlameControl()
     {
         InitializeComponent();
@@ -148,7 +154,7 @@ public sealed partial class BlameControl : GitModuleControl
         try
         {
             await _blameLoader.LoadAsync(
-                loaderCancellationToken => _blame = Module.Blame(fileName, objectId.ToString(), encoding, lines: null, cancellationToken: loaderCancellationToken.CombineWith(cancellationToken).Token),
+                loaderCancellationToken => _blame = ActiveModule.Blame(fileName, objectId.ToString(), encoding, lines: null, cancellationToken: loaderCancellationToken.CombineWith(cancellationToken).Token),
                 () => ProcessBlame(fileName, revision, children, controlToMask, line, cancellationToken));
         }
         catch (ExternalOperationException ex)
@@ -291,7 +297,7 @@ public sealed partial class BlameControl : GitModuleControl
 
         _lastBlameLine = newBlameLine;
         ObjectId objectId = _lastBlameLine.Commit.ObjectId;
-        CommitInfo.Revision = _revisionGridInfo is null ? Module.GetRevision(objectId) : _revisionGridInfo.GetActualRevision(objectId);
+        CommitInfo.Revision = _revisionGridInfo is null ? ActiveModule.GetRevision(objectId) : _revisionGridInfo.GetActualRevision(objectId);
     }
 
     private void BlameAuthor_HScrollPositionChanged(object? sender, EventArgs e)

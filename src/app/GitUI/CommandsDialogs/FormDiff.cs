@@ -128,7 +128,7 @@ public partial class FormDiff : GitModuleForm
         // I.e., git difftool --gui --no-prompt --dir-diff -R HEAD fails, but
         // git difftool --gui --no-prompt --dir-diff HEAD succeeds
         // Thus, we disable comparing "from" working directory.
-        bool enableDifftoolDirDiff = _firstRevision?.ObjectId != ObjectId.WorkTreeId;
+        bool enableDifftoolDirDiff = _firstRevision?.ObjectId.IsArtificialWorkTree is not true;
         btnCompareDirectoriesWithDiffTool.Enabled = enableDifftoolDirDiff;
 
         Validates.NotNull(_secondRevision);

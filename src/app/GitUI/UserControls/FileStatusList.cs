@@ -59,6 +59,7 @@ public sealed partial class FileStatusList : GitModuleControl
     private DrawFailureState _drawFailureState = DrawFailureState.None;
     private FormFindInCommitFilesGitGrep? _formFindInCommitFilesGitGrep;
     private bool _showDiffGroups = false;
+    private IGitModule? _revisionModule;
 
     // Enable menu item to disable AppSettings.ShowDiffForAllParents in some forms
     private bool _enableDisablingShowDiffForAllParents = false;
@@ -130,10 +131,10 @@ public sealed partial class FileStatusList : GitModuleControl
         cboFilterComboBox.Items.Add(@"^(?!.*\bg?tests?/)");
         cboFindInCommitFilesGitGrep.Font = new Font(cboFindInCommitFilesGitGrep.Font, FontStyle.Bold);
 
-        _diffCalculator = new FileStatusDiffCalculator(() => Module);
-        _fullPathResolver = new FullPathResolver(() => Module.WorkingDir);
+        _diffCalculator = new FileStatusDiffCalculator(() => ActiveModule);
+        _fullPathResolver = new FullPathResolver(() => ActiveModule.WorkingDir);
         _gitRevisionTester = new GitRevisionTester(_fullPathResolver);
-        _revisionDiffController = new RevisionDiffController(() => Module, _fullPathResolver);
+        _revisionDiffController = new RevisionDiffController(() => ActiveModule, _fullPathResolver);
         _noItemStatuses =
         [
             new GitItemStatus(name: $"- {NoFiles.Text} -")
@@ -317,7 +318,7 @@ public sealed partial class FileStatusList : GitModuleControl
         }
     }
 
-    public void Bind(Action refreshArtificial, bool canAutoRefresh = false, Func<ObjectId, string>? describeRevision = null, Func<GitRevision, GitRevision>? getActualRevision = null, bool isFileTreeMode = false)
+    public void Bind(Action refreshArtificial, bool canAutoRefresh = false, Func<ObjectId, string>? describeRevision = null, Func<GitRevision, GitRevision>? getActualRevision = null, Func<GitRevision, IGitModule>? getModuleForRevision = null, bool isFileTreeMode = false)
     {
         btnRefresh.Click += (s, e) => refreshArtificial();
         btnRefresh.Visible = true;
@@ -327,6 +328,8 @@ public sealed partial class FileStatusList : GitModuleControl
         DescribeRevision = describeRevision;
         _diffCalculator.DescribeRevision = describeRevision;
         _diffCalculator.GetActualRevision = getActualRevision;
+        _diffCalculator.GetModuleForRevision = getModuleForRevision;
+        GetModuleForRevision = getModuleForRevision;
         _isFileTreeMode = isFileTreeMode;
         if (_isFileTreeMode)
         {
@@ -435,10 +438,14 @@ public sealed partial class FileStatusList : GitModuleControl
     [Browsable(false)]
     public Func<ObjectId, string>? DescribeRevision { get; set; }
 
+    private Func<GitRevision, IGitModule>? GetModuleForRevision { get; set; }
+
     public bool FilterFilesByNameRegexFocused => cboFilterComboBox.Focused;
     public bool FindInCommitFilesGitGrepActive => !string.IsNullOrEmpty(cboFindInCommitFilesGitGrep.Text);
     public bool FindInCommitFilesGitGrepFocused => cboFindInCommitFilesGitGrep.Focused;
     public bool FindInCommitFilesGitGrepVisible => cboFindInCommitFilesGitGrep.Visible;
+
+    private IGitModule ActiveModule => _revisionModule ?? Module;
 
     /// <summary>
     ///  Indicates whether the git-grep search functionality is enabled for this control.
@@ -827,9 +834,17 @@ public sealed partial class FileStatusList : GitModuleControl
         }
     }
 
+    private void SetRevisionModule(IReadOnlyList<GitRevision> revisions)
+    {
+        _revisionModule = revisions.Count > 0
+            ? GetModuleForRevision?.Invoke(revisions[0])
+            : null;
+    }
+
     public void SetDiffs(IReadOnlyList<GitRevision> revisions)
     {
         CancellationToken cancellationToken = _reloadSequence.Next();
+        SetRevisionModule(revisions);
         FileStatusListLoading();
         UpdateToolbar(revisions);
         _enableDisablingShowDiffForAllParents = true;
@@ -839,6 +854,7 @@ public sealed partial class FileStatusList : GitModuleControl
 
     public async Task SetDiffsAsync(IReadOnlyList<GitRevision> revisions, ObjectId? headId, CancellationToken cancellationToken)
     {
+        SetRevisionModule(revisions);
         FileStatusListLoading();
         UpdateToolbar(revisions);
 
@@ -936,8 +952,8 @@ public sealed partial class FileStatusList : GitModuleControl
     private string? GetDescriptionForRevision(ObjectId? objectId)
         => DescribeRevision is not null && objectId is not null ? DescribeRevision(objectId.Value)
             : objectId is null ? ""
-            : objectId == ObjectId.WorkTreeId ? ResourceManager.TranslatedStrings.Workspace
-            : objectId == ObjectId.IndexId ? ResourceManager.TranslatedStrings.Index
+            : objectId.Value.IsArtificialWorkTree ? ResourceManager.TranslatedStrings.Workspace
+            : objectId.Value.IsArtificialIndex ? ResourceManager.TranslatedStrings.Index
             : objectId.Value.ToShortString();
 
     public void SetNoFilesText(string text)
@@ -1041,7 +1057,7 @@ public sealed partial class FileStatusList : GitModuleControl
             ? await task.ConfigureAwait(false)
             : null;
 
-        ObjectId? selectedId = SelectedItem.SecondRevision?.ObjectId == ObjectId.WorkTreeId
+        ObjectId? selectedId = SelectedItem.SecondRevision?.ObjectId.IsArtificialWorkTree is true
             ? ObjectId.WorkTreeId
             : status?.Commit;
         ObjectId? firstId = status?.OldCommit;

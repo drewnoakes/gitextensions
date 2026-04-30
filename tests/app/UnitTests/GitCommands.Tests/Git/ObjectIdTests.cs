@@ -122,6 +122,32 @@ public sealed partial class ObjectIdTests
     }
 
     [Test]
+    public void CreateWorkTreeId_should_create_expected_value()
+    {
+        ObjectId.CreateWorkTreeId(2).ToString().Should().Be("1111111111111111111111110000000000000002");
+    }
+
+    [Test]
+    public void CreateIndexId_should_create_expected_value()
+    {
+        ObjectId.CreateIndexId(2).ToString().Should().Be("2222222222222222222222220000000000000002");
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void CreateWorkTreeId_should_throw_for_invalid_instance(int instance)
+    {
+        ((Action)(() => ObjectId.CreateWorkTreeId(instance))).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void CreateIndexId_should_throw_for_invalid_instance(int instance)
+    {
+        ((Action)(() => ObjectId.CreateIndexId(instance))).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public void CombinedDiffId_has_expected_value()
     {
         ObjectId.CombinedDiffId.ToString().Should().Be("3333333333333333333333333333333333333333");
@@ -137,6 +163,28 @@ public sealed partial class ObjectIdTests
     public void IndexId_is_artificial()
     {
         ObjectId.IndexId.IsArtificial.Should().BeTrue();
+    }
+
+    [Test]
+    public void GeneratedWorkTreeId_is_artificial_worktree()
+    {
+        ObjectId id = ObjectId.CreateWorkTreeId(2);
+
+        id.IsArtificial.Should().BeTrue();
+        id.IsArtificialWorkTree.Should().BeTrue();
+        id.IsArtificialIndex.Should().BeFalse();
+        id.IsArtificialCombinedDiff.Should().BeFalse();
+    }
+
+    [Test]
+    public void GeneratedIndexId_is_artificial_index()
+    {
+        ObjectId id = ObjectId.CreateIndexId(2);
+
+        id.IsArtificial.Should().BeTrue();
+        id.IsArtificialWorkTree.Should().BeFalse();
+        id.IsArtificialIndex.Should().BeTrue();
+        id.IsArtificialCombinedDiff.Should().BeFalse();
     }
 
     [Test]

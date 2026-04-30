@@ -69,6 +69,12 @@ public partial class FileViewer : GitModuleControl
     [GeneratedRegex(@"warning: .*has type .* expected .*", RegexOptions.ExplicitCapture)]
     private static partial Regex FileModeWarningRegex { get; }
 
+    /// <summary>Gets or sets the module used for the current file-view operation.</summary>
+    internal IGitModule? ActiveModuleOverride { get; set; }
+
+    /// <summary>Gets the module used by file-view operations.</summary>
+    internal IGitModule ActiveModule => ActiveModuleOverride ?? Module;
+
     public FileViewer()
     {
         TreatAllFilesAsText = false;
@@ -203,7 +209,7 @@ public partial class FileViewer : GitModuleControl
             ContextMenuOpening?.Invoke(sender, e);
         };
 
-        _fullPathResolver = new FullPathResolver(() => Module.WorkingDir);
+        _fullPathResolver = new FullPathResolver(() => ActiveModule.WorkingDir);
         SupportLinePatching = false;
 
         _NO_TRANSLATE_resetSelectedLinesConfirmationDialog = new()
@@ -272,7 +278,7 @@ public partial class FileViewer : GitModuleControl
     [NotNull]
     public Encoding? Encoding
     {
-        get => _encoding ??= Module.FilesEncoding;
+        get => _encoding ??= ActiveModule.FilesEncoding;
         set
         {
             _encoding = value;
@@ -330,17 +336,17 @@ public partial class FileViewer : GitModuleControl
             lock (_difftasticCmdCacheLock)
             {
                 // GetEffectiveSettings() checks Windows only, this need to be checked for each instance
-                if (_difftasticCmdCache.TryGetValue(Module.WorkingDir, out Lazy<bool>? isEnabled))
+                if (_difftasticCmdCache.TryGetValue(ActiveModule.WorkingDir, out Lazy<bool>? isEnabled))
                 {
                     return isEnabled;
                 }
 
-                isEnabled = _difftasticCmdCache[Module.WorkingDir] = new Lazy<bool>(() =>
+                isEnabled = _difftasticCmdCache[ActiveModule.WorkingDir] = new Lazy<bool>(() =>
                 {
                     try
                     {
                         const string difftasticCmd = "difftool.difftastic.cmd";
-                        return !string.IsNullOrEmpty(Module.GetEffectiveSetting(difftasticCmd));
+                        return !string.IsNullOrEmpty(ActiveModule.GetEffectiveSetting(difftasticCmd));
                     }
                     catch (Exception exception)
                     {
@@ -747,7 +753,7 @@ public partial class FileViewer : GitModuleControl
                 file.IsSubmodule,
                 getImage: () => ThreadHelper.JoinableTaskFactory.Run(GetImageAsync),
                 getFileText: GetFileText,
-                getSubmoduleText: () => SubmoduleResources.GetSubmoduleText(Module, file.Name.TrimEnd('/'), blobId.Value.ToString()),
+                getSubmoduleText: () => SubmoduleResources.GetSubmoduleText(ActiveModule, file.Name.TrimEnd('/'), blobId.Value.ToString()),
                 item: item,
                 line: line,
                 openWithDifftool: openWithDifftool,
@@ -761,14 +767,14 @@ public partial class FileViewer : GitModuleControl
                 || (!file.Name.EndsWith(".diff", StringComparison.OrdinalIgnoreCase)
                    && !file.Name.EndsWith(".patch", StringComparison.OrdinalIgnoreCase));
             FilePreamble = [];
-            return Module.GetFileText(blobId.Value, Encoding, stripAnsiEscapeCodes) ?? "";
+            return ActiveModule.GetFileText(blobId.Value, Encoding, stripAnsiEscapeCodes) ?? "";
         }
 
         async Task<Image?> GetImageAsync()
         {
             try
             {
-                using MemoryStream? stream = await Module.GetFileStreamAsync(blobId.Value.ToString(), cancellationToken: default);
+                using MemoryStream? stream = await ActiveModule.GetFileStreamAsync(blobId.Value.ToString(), cancellationToken: default);
                 if (stream is not null)
                 {
                     return CreateImage(file.Name, stream);
@@ -832,7 +838,7 @@ public partial class FileViewer : GitModuleControl
                 isSubmodule,
                 getImage: GetImage,
                 getFileText: GetFileText,
-                getSubmoduleText: () => SubmoduleResources.GetSubmoduleText(Module, fileName.TrimEnd('/'), ""),
+                getSubmoduleText: () => SubmoduleResources.GetSubmoduleText(ActiveModule, fileName.TrimEnd('/'), ""),
                 item: item,
                 line: line,
                 openWithDifftool,
@@ -1235,7 +1241,7 @@ public partial class FileViewer : GitModuleControl
                         || !File.Exists(_fullPathResolver.Resolve(fileName)))))
 
             // No patching allowed if no worktree
-            && !Module.IsBareRepository();
+            && !ActiveModule.IsBareRepository();
 
         SetVisibilityDiffContextMenu(_viewMode);
         ClearImage();
@@ -1689,7 +1695,7 @@ public partial class FileViewer : GitModuleControl
             return file.TreeGuid;
         }
 
-        if (commitId == ObjectId.WorkTreeId && (file.TreeGuid is not null || file.IsSubmodule))
+        if (commitId?.IsArtificialWorkTree is true && (file.TreeGuid is not null || file.IsSubmodule))
         {
             // treeId already calculated, no point in doing it again.
             // (if treeId is set, it means that IsSubmodule is set).
@@ -1697,13 +1703,13 @@ public partial class FileViewer : GitModuleControl
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        IObjectGitItem[] items = [.. Module.GetTree(commitId, full: true, file.Name, cancellationToken)];
+        IObjectGitItem[] items = [.. ActiveModule.GetTree(commitId, full: true, file.Name, cancellationToken)];
         if (items.Length == 1)
         {
             IObjectGitItem gitItem = items[0];
             file.IsSubmodule = gitItem.ObjectType == GitObjectType.Commit;
             file.TreeGuid = gitItem.ObjectId;
-            return commitId == ObjectId.WorkTreeId ? null : file.TreeGuid;
+            return commitId?.IsArtificialWorkTree is true ? null : file.TreeGuid;
         }
 
         return null;
@@ -1835,7 +1841,7 @@ public partial class FileViewer : GitModuleControl
         }
 
         byte[]? patch;
-        bool currentItemStaged = _viewItem.SecondRevision.ObjectId == ObjectId.IndexId;
+        bool currentItemStaged = _viewItem.SecondRevision.ObjectId.IsArtificialIndex;
         if (_viewItem.Item.IsNew)
         {
             Validates.NotNull(FilePreamble);
@@ -1899,7 +1905,7 @@ public partial class FileViewer : GitModuleControl
             return;
         }
 
-        DebugHelpers.Assert(_viewItem.SecondRevision.ObjectId != ObjectId.WorkTreeId, "ApplySelectedLines() not supported for worktree");
+        DebugHelpers.Assert(!_viewItem.SecondRevision.ObjectId.IsArtificialWorkTree, "ApplySelectedLines() not supported for worktree");
 
         int selectionStart = allFile ? 0 : GetSelectionPosition();
         int selectionLength = allFile ? GetText().Length : GetSelectionLength();
@@ -1965,7 +1971,7 @@ public partial class FileViewer : GitModuleControl
     private void ProcessApplyOutput(GitArgumentBuilder args, byte[] patch, bool patchUpdateDiff = false)
     {
         // TODO Cleanup the handling and separate AllOutput to StandardOutput/StandardError
-        ExecutionResult result = Module.GitExecutable.Execute(args, inputWriter => inputWriter.BaseStream.Write(patch), throwOnErrorExit: false);
+        ExecutionResult result = ActiveModule.GitExecutable.Execute(args, inputWriter => inputWriter.BaseStream.Write(patch), throwOnErrorExit: false);
         string output = result.AllOutput.Trim();
         if (OperatingSystem.IsWindows())
         {
@@ -2033,7 +2039,7 @@ public partial class FileViewer : GitModuleControl
             }
         }
 
-        ClipboardUtil.TrySetText(code.AdjustLineEndings(Module.GetEffectiveSetting<AutoCRLFType>("core.autocrlf")));
+        ClipboardUtil.TrySetText(code.AdjustLineEndings(ActiveModule.GetEffectiveSetting<AutoCRLFType>("core.autocrlf")));
 
         return;
 
@@ -2127,13 +2133,13 @@ public partial class FileViewer : GitModuleControl
         Encoding encod;
         if (string.IsNullOrEmpty(encodingToolStripComboBox.Text))
         {
-            encod = Module.FilesEncoding;
+            encod = ActiveModule.FilesEncoding;
         }
         else
         {
             encod = AppSettings.AvailableEncodings.Values
                 .FirstOrDefault(en => en.EncodingName == encodingToolStripComboBox.Text)
-                    ?? Module.FilesEncoding;
+                    ?? ActiveModule.FilesEncoding;
         }
 
         if (!encod.Equals(Encoding))

@@ -516,7 +516,7 @@ public sealed partial class FormFileHistory : GitModuleForm, IRevisionGridFileUp
         IReadOnlyList<GitRevision> selectedRevisions = RevisionGrid.GetSelectedRevisions();
 
         diffToolRemoteLocalStripMenuItem.Enabled =
-            selectedRevisions.Count == 1 && selectedRevisions[0].ObjectId != ObjectId.WorkTreeId &&
+            selectedRevisions.Count == 1 && !selectedRevisions[0].ObjectId.IsArtificialWorkTree &&
             File.Exists(_fullPathResolver.Resolve(FileName));
         openWithDifftoolToolStripMenuItem.Enabled =
             selectedRevisions.Count is >= 1 and <= 2;

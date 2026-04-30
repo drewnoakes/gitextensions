@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -29,6 +30,8 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>, I
     private static readonly SearchValues<char> _hexChars = SearchValues.Create("0123456789abcdef");
 
     private static readonly Random _random = new();
+    private const string WorkTreeArtificialPrefix = "111111111111111111111111";
+    private const string IndexArtificialPrefix = "222222222222222222222222";
 
     /// <summary>
     /// Gets the artificial ObjectId used to represent working directory tree (unstaged) changes.
@@ -44,6 +47,20 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>, I
     /// Gets the artificial ObjectId used to represent combined diff for merge commits.
     /// </summary>
     public static ObjectId CombinedDiffId { get; } = Parse("3333333333333333333333333333333333333333");
+
+    /// <summary>
+    /// Creates an artificial <see cref="ObjectId"/> used to represent working directory tree changes for a worktree.
+    /// </summary>
+    /// <param name="instance">The non-zero worktree instance identifier.</param>
+    /// <returns>The artificial <see cref="ObjectId"/> for the worktree.</returns>
+    public static ObjectId CreateWorkTreeId(int instance) => CreateArtificialId(WorkTreeArtificialPrefix, instance);
+
+    /// <summary>
+    /// Creates an artificial <see cref="ObjectId"/> used to represent staged index changes for a worktree.
+    /// </summary>
+    /// <param name="instance">The non-zero worktree instance identifier.</param>
+    /// <returns>The artificial <see cref="ObjectId"/> for the worktree index.</returns>
+    public static ObjectId CreateIndexId(int instance) => CreateArtificialId(IndexArtificialPrefix, instance);
 
     /// <summary>
     /// Produces an <see cref="ObjectId"/> populated with random bytes.
@@ -71,7 +88,25 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>, I
         }
     }
 
-    public bool IsArtificial => this == WorkTreeId || this == IndexId || this == CombinedDiffId;
+    /// <summary>
+    /// Gets whether this instance is an artificial working directory tree commit.
+    /// </summary>
+    public bool IsArtificialWorkTree => HasArtificialPrefix(WorkTreeArtificialPrefix);
+
+    /// <summary>
+    /// Gets whether this instance is an artificial index commit.
+    /// </summary>
+    public bool IsArtificialIndex => HasArtificialPrefix(IndexArtificialPrefix);
+
+    /// <summary>
+    /// Gets whether this instance is the artificial combined diff commit.
+    /// </summary>
+    public bool IsArtificialCombinedDiff => this == CombinedDiffId;
+
+    /// <summary>
+    /// Gets whether this instance is an artificial commit.
+    /// </summary>
+    public bool IsArtificial => IsArtificialWorkTree || IsArtificialIndex || IsArtificialCombinedDiff;
 
     /// <summary>
     /// Gets whether this instance does not represent a real git object — either
@@ -96,6 +131,29 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>, I
     private ObjectId(Sha1 data)
     {
         _data = data;
+    }
+
+    private static ObjectId CreateArtificialId(string prefix, int instance)
+    {
+        if (instance <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(instance), instance, "Instance must be greater than zero.");
+        }
+
+        int suffixLength = Sha1CharCount - prefix.Length;
+        string suffix = instance.ToString($"x{suffixLength}", CultureInfo.InvariantCulture);
+        if (suffix.Length > suffixLength)
+        {
+            throw new ArgumentOutOfRangeException(nameof(instance), instance, "Instance is too large.");
+        }
+
+        return Parse(prefix + suffix);
+    }
+
+    private bool HasArtificialPrefix(string prefix)
+    {
+        Span<char> chars = stackalloc char[Sha1CharCount];
+        return WriteTo(chars) && chars.StartsWith(prefix, StringComparison.Ordinal);
     }
 
     #region Parsing

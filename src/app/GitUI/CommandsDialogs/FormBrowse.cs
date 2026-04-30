@@ -1320,7 +1320,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     private void CommitToolStripMenuItemClick(object? sender, EventArgs e)
     {
         this.ForceActivate();
-        UICommands.StartCommitDialog(this);
+        RevisionGrid.GetUICommandsForSelectedRevision().StartCommitDialog(this);
     }
 
     private void PushToolStripMenuItemClick(object? sender, EventArgs e)
@@ -2114,7 +2114,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             case Command.FocusPrevTab: FocusNextTab(forward: false); break;
             case Command.FocusFilter: ToolStripFilters.SetFocus(); break;
             case Command.OpenRepo: fileToolStripMenuItem.OpenRepositoryMenuItem.PerformClick(); break;
-            case Command.Commit: UICommands.StartCommitDialog(this); break;
+            case Command.Commit: RevisionGrid.GetUICommandsForSelectedRevision().StartCommitDialog(this); break;
             case Command.AddNotes: AddNotes(); break;
             case Command.FindFileInSelectedCommit: FindFileInSelectedCommit(); break;
             case Command.CheckoutBranch: UICommands.StartCheckoutBranch(this); break;

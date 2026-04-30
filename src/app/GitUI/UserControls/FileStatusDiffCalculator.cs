@@ -24,6 +24,7 @@ public sealed partial class FileStatusDiffCalculator
     // Default helper functions, can be set
     public Func<ObjectId, string>? DescribeRevision { get; set; }
     public Func<GitRevision, GitRevision>? GetActualRevision { get; set; }
+    public Func<GitRevision, IGitModule>? GetModuleForRevision { get; set; }
 
     public static bool IsGrepItemStatuses(FileStatusWithDescription itemStatuses)
         => itemStatuses.Summary.StartsWith(_grepSummaryPrefix);
@@ -87,7 +88,7 @@ public sealed partial class FileStatusDiffCalculator
         UntrackedFilesMode untrackedFilesMode,
         CancellationToken cancellationToken)
     {
-        IGitModule module = GetModule();
+        IGitModule module = GetModule(selectedRev);
         List<FileStatusWithDescription> fileStatusDescs = [];
         if (revisions.Count == 1)
         {
@@ -330,7 +331,7 @@ public sealed partial class FileStatusDiffCalculator
             return null;
         }
 
-        IGitModule module = GetModule();
+        IGitModule module = GetModule(selectedRev);
         IReadOnlyList<GitItemStatus> statuses = string.IsNullOrEmpty(_fileStatusDiffCalculatorInfo.GrepArguments)
             ? module.GetTreeFiles(selectedRev.ObjectId, full: true, cancellationToken)
             : module.GetGrepFilesStatus(selectedRev.ObjectId, _fileStatusDiffCalculatorInfo.GrepArguments, applyAppSettings: true, cancellationToken);
@@ -348,4 +349,7 @@ public sealed partial class FileStatusDiffCalculator
 
     private IGitModule GetModule()
         => _getModule() ?? throw new ArgumentException($"Require a valid instance of {nameof(IGitModule)}");
+
+    private IGitModule GetModule(GitRevision revision)
+        => GetModuleForRevision?.Invoke(revision) ?? GetModule();
 }

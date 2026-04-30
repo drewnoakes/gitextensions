@@ -114,7 +114,7 @@ partial class FileStatusList
 
     private void AssumeUnchanged_Click(object sender, EventArgs e)
     {
-        Module.AssumeUnchangedFiles([.. SelectedItems.Items()], tsmiAssumeUnchanged.Checked, out _);
+        ActiveModule.AssumeUnchangedFiles([.. SelectedItems.Items()], tsmiAssumeUnchanged.Checked, out _);
         RequestRefresh();
     }
 
@@ -131,7 +131,7 @@ partial class FileStatusList
 
         tsmiShowIgnoredFiles.Visible = canAutoRefresh;
         tsmiShowAssumeUnchangedFiles.Visible = canAutoRefresh;
-        tsmiShowUntrackedFiles.Checked = Module.GetEffectiveSetting("status.showuntrackedfiles") != "no";
+        tsmiShowUntrackedFiles.Checked = ActiveModule.GetEffectiveSetting("status.showuntrackedfiles") != "no";
 
         tsmiStageFile.Font = new Font(tsmiStageFile.Font, FontStyle.Bold);
         tsmiUnstageFile.Font = new Font(tsmiUnstageFile.Font, FontStyle.Bold);
@@ -202,7 +202,7 @@ partial class FileStatusList
     /// <returns><see langword="true"/> if it is possible to reset to first id.</returns>
     private static bool CanResetToFirst(ObjectId? parentId, IEnumerable<FileStatusItem> selectedItems)
     {
-        return CanResetToSecond(parentId) || (parentId == ObjectId.IndexId && selectedItems.SecondIds().All(i => i == ObjectId.WorkTreeId));
+        return CanResetToSecond(parentId) || (parentId?.IsArtificialIndex is true && selectedItems.SecondIds().All(i => i.IsArtificialWorkTree));
     }
 
     /// <summary>
@@ -265,7 +265,7 @@ partial class FileStatusList
             items = items.Where(item => !item.Item.IsSubmodule);
 
             // If any file is staged, it must be unstaged
-            Module.BatchUnstageFiles(items.Where(item => item.Item.Staged == StagedStatus.Index).Select(item => item.Item));
+            ActiveModule.BatchUnstageFiles(items.Where(item => item.Item.Staged == StagedStatus.Index).Select(item => item.Item));
 
             foreach (FileStatusItem item in items)
             {
@@ -333,11 +333,11 @@ partial class FileStatusList
 
         // Fallback to first revision if second revision cannot be used
         bool isFirstItemSecondRev = _rememberFileContextMenuController.ShouldEnableFirstItemDiff(diffFiles[firstIndex], isSecondRevision: true);
-        string? first = _rememberFileContextMenuController.GetGitCommit(Module.GetFileBlobHash, diffFiles[firstIndex], isSecondRevision: isFirstItemSecondRev);
+        string? first = _rememberFileContextMenuController.GetGitCommit(ActiveModule.GetFileBlobHash, diffFiles[firstIndex], isSecondRevision: isFirstItemSecondRev);
         bool isSecondItemSecondRev = _rememberFileContextMenuController.ShouldEnableSecondItemDiff(diffFiles[secondIndex], isSecondRevision: true);
-        string? second = _rememberFileContextMenuController.GetGitCommit(Module.GetFileBlobHash, diffFiles[secondIndex], isSecondRevision: isSecondItemSecondRev);
+        string? second = _rememberFileContextMenuController.GetGitCommit(ActiveModule.GetFileBlobHash, diffFiles[secondIndex], isSecondRevision: isSecondItemSecondRev);
 
-        Module.OpenFilesWithDifftool(first, second, customTool: toolName);
+        ActiveModule.OpenFilesWithDifftool(first, second, customTool: toolName);
     }
 
     private void DiffWithRemembered_Click(object? sender, EventArgs e)
@@ -352,14 +352,14 @@ partial class FileStatusList
         string? toolName = item?.Tag as string;
 
         // For first item, the second revision is explicitly remembered
-        string? first = _rememberFileContextMenuController.GetGitCommit(Module.GetFileBlobHash,
+        string? first = _rememberFileContextMenuController.GetGitCommit(ActiveModule.GetFileBlobHash,
             _rememberFileContextMenuController.RememberedDiffFileItem, isSecondRevision: true);
 
         // Fallback to first revision if second cannot be used
         bool isSecond = _rememberFileContextMenuController.ShouldEnableSecondItemDiff(SelectedItem, isSecondRevision: true);
-        string? second = _rememberFileContextMenuController.GetGitCommit(Module.GetFileBlobHash, SelectedItem, isSecondRevision: isSecond);
+        string? second = _rememberFileContextMenuController.GetGitCommit(ActiveModule.GetFileBlobHash, SelectedItem, isSecondRevision: isSecond);
 
-        Module.OpenFilesWithDifftool(first, second, customTool: toolName);
+        ActiveModule.OpenFilesWithDifftool(first, second, customTool: toolName);
     }
 
     private void EditWorkingDirectoryFile_Click(object sender, EventArgs e)
@@ -501,7 +501,7 @@ partial class FileStatusList
 
         IEnumerable<GitItemStatus> FindDiffFilesMatches(string name)
         {
-            Func<string?, bool> predicate = _findFilePredicateProvider.Get(name, Module.WorkingDir);
+            Func<string?, bool> predicate = _findFilePredicateProvider.Get(name, ActiveModule.WorkingDir);
             return candidates.Where(item => predicate(item.Name) || predicate(item.OldName));
         }
 
@@ -652,7 +652,7 @@ partial class FileStatusList
         CancellationToken token = _interactiveAddResetChunkSequence.Next();
         ThreadHelper.FileAndForget(async () =>
         {
-            await Module.AddInteractiveAsync(item);
+            await ActiveModule.AddInteractiveAsync(item);
             await this.SwitchToMainThreadAsync(token);
             RequestRefresh();
         });
@@ -669,7 +669,7 @@ partial class FileStatusList
             new(tsmiDiffTwoSelected, DiffTwoSelected_Click)
         ];
 
-        new CustomDiffMergeToolProvider().LoadCustomDiffMergeTools(Module, menus, components, isDiff: true, cancellationToken: _customDiffToolsSequence.Next());
+        new CustomDiffMergeToolProvider().LoadCustomDiffMergeTools(ActiveModule, menus, components, isDiff: true, cancellationToken: _customDiffToolsSequence.Next());
     }
 
     private void Move_Click(object sender, EventArgs e)
@@ -689,7 +689,7 @@ partial class FileStatusList
         while (prompt.ShowDialog(this) == DialogResult.OK)
         {
             MoveCommand.Arguments arguments = new(isFolder, oldName, NewName: prompt.UserInput);
-            MoveCommand moveCommand = new(Module.GitExecutable);
+            MoveCommand moveCommand = new(ActiveModule.GitExecutable);
             if (!moveCommand.Validate(arguments))
             {
                 continue;
@@ -740,7 +740,7 @@ partial class FileStatusList
 
                 // If item.FirstRevision is null, compare to root commit
                 GitRevision?[] revs = [item.SecondRevision, item.FirstRevision];
-                UICommands.OpenWithDifftool(this, revs, item.Item.Name, item.Item.OldName, diffKind, item.Item.IsTracked, customTool: toolName);
+                UICommands.WithGitModule(ActiveModule).OpenWithDifftool(this, revs, item.Item.Name, item.Item.OldName, diffKind, item.Item.IsTracked, customTool: toolName);
             }
         }
     }
@@ -924,7 +924,7 @@ partial class FileStatusList
         CancellationToken token = _interactiveAddResetChunkSequence.Next();
         ThreadHelper.FileAndForget(async () =>
         {
-            await Module.ResetInteractiveAsync(item);
+            await ActiveModule.ResetInteractiveAsync(item);
             await this.SwitchToMainThreadAsync(token);
             RequestRefresh();
         });
@@ -993,7 +993,7 @@ partial class FileStatusList
                     GitItemStatus[] resetItems = [.. resetToParent
                         ? selectedItems.Items()
                         : selectedItems.Items().Select(item => item.InvertStatus())];
-                    Module.ResetChanges(id, resetItems, resetAndDelete: resetAndDelete, _fullPathResolver, out StringBuilder output, progressAction: null);
+                    ActiveModule.ResetChanges(id, resetItems, resetAndDelete: resetAndDelete, _fullPathResolver, out StringBuilder output, progressAction: null);
 
                     if (output.Length > 0)
                     {
@@ -1021,7 +1021,7 @@ partial class FileStatusList
 
         foreach (string name in submodules)
         {
-            IGitModule module = Module.GetSubmodule(name);
+            IGitModule module = ActiveModule.GetSubmodule(name);
             module.ResetAllChanges(clean: resetType == FormResetChanges.ActionEnum.ResetAndDelete);
         }
 
@@ -1089,7 +1089,7 @@ partial class FileStatusList
 
         ThreadHelper.FileAndForget(async () =>
         {
-            ObjectId? blob = Module.GetFileBlobHash(item.Item.Name, item.SecondRevision.ObjectId);
+            ObjectId? blob = ActiveModule.GetFileBlobHash(item.Item.Name, item.SecondRevision.ObjectId);
 
             if (blob is null)
             {
@@ -1098,7 +1098,7 @@ partial class FileStatusList
 
             string fileName = PathUtil.GetFileName(item.Item.Name);
             fileName = (Path.GetTempPath() + fileName).ToNativePath();
-            await Module.SaveBlobAsAsync(fileName, blob.Value.ToString());
+            await ActiveModule.SaveBlobAsAsync(fileName, blob.Value.ToString());
 
             onSaved(fileName);
         });
@@ -1120,12 +1120,12 @@ partial class FileStatusList
 
     private void ShowInFolder_Click(object sender, EventArgs e)
     {
-        FormBrowse.OpenContainingFolder(this, Module);
+        FormBrowse.OpenContainingFolder(this, ActiveModule);
     }
 
     private void SkipWorktree_Click(object sender, EventArgs e)
     {
-        Module.SkipWorktreeFiles([.. SelectedItems.Items()], tsmiSkipWorktree.Checked, out _);
+        ActiveModule.SkipWorktreeFiles([.. SelectedItems.Items()], tsmiSkipWorktree.Checked, out _);
         RequestRefresh();
     }
 
@@ -1138,7 +1138,7 @@ partial class FileStatusList
         }
 
         GitItemStatus[] files = [.. SelectedItems.Where(item => item.Item.Staged == StagedStatus.WorkTree).Select(i => i.Item)];
-        Module.StageFiles(files, out _);
+        ActiveModule.StageFiles(files, out _);
         RequestRefresh();
     }
 
@@ -1154,7 +1154,7 @@ partial class FileStatusList
             return;
         }
 
-        UICommands.StartFileHistoryDialog(this, fileName, revision, showBlame: showBlame);
+        UICommands.WithGitModule(ActiveModule).StartFileHistoryDialog(this, fileName, revision, showBlame: showBlame);
     }
 
     private void StashSubmoduleChanges_Click(object sender, EventArgs e)
@@ -1162,7 +1162,7 @@ partial class FileStatusList
         string[] submodules = [.. SelectedItems.Where(it => it.Item.IsSubmodule).Select(it => it.Item.Name).Distinct()];
         foreach (string name in submodules)
         {
-            IGitUICommands uiCmds = UICommands.WithGitModule(Module.GetSubmodule(name));
+            IGitUICommands uiCmds = UICommands.WithGitModule(ActiveModule.GetSubmodule(name));
             uiCmds.StashSave(this, AppSettings.IncludeUntrackedFilesInManualStash);
         }
 
@@ -1176,7 +1176,7 @@ partial class FileStatusList
             return;
         }
 
-        if (Module.StopTrackingFile(filename))
+        if (ActiveModule.StopTrackingFile(filename))
         {
             RequestRefresh();
         }
@@ -1195,14 +1195,14 @@ partial class FileStatusList
         }
 
         GitItemStatus[] files = [.. SelectedItems.Where(item => item.Item.Staged == StagedStatus.Index).Select(i => i.Item)];
-        Module.BatchUnstageFiles(files);
+        ActiveModule.BatchUnstageFiles(files);
         RequestRefresh();
     }
 
     public void UpdateStatusOfMenuItems()
     {
         FileStatusItem[] selectedItems = [.. SelectedItems];
-        ContextMenuSelectionInfo selectionInfo = GetSelectionInfo(selectedItems, SelectedFolder, isBareRepository: Module.IsBareRepository(), supportLinePatching: _getSupportLinePatching?.Invoke() ?? false, _fullPathResolver);
+        ContextMenuSelectionInfo selectionInfo = GetSelectionInfo(selectedItems, SelectedFolder, isBareRepository: ActiveModule.IsBareRepository(), supportLinePatching: _getSupportLinePatching?.Invoke() ?? false, _fullPathResolver);
 
         // Many options have no meaning for artificial commits or submodules
         // Hide the obviously no action options when single selected, handle them in actions if multi select
@@ -1303,7 +1303,7 @@ partial class FileStatusList
     private void UpdateSubmodule_Click(object sender, EventArgs e)
     {
         string[] submodules = [.. SelectedItems.Where(it => it.Item.IsSubmodule).Select(it => it.Item.Name).Distinct()];
-        FormProcess.ShowDialog(FindForm() as FormBrowse, UICommands, arguments: Commands.SubmoduleUpdate(submodules), Module.WorkingDir, input: null, useDialogSettings: true);
+        FormProcess.ShowDialog(FindForm() as FormBrowse, UICommands.WithGitModule(ActiveModule), arguments: Commands.SubmoduleUpdate(submodules), ActiveModule.WorkingDir, input: null, useDialogSettings: true);
         RequestRefresh();
     }
 }

@@ -312,10 +312,14 @@ public sealed partial class GitModuleTests
         get
         {
             ObjectId headObjectId = ObjectId.Random();
+            ObjectId generatedWorkTreeId = ObjectId.CreateWorkTreeId(2);
+            ObjectId generatedIndexId = ObjectId.CreateIndexId(2);
 
             yield return new TestCaseData(ObjectId.IndexId, ObjectId.WorkTreeId, ObjectId.IndexId, StagedStatus.WorkTree);
+            yield return new TestCaseData(generatedIndexId, generatedWorkTreeId, generatedIndexId, StagedStatus.WorkTree);
 
             yield return new TestCaseData(headObjectId, ObjectId.IndexId, headObjectId, StagedStatus.Index);
+            yield return new TestCaseData(headObjectId, generatedIndexId, headObjectId, StagedStatus.Index);
 
             yield return new TestCaseData(ObjectId.Random(), ObjectId.Random(), ObjectId.Random(), StagedStatus.None);
             yield return new TestCaseData(ObjectId.Random(), ObjectId.Random(), null, StagedStatus.None);

@@ -41,8 +41,8 @@ public class FileStatusListContextMenuController : IFileStatusListContextMenuCon
 {
     public bool ShouldHideToLocal(ContextMenuDiffToolInfo selectionInfo)
     {
-        return (selectionInfo.SelectedRevision?.ObjectId == ObjectId.WorkTreeId && selectionInfo.SelectedItemParentRevs?.All(parentId => parentId == ObjectId.IndexId) is true)
-            || (selectionInfo.SelectedRevision?.ObjectId == ObjectId.IndexId && selectionInfo.SelectedItemParentRevs?.All(parentId => parentId == ObjectId.WorkTreeId) is true);
+        return (selectionInfo.SelectedRevision?.ObjectId.IsArtificialWorkTree is true && selectionInfo.SelectedItemParentRevs?.All(parentId => parentId.IsArtificialIndex) is true)
+            || (selectionInfo.SelectedRevision?.ObjectId.IsArtificialIndex is true && selectionInfo.SelectedItemParentRevs?.All(parentId => parentId.IsArtificialWorkTree) is true);
     }
 
     public bool ShouldShowMenuFirstToSelected(ContextMenuDiffToolInfo selectionInfo)
@@ -58,7 +58,7 @@ public class FileStatusListContextMenuController : IFileStatusListContextMenuCon
             && (!selectionInfo.FirstIsParent || !selectionInfo.AllAreNew)
 
             // First (A) is not local
-            && (selectionInfo.SelectedItemParentRevs is null || !selectionInfo.SelectedItemParentRevs.Contains(ObjectId.WorkTreeId));
+            && (selectionInfo.SelectedItemParentRevs is null || !selectionInfo.SelectedItemParentRevs.Any(parentId => parentId.IsArtificialWorkTree));
     }
 
     public bool ShouldShowMenuSelectedToLocal(ContextMenuDiffToolInfo selectionInfo)
@@ -69,6 +69,6 @@ public class FileStatusListContextMenuController : IFileStatusListContextMenuCon
             && !selectionInfo.AllAreDeleted
 
             // Selected (B) is not local
-            && selectionInfo.SelectedRevision.ObjectId != ObjectId.WorkTreeId;
+            && !selectionInfo.SelectedRevision.ObjectId.IsArtificialWorkTree;
     }
 }

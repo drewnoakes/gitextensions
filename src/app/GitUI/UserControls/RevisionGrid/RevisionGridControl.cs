@@ -121,6 +121,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private readonly TranslationString _dontShowAgain = new("Don't show me this message again.");
     private readonly TranslationString _noMergeBaseCommit = new("There is no common ancestor for the selected commits.");
     private readonly TranslationString _invalidDiffContainsFilter = new("Filter text '{0}' not valid for \"Diff contains\" filter.");
+    private readonly TranslationString _commitWorktree = new("Commit this worktree...");
 
     private readonly FilterInfo _filterInfo = new();
     private readonly NavigationHistory _navigationHistory = new();
@@ -138,8 +139,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private readonly CommitIdColumnProvider _commitIdColumnProvider;
     private readonly DataGridViewColumn? _maximizedColumn;
     private DataGridViewColumn? _lastVisibleResizableColumn;
+    private readonly ToolStripMenuItem _commitWorktreeToolStripMenuItem;
+    private readonly ToolStripSeparator _commitWorktreeSeparator;
     private readonly ArtificialCommitChangeCount _workTreeChangeCount = new();
     private readonly ArtificialCommitChangeCount _indexChangeCount = new();
+    private IReadOnlyDictionary<ObjectId, ArtificialWorktreeInfo> _artificialWorktreesByObjectId = new Dictionary<ObjectId, ArtificialWorktreeInfo>();
+    private IReadOnlyList<ArtificialWorktreeInfo> _artificialWorktrees = [];
     private readonly CancellationTokenSequence _customDiffToolsSequence = new();
     private readonly CancellationTokenSequence _refreshRevisionsSequence = new();
     private readonly RefContextMenuComposer _refContextMenuComposer = new(
@@ -179,6 +184,20 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     // The currently shown ref-specific context menu, kept to dispose before showing a new one.
     private ContextMenuStrip? _refContextMenu;
+
+    private sealed class ArtificialWorktreeInfo
+    {
+        public required GitWorktree Worktree { get; init; }
+        public required bool IsCurrent { get; init; }
+        public required IGitUICommands UICommands { get; init; }
+        public required ObjectId WorkTreeId { get; init; }
+        public required ObjectId IndexId { get; init; }
+        public required ObjectId? HeadId { get; init; }
+        public required ArtificialCommitChangeCount WorkTreeChangeCount { get; init; }
+        public required ArtificialCommitChangeCount IndexChangeCount { get; init; }
+
+        public bool HasChanges => WorkTreeChangeCount.HasChanges || IndexChangeCount.HasChanges;
+    }
 
     /// <summary>
     /// A prefix to use in git log output for parsing file names for individual revisions
@@ -225,6 +244,19 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         InitializeComponent();
         openPullRequestPageStripMenuItem.AdaptImageLightness();
         InitializeComplete();
+
+        _commitWorktreeToolStripMenuItem = new(_commitWorktree.Text, Images.RepoStateDirty)
+        {
+            Name = "commitWorktreeToolStripMenuItem"
+        };
+        _commitWorktreeToolStripMenuItem.Click += CommitWorktreeToolStripMenuItemClick;
+        _commitWorktreeSeparator = new ToolStripSeparator
+        {
+            Name = "commitWorktreeSeparator"
+        };
+        int commitWorktreeMenuIndex = mainContextMenu.Items.IndexOf(toolStripSeparator8) + 1;
+        mainContextMenu.Items.Insert(commitWorktreeMenuIndex, _commitWorktreeToolStripMenuItem);
+        mainContextMenu.Items.Insert(commitWorktreeMenuIndex + 1, _commitWorktreeSeparator);
 
         _loadingControlText = new Label
         {
@@ -824,6 +856,21 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         return _gridView.GetRevisionChildren(objectId);
     }
 
+    internal IGitUICommands GetUICommandsForRevision(GitRevision? revision)
+    {
+        return revision is not null && TryGetArtificialWorktreeInfo(revision.ObjectId, out ArtificialWorktreeInfo? info)
+            ? info.UICommands
+            : UICommands;
+    }
+
+    internal IGitUICommands GetUICommandsForSelectedRevision()
+    {
+        return GetUICommandsForRevision(LatestSelectedRevision);
+    }
+
+    private bool TryGetArtificialWorktreeInfo(ObjectId objectId, [NotNullWhen(returnValue: true)] out ArtificialWorktreeInfo? info)
+        => _artificialWorktreesByObjectId.TryGetValue(objectId, out info);
+
     private bool IsValidRevisionIndex(int index)
     {
         return index >= 0 && index < _gridView.RowCount;
@@ -955,6 +1002,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         }
 
         IGitModule capturedModule = Module;
+        IGitUICommands capturedUICommands = UICommands;
 
         // Reset the "cache" for current branch
         CurrentBranch = new(() => Module.IsValidGitWorkingDir()
@@ -978,10 +1026,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
         ILookup<ObjectId, IGitRef>? refsByObjectId = null;
         bool firstRevisionReceived = false;
-        bool headIsHandled = false;
         Dictionary<ObjectId, GitRevision>? stashesById = null;
         Dictionary<ObjectId, GitRevision>? untrackedByStashId = null;
         ILookup<ObjectId, GitRevision>? stashesByParentId = null;
+        IReadOnlyList<ArtificialWorktreeInfo> artificialWorktrees = [];
+        ILookup<ObjectId, ArtificialWorktreeInfo> artificialWorktreesByHead = Enumerable.Empty<ArtificialWorktreeInfo>().ToLookup(info => default(ObjectId));
+        HashSet<ArtificialWorktreeInfo> handledArtificialWorktrees = [];
 
         // For soft refresh: snapshot the existing graph before clearing, and buffer new revisions until complete.
         // Declared here (before the try block) so local functions below can close over them.
@@ -1078,6 +1128,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 // If the current checkout (HEAD) is changed, don't get the currently selected rows,
                 // select the new current checkout instead.
                 CurrentCheckout = currentCheckout.Value;
+                artificialWorktrees = BuildArtificialWorktreeInfos(capturedModule, capturedUICommands, CurrentCheckout, cancellationToken);
+                SetArtificialWorktreeInfos(artificialWorktrees);
+                artificialWorktreesByHead = artificialWorktrees
+                    .Where(info => info.HeadId is not null)
+                    .ToLookup(info => info.HeadId!.Value);
+
                 if (CurrentCheckout != previousCheckout)
                 {
                     if (CurrentCheckout is null)
@@ -1395,11 +1451,10 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 // Look up any refs associated with this revision
                 revision.Refs = refsByObjectId![revision.ObjectId].AsReadOnlyList();
 
-                if (!headIsHandled && (revision.ObjectId.Equals(CurrentCheckout) || CurrentCheckout is null))
+                if (artificialWorktreesByHead[revision.ObjectId].Any(info => !handledArtificialWorktrees.Contains(info)))
                 {
-                    // Insert artificial worktree/index just before HEAD (CurrentCheckout)
+                    // Insert artificial worktree/index just before the worktree's HEAD.
                     // If grid is filtered and HEAD not visible, insert in OnRevisionReadCompleted()
-                    headIsHandled = true;
                     if (softRefreshBuffer is not null)
                     {
                         softRefreshBuffer.AddRange(revisionsToDisplay);
@@ -1410,7 +1465,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     }
 
                     revisionsToDisplay.Clear();
-                    AddArtificialRevisions();
+                    AddArtificialRevisionsForHead(revision.ObjectId);
                 }
 
                 revisionsToDisplay.Add(revision);
@@ -1430,23 +1485,21 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
         bool ShowArtificialRevisions()
         {
-            return ShowUncommittedChangesIfPossible
-                && AppSettings.RevisionGraphShowArtificialCommits
-                && !Module.IsBareRepository();
+            return artificialWorktrees.Count != 0;
         }
 
         // Add artificial revisions to the graph.
-        bool AddArtificialRevisions(IReadOnlyList<ObjectId>? headParents = null)
+        bool AddArtificialRevisions(ArtificialWorktreeInfo info, IReadOnlyList<ObjectId>? headParents = null)
         {
-            if (!ShowArtificialRevisions())
+            if (handledArtificialWorktrees.Contains(info))
             {
                 return false;
             }
 
-            string userName = Module.GetEffectiveSetting(SettingKeyString.UserName);
-            string userEmail = Module.GetEffectiveSetting(SettingKeyString.UserEmail);
+            string userName = info.UICommands.Module.GetEffectiveSetting(SettingKeyString.UserName);
+            string userEmail = info.UICommands.Module.GetEffectiveSetting(SettingKeyString.UserEmail);
 
-            GitRevision workTreeRev = new(ObjectId.WorkTreeId)
+            GitRevision workTreeRev = new(info.WorkTreeId)
             {
                 Author = userName,
                 AuthorUnixTime = 0,
@@ -1454,11 +1507,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 Committer = userName,
                 CommitUnixTime = 0,
                 CommitterEmail = userEmail,
-                Subject = ResourceManager.TranslatedStrings.Workspace,
-                ParentIds = new[] { ObjectId.IndexId },
+                Subject = GetArtificialRevisionSubject(info, isIndex: false),
+                ParentIds = new[] { info.IndexId },
                 Notes = ""
             };
-            GitRevision indexRev = new(ObjectId.IndexId)
+            GitRevision indexRev = new(info.IndexId)
             {
                 Author = userName,
                 AuthorUnixTime = 0,
@@ -1466,8 +1519,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 Committer = userName,
                 CommitUnixTime = 0,
                 CommitterEmail = userEmail,
-                Subject = ResourceManager.TranslatedStrings.Index,
-                ParentIds = CurrentCheckout is null ? null : new ObjectId[] { CurrentCheckout.Value },
+                Subject = GetArtificialRevisionSubject(info, isIndex: true),
+                ParentIds = info.HeadId is null ? null : new ObjectId[] { info.HeadId.Value },
                 Notes = ""
             };
 
@@ -1488,7 +1541,23 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 _gridView.Insert(workTreeRev, indexRev, headParents);
             }
 
+            handledArtificialWorktrees.Add(info);
             return true;
+        }
+
+        bool AddArtificialRevisionsForHead(ObjectId? headId)
+        {
+            IEnumerable<ArtificialWorktreeInfo> infos = headId is null
+                ? artificialWorktrees.Where(info => info.HeadId is null)
+                : artificialWorktreesByHead[headId.Value];
+
+            bool added = false;
+            foreach (ArtificialWorktreeInfo info in infos)
+            {
+                added |= AddArtificialRevisions(info);
+            }
+
+            return added;
         }
 
         void OnRevisionReaderError(Exception exception)
@@ -1516,7 +1585,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     // No revisions at all received without any filter
                     await semaphoreUpdateGrid.WaitAsync(cancellationToken);
 
-                    bool showArtificial = AddArtificialRevisions();
+                    bool showArtificial = false;
+                    foreach (ArtificialWorktreeInfo info in artificialWorktrees)
+                    {
+                        showArtificial |= AddArtificialRevisions(info);
+                    }
 
                     if (softRefreshBuffer is not null)
                     {
@@ -1564,19 +1637,32 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 }
 
                 IReadOnlyList<ObjectId>? headParents = null;
-                if (!headIsHandled && ShowArtificialRevisions())
+                if (handledArtificialWorktrees.Count != artificialWorktrees.Count && ShowArtificialRevisions())
                 {
-                    if (CurrentCheckout is not null)
+                    foreach (ArtificialWorktreeInfo info in artificialWorktrees)
                     {
-                        // Not found, so search for its parents
-                        headParents = TryGetParents(Module, _filterInfo, CurrentCheckout.Value).ToList();
-                    }
+                        if (handledArtificialWorktrees.Contains(info))
+                        {
+                            continue;
+                        }
 
-                    // HEAD where to insert the artificial was not found
-                    // (can occur when filtering or limiting number of loaded commits)
-                    // Try to find the revision where to attach the artificial, first is not found
-                    // null means that no matching should be done (just add), so use an empty list if no parents were found
-                    AddArtificialRevisions(headParents ?? []);
+                        IReadOnlyList<ObjectId> parents = [];
+                        if (info.HeadId is not null)
+                        {
+                            // Not found, so search for its parents
+                            parents = TryGetParents(Module, _filterInfo, info.HeadId.Value).ToList();
+                        }
+
+                        if (info.IsCurrent)
+                        {
+                            headParents = parents;
+                        }
+
+                        // HEAD where to insert the artificial was not found
+                        // (can occur when filtering or limiting number of loaded commits)
+                        // Try to find the revision where to attach the artificial, first is not found
+                        AddArtificialRevisions(info, parents);
+                    }
                 }
 
                 // All revisions are loaded (but maybe not yet the grid)
@@ -1887,7 +1973,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
         (ObjectId? first, GitRevision? selected) = GetFirstAndSelected();
 
-        compareToWorkingDirectoryMenuItem.Enabled = selected is not null && selected.ObjectId != ObjectId.WorkTreeId;
+        compareToWorkingDirectoryMenuItem.Enabled = selected is not null && !selected.ObjectId.IsArtificialWorkTree;
         compareWithCurrentBranchToolStripMenuItem.Enabled = !string.IsNullOrWhiteSpace(CurrentBranch.Value);
         compareSelectedCommitsMenuItem.Enabled = first is not null && selected is not null;
         openCommitsWithDiffToolMenuItem.Enabled = first is not null && selected is not null;
@@ -2297,6 +2383,11 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         }
     }
 
+    private void CommitWorktreeToolStripMenuItemClick(object? sender, EventArgs e)
+    {
+        GetUICommandsForSelectedRevision().StartCommitDialog(ParentForm);
+    }
+
     private void CreateTagToolStripMenuItemClick(object sender, EventArgs e)
     {
         GitRevision? revision = LatestSelectedRevision;
@@ -2598,6 +2689,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         SetEnabled(cherryPickCommitToolStripMenuItem, !bareRepositoryOrArtificial);
         SetEnabled(manipulateCommitToolStripMenuItem, !bareRepositoryOrArtificial);
         SetEnabled(amendCommitToolStripMenuItem, !bareRepositoryOrArtificial && Module.GitVersion.SupportAmendCommits);
+        SetEnabled(_commitWorktreeToolStripMenuItem, TryGetArtificialWorktreeInfo(revision.ObjectId, out _));
 
         SetEnabled(copyToClipboardToolStripMenuItem, !revision.IsArtificial);
         SetEnabled(createNewBranchToolStripMenuItem, !bareRepositoryOrArtificial);
@@ -2750,6 +2842,137 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
         return result;
     }
+
+    private IReadOnlyList<ArtificialWorktreeInfo> BuildArtificialWorktreeInfos(
+        IGitModule module,
+        IGitUICommands uiCommands,
+        ObjectId? currentCheckout,
+        CancellationToken cancellationToken)
+    {
+        if (!ShowUncommittedChangesIfPossible
+            || !AppSettings.RevisionGraphShowArtificialCommits
+            || module.IsBareRepository())
+        {
+            return [];
+        }
+
+        IReadOnlyList<GitWorktree> worktrees = module.GetWorktrees();
+        if (worktrees.Count == 0)
+        {
+            string? branch = string.IsNullOrEmpty(CurrentBranch.Value) ? null : CurrentBranch.Value;
+            worktrees =
+            [
+                new GitWorktree(
+                    module.WorkingDir,
+                    GitWorktreeHeadType.Branch,
+                    currentCheckout?.ToString(),
+                    branch,
+                    IsDeleted: false)
+            ];
+        }
+
+        string currentPath = TrimWorktreePath(module.WorkingDir);
+        List<ArtificialWorktreeInfo> infos = [];
+        int worktreeInstance = 1;
+
+        foreach (GitWorktree worktree in worktrees)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (worktree.HeadType is GitWorktreeHeadType.Bare || worktree.IsDeleted)
+            {
+                continue;
+            }
+
+            bool isCurrent = string.Equals(TrimWorktreePath(worktree.Path), currentPath, StringComparison.OrdinalIgnoreCase);
+            int instance = worktreeInstance++;
+
+            ObjectId? headId;
+            if (isCurrent)
+            {
+                headId = currentCheckout;
+            }
+            else if (ObjectId.TryParse(worktree.Sha1, out ObjectId parsedHeadId))
+            {
+                headId = parsedHeadId;
+            }
+            else
+            {
+                continue;
+            }
+
+            IGitUICommands worktreeCommands = isCurrent ? uiCommands : uiCommands.WithWorkingDirectory(worktree.Path);
+            IReadOnlyList<GitItemStatus> status = worktreeCommands.Module.GetAllChangedFilesWithSubmodulesStatus(cancellationToken);
+            ArtificialCommitChangeCount workTreeChangeCount = isCurrent ? _workTreeChangeCount : new ArtificialCommitChangeCount();
+            ArtificialCommitChangeCount indexChangeCount = isCurrent ? _indexChangeCount : new ArtificialCommitChangeCount();
+            UpdateArtificialChangeCounts(workTreeChangeCount, indexChangeCount, status);
+            bool hasChanges = workTreeChangeCount.HasChanges || indexChangeCount.HasChanges;
+
+            if (!AppSettings.ShowGitStatusForArtificialCommits)
+            {
+                workTreeChangeCount.Update(null);
+                indexChangeCount.Update(null);
+            }
+
+            if (!isCurrent && !hasChanges)
+            {
+                continue;
+            }
+
+            infos.Add(new ArtificialWorktreeInfo
+            {
+                Worktree = worktree,
+                IsCurrent = isCurrent,
+                UICommands = worktreeCommands,
+                WorkTreeId = isCurrent ? ObjectId.WorkTreeId : ObjectId.CreateWorkTreeId(instance),
+                IndexId = isCurrent ? ObjectId.IndexId : ObjectId.CreateIndexId(instance),
+                HeadId = headId,
+                WorkTreeChangeCount = workTreeChangeCount,
+                IndexChangeCount = indexChangeCount
+            });
+        }
+
+        return infos;
+    }
+
+    private void SetArtificialWorktreeInfos(IReadOnlyList<ArtificialWorktreeInfo> infos)
+    {
+        _artificialWorktrees = infos;
+        _artificialWorktreesByObjectId = infos
+            .SelectMany(info => new[]
+            {
+                new KeyValuePair<ObjectId, ArtificialWorktreeInfo>(info.WorkTreeId, info),
+                new KeyValuePair<ObjectId, ArtificialWorktreeInfo>(info.IndexId, info)
+            })
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+    }
+
+    private static void UpdateArtificialChangeCounts(
+        ArtificialCommitChangeCount workTreeChangeCount,
+        ArtificialCommitChangeCount indexChangeCount,
+        IReadOnlyList<GitItemStatus>? status)
+    {
+        workTreeChangeCount.Update(status?.Where(item => item.Staged == StagedStatus.WorkTree).ToList());
+        indexChangeCount.Update(status?.Where(item => item.Staged == StagedStatus.Index).ToList());
+    }
+
+    private static string GetArtificialRevisionSubject(ArtificialWorktreeInfo info, bool isIndex)
+    {
+        string baseSubject = isIndex
+            ? ResourceManager.TranslatedStrings.Index
+            : ResourceManager.TranslatedStrings.Workspace;
+
+        if (info.IsCurrent)
+        {
+            return baseSubject;
+        }
+
+        string displayName = info.Worktree.Branch ?? Path.GetFileName(TrimWorktreePath(info.Worktree.Path));
+        return $"{baseSubject} ({displayName})";
+    }
+
+    private static string TrimWorktreePath(string path)
+        => path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
     private void RebaseOnToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
     {
@@ -3080,6 +3303,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     /// <returns>The count object if the commit is official and count is enabled.</returns>
     public ArtificialCommitChangeCount? GetChangeCount(ObjectId objectId)
     {
+        if (_artificialWorktreesByObjectId.TryGetValue(objectId, out ArtificialWorktreeInfo? info))
+        {
+            return objectId.IsArtificialWorkTree
+                ? info.WorkTreeChangeCount
+                : info.IndexChangeCount;
+        }
+
         return objectId == ObjectId.WorkTreeId
             ? _workTreeChangeCount
             : objectId == ObjectId.IndexId
@@ -3089,23 +3319,17 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     public void UpdateArtificialCommitCount(IReadOnlyList<GitItemStatus>? status)
     {
-        // Note that the count is updated also if AppSettings.ShowGitStatusForArtificialCommits is not set
-        UpdateChangeCount(ObjectId.WorkTreeId, status);
-        UpdateChangeCount(ObjectId.IndexId, status);
+        if (AppSettings.ShowGitStatusForArtificialCommits)
+        {
+            UpdateArtificialChangeCounts(_workTreeChangeCount, _indexChangeCount, status);
+        }
+        else
+        {
+            _workTreeChangeCount.Update(null);
+            _indexChangeCount.Update(null);
+        }
 
         _gridView.Invalidate();
-        return;
-
-        void UpdateChangeCount(ObjectId objectId, IReadOnlyList<GitItemStatus>? status)
-        {
-            DebugHelpers.Assert(objectId == ObjectId.WorkTreeId || objectId == ObjectId.IndexId,
-                $"Unexpected Git object id {objectId}");
-            ArtificialCommitChangeCount? changeCount = GetChangeCount(objectId);
-            Validates.NotNull(changeCount);
-            StagedStatus staged = objectId == ObjectId.WorkTreeId ? StagedStatus.WorkTree : StagedStatus.Index;
-            List<GitItemStatus>? items = status?.Where(item => item.Staged == staged).ToList();
-            changeCount.Update(items);
-        }
     }
 
     #endregion
@@ -3595,7 +3819,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             return;
         }
 
-        if (baseCommit.ObjectId == ObjectId.WorkTreeId)
+        if (baseCommit.ObjectId.IsArtificialWorkTree)
         {
             MessageBoxes.Show(this, "Cannot diff working directory to itself", TranslatedStrings.Error, MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
@@ -3834,6 +4058,9 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     IReadOnlyList<GitRevision> IRevisionGridInfo.GetSelectedRevisions()
         => GetSelectedRevisions();
+
+    IGitModule IRevisionGridInfo.GetModule(GitRevision revision)
+        => GetUICommandsForRevision(revision).Module;
 
     ObjectId? IRevisionGridInfo.CurrentCheckout => CurrentCheckout;
 

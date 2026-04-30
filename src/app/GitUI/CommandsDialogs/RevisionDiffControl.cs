@@ -332,7 +332,7 @@ public partial class RevisionDiffControl : GitModuleControl, IRevisionGridFileUp
         _pathFilter = pathFilter;
         _refreshGitStatus = refreshGitStatus;
         DiffFiles.tsmiBlame.Checked = requestBlame;
-        DiffFiles.Bind(RefreshArtificial, canAutoRefresh: true, objectId => DescribeRevision(objectId), _revisionGridInfo.GetActualRevision, IsFileTreeMode);
+        DiffFiles.Bind(RefreshArtificial, canAutoRefresh: true, objectId => DescribeRevision(objectId), _revisionGridInfo.GetActualRevision, _revisionGridInfo.GetModule, IsFileTreeMode);
         DiffFiles.BindContextMenu(
             blame: BlameFile,
             cherryPickChanges: DiffText.CherryPickAllChanges,
@@ -441,6 +441,8 @@ public partial class RevisionDiffControl : GitModuleControl, IRevisionGridFileUp
             return;
         }
 
+        Validates.NotNull(_revisionGridInfo);
+
         DiffText.Visible = false;
         BlameControl.Visible = true;
 
@@ -450,10 +452,32 @@ public partial class RevisionDiffControl : GitModuleControl, IRevisionGridFileUp
             BlameControl.Focus();
         }
 
-        GitRevision? rev = DiffFiles.SelectedItem.SecondRevision.IsArtificial
-            ? _revisionGridInfo!.GetActualRevision(_revisionGridInfo.CurrentCheckout!.Value)
-            : DiffFiles.SelectedItem.SecondRevision;
-        await BlameControl.LoadBlameAsync(rev!, children: null, DiffFiles.SelectedItem.Item.Name, _revisionGridInfo, revisionGridFileUpdate: this,
+        FileStatusItem selectedItem = DiffFiles.SelectedItem;
+        BlameControl.ActiveModuleOverride = _revisionGridInfo.GetModule(selectedItem.SecondRevision);
+
+        GitRevision? rev = selectedItem.SecondRevision;
+        if (rev.ObjectId.IsArtificial)
+        {
+            ObjectId? objectId = rev.FirstParentId;
+            while (objectId?.IsArtificial is true)
+            {
+                objectId = _revisionGridInfo.GetRevision(objectId.Value)?.FirstParentId;
+            }
+
+            if (objectId is null)
+            {
+                return;
+            }
+
+            rev = _revisionGridInfo.GetActualRevision(objectId.Value);
+        }
+
+        if (rev is null)
+        {
+            return;
+        }
+
+        await BlameControl.LoadBlameAsync(rev, children: null, selectedItem.Item.Name, _revisionGridInfo, revisionGridFileUpdate: this,
             controlToMask: null, DiffText.Encoding, line, cancellationTokenSequence: _viewChangesSequence);
     }
 
@@ -476,11 +500,16 @@ public partial class RevisionDiffControl : GitModuleControl, IRevisionGridFileUp
         }
 
         FileStatusItem? item = DiffFiles.SelectedItems.Contains(DiffFiles.FocusedItem) ? DiffFiles.FocusedItem : DiffFiles.SelectedItems.FirstOrDefault();
+        IGitModule activeModule = item?.SecondRevision is not null && _revisionGridInfo is not null
+            ? _revisionGridInfo.GetModule(item.SecondRevision)
+            : Module;
+        DiffText.ActiveModuleOverride = activeModule;
+
         await DiffText.ViewChangesAsync(item,
             line: line,
             forceFileView: IsFileTreeMode && !DiffFiles.FindInCommitFilesGitGrepActive,
             openWithDiffTool: IsFileTreeMode ? null : DiffFiles.tsmiDiffFirstToSelected.PerformClick,
-            additionalCommandInfo: (item?.Item?.IsRangeDiff is true) && Module.GitVersion.SupportRangeDiffPath ? _pathFilter() : "",
+            additionalCommandInfo: (item?.Item?.IsRangeDiff is true) && activeModule.GitVersion.SupportRangeDiffPath ? _pathFilter() : "",
             cancellationToken: _viewChangesSequence.Next());
     }
 

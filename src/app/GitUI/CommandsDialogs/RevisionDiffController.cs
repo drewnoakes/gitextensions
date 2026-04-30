@@ -165,7 +165,7 @@ internal sealed class RevisionDiffController(Func<IGitModule> getModule, IFullPa
 
     public bool ShouldShowSubmoduleMenus(ContextMenuSelectionInfo selectionInfo)
     {
-        return selectionInfo.IsAnySubmodule && selectionInfo.SelectedRevision?.ObjectId == ObjectId.WorkTreeId && selectionInfo.AllDirectoriesExist;
+        return selectionInfo.IsAnySubmodule && selectionInfo.SelectedRevision?.ObjectId.IsArtificialWorkTree is true && selectionInfo.AllDirectoriesExist;
     }
 
     public bool ShouldShowMenuEditWorkingDirectoryFile(ContextMenuSelectionInfo selectionInfo)

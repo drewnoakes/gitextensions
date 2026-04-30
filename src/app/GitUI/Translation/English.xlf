@@ -9548,6 +9548,14 @@ Reset the filter via View &gt; Show all branches.</source>
         <source>Base commit for compare is not selected.</source>
         <target />
       </trans-unit>
+      <trans-unit id="_commitWorktree.Text">
+        <source>Commit this worktree...</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_commitWorktreeToolStripMenuItem.Text">
+        <source>Commit this worktree...</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_dontShowAgain.Text">
         <source>Don't show me this message again.</source>
         <target />

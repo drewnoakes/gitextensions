@@ -350,7 +350,7 @@ partial class FileStatusList
         bool withArtificial = revisions.Any(revision => revision.IsArtificial);
         btnRefresh.Enabled = withArtificial;
 
-        bool isWorktree = withArtificial && revisions.Any(revision => revision.ObjectId == ObjectId.WorkTreeId);
+        bool isWorktree = withArtificial && revisions.Any(revision => revision.ObjectId.IsArtificialWorkTree);
         tsmiShowSkipWorktreeFiles.Enabled = isWorktree;
         tsmiShowUntrackedFiles.Enabled = isWorktree;
     }

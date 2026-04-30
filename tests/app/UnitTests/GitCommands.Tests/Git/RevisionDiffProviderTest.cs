@@ -1,4 +1,5 @@
-﻿using GitCommands.Git;
+using GitCommands.Git;
+using GitExtensions.Extensibility.Git;
 using GitUIPluginInterfaces;
 
 namespace GitCommandsTests.Git;
@@ -53,10 +54,28 @@ public class RevisionDiffProviderTest
         _revisionDiffProvider.Get(firstRevision, secondRevision).Arguments.Should().BeEmpty();
     }
 
+    [Test]
+    public void RevisionDiffProvider_generated_index_to_worktree()
+    {
+        string firstRevision = ObjectId.CreateIndexId(2).ToString();
+        string secondRevision = ObjectId.CreateWorkTreeId(2).ToString();
+
+        _revisionDiffProvider.Get(firstRevision, secondRevision).Arguments.Should().BeEmpty();
+    }
+
     [TestCase(GitRevision.WorkTreeGuid, GitRevision.IndexGuid)]
     [TestCase("", "^")]
     public void RevisionDiffProvider_worktree_to_index(string firstRevision, string? secondRevision)
     {
+        _revisionDiffProvider.Get(firstRevision, secondRevision).Arguments.Should().Be("-R");
+    }
+
+    [Test]
+    public void RevisionDiffProvider_generated_worktree_to_index()
+    {
+        string firstRevision = ObjectId.CreateWorkTreeId(2).ToString();
+        string secondRevision = ObjectId.CreateIndexId(2).ToString();
+
         _revisionDiffProvider.Get(firstRevision, secondRevision).Arguments.Should().Be("-R");
     }
 
@@ -68,11 +87,27 @@ public class RevisionDiffProviderTest
         _revisionDiffProvider.Get(firstRevision, GitRevision.WorkTreeGuid).Arguments.Should().Be("\"HEAD\"");
     }
 
+    [Test]
+    public void RevisionDiffProvider_head_to_generated_worktree()
+    {
+        string secondRevision = ObjectId.CreateWorkTreeId(2).ToString();
+
+        _revisionDiffProvider.Get("HEAD", secondRevision).Arguments.Should().Be("\"HEAD\"");
+    }
+
     [TestCase(GitRevision.IndexGuid + "^", "^")]
     [TestCase("HEAD", GitRevision.IndexGuid)]
     public void RevisionDiffProvider_head_to_index(string firstRevision, string? secondRevision)
     {
         _revisionDiffProvider.Get(firstRevision, secondRevision).Arguments.Should().Be("--cached \"HEAD\"");
+    }
+
+    [Test]
+    public void RevisionDiffProvider_head_to_generated_index()
+    {
+        string secondRevision = ObjectId.CreateIndexId(2).ToString();
+
+        _revisionDiffProvider.Get("HEAD", secondRevision).Arguments.Should().Be("--cached \"HEAD\"");
     }
 
     [TestCase(GitRevision.IndexGuid, "HEAD")]

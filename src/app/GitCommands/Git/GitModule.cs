@@ -1342,13 +1342,13 @@ public sealed partial class GitModule : IGitModule
     /// <returns><see langword="true"/> if successfully executed</returns>
     public bool ResetChanges(ObjectId? resetId, IReadOnlyList<GitItemStatus> selectedItems, bool resetAndDelete, IFullPathResolver fullPathResolver, out StringBuilder output, Action<BatchProgressEventArgs>? progressAction = null)
     {
-        if (resetId?.IsArtificial is true && resetId != ObjectId.IndexId)
+        if (resetId?.IsArtificial is true && !resetId.Value.IsArtificialIndex)
         {
             throw new InvalidOperationException(nameof(resetId));
         }
 
         // unstage first (to reset conflicts)
-        if (resetId != ObjectId.IndexId)
+        if (resetId?.IsArtificialIndex is not true)
         {
             Lazy<List<GitItemStatus>> initialStatus = new(() => [.. GetAllChangedFilesWithSubmodulesStatus()]);
             List<GitItemStatus> filesToUnstage = [];
@@ -1378,7 +1378,7 @@ public sealed partial class GitModule : IGitModule
         foreach (GitItemStatus item in selectedItems)
         {
             if (resetAndDelete && (DeletableItem(item)
-                || (resetId != ObjectId.IndexId && postUnstageStatus.Value.Any(i => DeletableItem(i) && i.Name == item.Name))))
+                || (resetId?.IsArtificialIndex is not true && postUnstageStatus.Value.Any(i => DeletableItem(i) && i.Name == item.Name))))
             {
                 try
                 {
@@ -1403,7 +1403,7 @@ public sealed partial class GitModule : IGitModule
                 }
             }
 
-            if (resetId == ObjectId.IndexId)
+            if (resetId?.IsArtificialIndex is true)
             {
                 if (deletedItems.Contains(item) || !postUnstageStatus.Value.Any(i => i.Name == item.Name))
                 {
@@ -1491,13 +1491,13 @@ public sealed partial class GitModule : IGitModule
 
     public string CheckoutFiles(IReadOnlyList<string> files, ObjectId? revision, bool force)
     {
-        if (files.Count == 0 || (revision?.IsArtificial is true && revision != ObjectId.IndexId))
+        if (files.Count == 0 || (revision?.IsArtificial is true && revision.Value.IsArtificialIndex is not true))
         {
             return "";
         }
 
         // Reset to index has no revision string
-        string revStr = revision == ObjectId.IndexId ? "" : (revision ?? RevParse("HEAD"))?.ToString() ?? "";
+        string revStr = revision?.IsArtificialIndex is true ? "" : (revision ?? RevParse("HEAD"))?.ToString() ?? "";
 
         // Run batch arguments to work around max command line length on Windows. Fix #6593
         // 3: double quotes + ' '
@@ -2428,7 +2428,7 @@ public sealed partial class GitModule : IGitModule
                 { applyAppSettings && AppSettings.GitGrepIgnoreCase.Value, "--ignore-case" },
                 { applyAppSettings && AppSettings.GitGrepMatchWholeWord.Value, "--word-regexp" },
                 grepString,
-                !objectId.IsArtificial ? objectId.ToString() : objectId == ObjectId.IndexId ? "--cached" : "",
+                !objectId.IsArtificial ? objectId.ToString() : objectId.IsArtificialIndex ? "--cached" : "",
                 "--"
             },
             cache: noCache ? null : GitCommandCache,
@@ -2485,7 +2485,7 @@ public sealed partial class GitModule : IGitModule
             { AppSettings.GitGrepIgnoreCase.Value, "--ignore-case" },
             { AppSettings.GitGrepMatchWholeWord.Value, "--word-regexp" },
             grepString,
-            !objectId.IsArtificial ? objectId.ToString() : objectId == ObjectId.IndexId ? "--cached" : "",
+            !objectId.IsArtificial ? objectId.ToString() : objectId.IsArtificialIndex ? "--cached" : "",
             "--",
             fileName.Quote()
         };
@@ -2548,11 +2548,11 @@ public sealed partial class GitModule : IGitModule
     public static StagedStatus GetStagedStatus(ObjectId? firstId, ObjectId? secondId, ObjectId? parentToSecond)
     {
         StagedStatus staged;
-        if (firstId == ObjectId.IndexId && secondId == ObjectId.WorkTreeId)
+        if (firstId?.IsArtificialIndex is true && secondId?.IsArtificialWorkTree is true)
         {
             staged = StagedStatus.WorkTree;
         }
-        else if (firstId == parentToSecond && secondId == ObjectId.IndexId)
+        else if (firstId == parentToSecond && secondId?.IsArtificialIndex is true)
         {
             staged = StagedStatus.Index;
         }
@@ -2591,13 +2591,13 @@ public sealed partial class GitModule : IGitModule
             result.Add(createErrorGitItemStatus(exec.StandardError));
         }
 
-        if (firstRevision == GitRevision.WorkTreeGuid || secondRevision == GitRevision.WorkTreeGuid)
+        if (firstRevision.IsArtificialWorkTree() || secondRevision.IsArtificialWorkTree())
         {
             // For worktree the untracked must be added too
             // Note that this may add a second GitError, this is a separate Git command
             GitItemStatus[] files = [.. GetAllChangedFilesWithSubmodulesStatus(cancellationToken: cancellationToken).Where(x =>
                 ((x.Staged == StagedStatus.WorkTree && x.IsNew) || x.IsStatusOnly))];
-            if (firstRevision == GitRevision.WorkTreeGuid)
+            if (firstRevision.IsArtificialWorkTree())
             {
                 // The file is seen as "deleted" in 'to' revision
                 foreach (GitItemStatus item in files)
@@ -3218,7 +3218,7 @@ public sealed partial class GitModule : IGitModule
             {
                 // ls-files with same format as ls-tree
                 "-z",
-                { commitId == ObjectId.IndexId, "--cached", "--no-cached" },
+                { commitId?.IsArtificialIndex is true, "--cached", "--no-cached" },
                 { GitVersion.SupportLsFilesFormat, @$"--format=""{_gitTreeParser.GitTreeFormat}""", "--stage" },
                 "--",
                 fileName.QuoteNE()

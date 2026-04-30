@@ -59,11 +59,11 @@ public sealed class LinkFactory : ILinkFactory
     {
         if (linkText is null)
         {
-            if (objectId == ObjectId.WorkTreeId)
+            if (objectId.IsArtificialWorkTree)
             {
                 linkText = TranslatedStrings.Workspace;
             }
-            else if (objectId == ObjectId.IndexId)
+            else if (objectId.IsArtificialIndex)
             {
                 linkText = TranslatedStrings.Index;
             }

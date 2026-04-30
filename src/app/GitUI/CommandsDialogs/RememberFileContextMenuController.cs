@@ -46,7 +46,7 @@ public class RememberFileContextMenuController
     {
         // First item must be a git reference existing in the revision, i.e. other than work tree
         return ShouldEnableSecondItemDiff(item, isSecondRevision: isSecondRevision)
-               && (isSecondRevision ? item?.SecondRevision : item?.FirstRevision)?.ObjectId != ObjectId.WorkTreeId;
+               && (isSecondRevision ? item?.SecondRevision : item?.FirstRevision)?.ObjectId.IsArtificialWorkTree is not true;
     }
 
     [Pure]
@@ -100,13 +100,13 @@ public class RememberFileContextMenuController
             return null;
         }
 
-        if (id == ObjectId.WorkTreeId)
+        if (id.Value.IsArtificialWorkTree)
         {
             // A file system file
             return name;
         }
 
-        if (id == ObjectId.IndexId)
+        if (id.Value.IsArtificialIndex)
         {
             // Must be referenced by blob - treeid is mutable.
             // File name presented in difftool will be blob or the other file

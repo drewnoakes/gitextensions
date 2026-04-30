@@ -10,6 +10,7 @@ public interface IRevisionGridInfo
     GitRevision? GetActualRevision(ObjectId objectId);
     GitRevision GetActualRevision(GitRevision revision);
     IReadOnlyList<GitRevision> GetSelectedRevisions();
+    IGitModule GetModule(GitRevision revision);
     string DescribeRevision(GitRevision revision, int maxLength = 0);
     string GetCurrentBranch();
 }

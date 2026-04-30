@@ -293,6 +293,7 @@ internal sealed class MessageColumnProvider : ColumnProvider
         int max = Math.Max(
             TextRenderer.MeasureText(ResourceManager.TranslatedStrings.Workspace, style.NormalFont).Width,
             TextRenderer.MeasureText(ResourceManager.TranslatedStrings.Index, style.NormalFont).Width);
+        max = Math.Max(max, TextRenderer.MeasureText(revision.Subject, style.NormalFont).Width);
 
         // Align icons consistently across both artificial commit rows.
         // Decompose the capsule layout to stay in sync if ref label sizing changes:
