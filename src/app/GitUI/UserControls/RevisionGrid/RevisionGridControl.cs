@@ -1001,7 +1001,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                   : "");
 
         _gridView.RemoteColors = Module.GetRemoteColors();
-        RefreshWorktrees();
 
         // Revision info is read in three parallel steps:
         // 1. Read current commit, refs, prepare grid etc.
@@ -1098,11 +1097,21 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 // If the current checkout (HEAD) is changed, don't get the currently selected rows,
                 // select the new current checkout instead.
                 CurrentCheckout = currentCheckout.Value;
-                artificialWorktrees = BuildArtificialWorktreeInfos(capturedModule, capturedUICommands, CurrentCheckout);
+
+                // Fetch worktrees once for both artificial commit placement and branch-label decoration.
+                IReadOnlyList<GitWorktree> worktrees = await Task.Run(() => capturedModule.GetWorktrees(), cancellationToken).ConfigureAwait(false);
+                artificialWorktrees = BuildArtificialWorktreeInfos(capturedModule, capturedUICommands, CurrentCheckout, worktrees);
                 SetArtificialWorktreeInfos(artificialWorktrees);
                 artificialWorktreesByHead = artificialWorktrees
                     .Where(info => info.HeadId is not null)
                     .ToLookup(info => info.HeadId!.Value);
+
+                // Update branch-label decoration on the UI thread while refs loading continues.
+                IReadOnlyDictionary<string, string> otherWorktreeBranchPaths = BuildOtherWorktreeBranchPaths(capturedModule, worktrees);
+                await this.SwitchToMainThreadAsync(cancellationToken);
+                _otherWorktreeBranchPaths = otherWorktreeBranchPaths;
+                _gridView.Invalidate();
+                await TaskScheduler.Default;
 
                 if (CurrentCheckout != previousCheckout)
                 {
@@ -2660,22 +2669,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         menu.Show(_gridView, cursorPosition);
     }
 
-    private void RefreshWorktrees()
-    {
-        IGitModule capturedModule = Module;
-        Task.Run(() => capturedModule.GetWorktrees())
-            .ContinueWith(
-                t =>
-                {
-                    if (t.IsCompletedSuccessfully)
-                    {
-                        _otherWorktreeBranchPaths = BuildOtherWorktreeBranchPaths(capturedModule, t.Result);
-                        _gridView.Invalidate();
-                    }
-                },
-                TaskScheduler.FromCurrentSynchronizationContext());
-    }
-
     private static IReadOnlyDictionary<string, string> BuildOtherWorktreeBranchPaths(IGitModule module, IReadOnlyList<GitWorktree> worktrees)
     {
         string currentPath = module.WorkingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -2701,7 +2694,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private IReadOnlyList<ArtificialWorktreeInfo> BuildArtificialWorktreeInfos(
         IGitModule module,
         IGitUICommands uiCommands,
-        ObjectId? currentCheckout)
+        ObjectId? currentCheckout,
+        IReadOnlyList<GitWorktree> worktrees)
     {
         if (!ShowUncommittedChangesIfPossible
             || !AppSettings.RevisionGraphShowArtificialCommits
@@ -2710,28 +2704,64 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             return [];
         }
 
-        string? branch = string.IsNullOrEmpty(CurrentBranch.Value) ? null : CurrentBranch.Value;
-        GitWorktree currentWorktree = new(
-            module.WorkingDir,
-            GitWorktreeHeadType.Branch,
-            currentCheckout?.ToString(),
-            branch,
-            IsDeleted: false);
+        string currentPath = TrimWorktreePath(module.WorkingDir);
+        List<ArtificialWorktreeInfo> result = [];
+        int otherWorktreeIndex = 0;
 
-        return
-        [
-            new ArtificialWorktreeInfo
+        foreach (GitWorktree wt in worktrees)
+        {
+            if (wt.IsDeleted || wt.HeadType is GitWorktreeHeadType.Bare)
             {
-                Worktree = currentWorktree,
-                IsCurrent = true,
-                UICommands = uiCommands,
-                WorkTreeId = ObjectId.WorkTreeId,
-                IndexId = ObjectId.IndexId,
-                HeadId = currentCheckout,
-                WorkTreeChangeCount = _workTreeChangeCount,
-                IndexChangeCount = _indexChangeCount
+                continue;
             }
-        ];
+
+            bool isCurrent = string.Equals(
+                TrimWorktreePath(wt.Path),
+                currentPath,
+                StringComparison.OrdinalIgnoreCase);
+
+            ObjectId? headId = wt.Sha1 is not null && ObjectId.TryParse(wt.Sha1, out ObjectId parsed)
+                ? parsed
+                : null;
+
+            ObjectId workTreeId;
+            ObjectId indexId;
+            ArtificialCommitChangeCount workTreeChangeCount;
+            ArtificialCommitChangeCount indexChangeCount;
+            IGitUICommands worktreeUICommands;
+
+            if (isCurrent)
+            {
+                workTreeId = ObjectId.WorkTreeId;
+                indexId = ObjectId.IndexId;
+                workTreeChangeCount = _workTreeChangeCount;
+                indexChangeCount = _indexChangeCount;
+                worktreeUICommands = uiCommands;
+            }
+            else
+            {
+                otherWorktreeIndex++;
+                workTreeId = ObjectId.CreateWorkTreeId(otherWorktreeIndex);
+                indexId = ObjectId.CreateIndexId(otherWorktreeIndex);
+                workTreeChangeCount = new ArtificialCommitChangeCount();
+                indexChangeCount = new ArtificialCommitChangeCount();
+                worktreeUICommands = uiCommands.WithWorkingDirectory(wt.Path);
+            }
+
+            result.Add(new ArtificialWorktreeInfo
+            {
+                Worktree = wt,
+                IsCurrent = isCurrent,
+                UICommands = worktreeUICommands,
+                WorkTreeId = workTreeId,
+                IndexId = indexId,
+                HeadId = isCurrent ? currentCheckout : headId,
+                WorkTreeChangeCount = workTreeChangeCount,
+                IndexChangeCount = indexChangeCount
+            });
+        }
+
+        return result;
     }
 
     private void SetArtificialWorktreeInfos(IReadOnlyList<ArtificialWorktreeInfo> infos)
