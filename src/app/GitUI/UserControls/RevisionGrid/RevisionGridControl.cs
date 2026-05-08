@@ -194,8 +194,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         public required ObjectId? HeadId { get; init; }
         public required ArtificialCommitChangeCount WorkTreeChangeCount { get; init; }
         public required ArtificialCommitChangeCount IndexChangeCount { get; init; }
-
-        public bool HasChanges => WorkTreeChangeCount.HasChanges || IndexChangeCount.HasChanges;
     }
 
     /// <summary>
@@ -1100,7 +1098,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 // If the current checkout (HEAD) is changed, don't get the currently selected rows,
                 // select the new current checkout instead.
                 CurrentCheckout = currentCheckout.Value;
-                artificialWorktrees = BuildArtificialWorktreeInfos(capturedModule, capturedUICommands, CurrentCheckout, cancellationToken);
+                artificialWorktrees = BuildArtificialWorktreeInfos(capturedModule, capturedUICommands, CurrentCheckout);
                 SetArtificialWorktreeInfos(artificialWorktrees);
                 artificialWorktreesByHead = artificialWorktrees
                     .Where(info => info.HeadId is not null)
@@ -2703,8 +2701,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     private IReadOnlyList<ArtificialWorktreeInfo> BuildArtificialWorktreeInfos(
         IGitModule module,
         IGitUICommands uiCommands,
-        ObjectId? currentCheckout,
-        CancellationToken cancellationToken)
+        ObjectId? currentCheckout)
     {
         if (!ShowUncommittedChangesIfPossible
             || !AppSettings.RevisionGraphShowArtificialCommits
@@ -2713,83 +2710,28 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             return [];
         }
 
-        IReadOnlyList<GitWorktree> worktrees = module.GetWorktrees();
-        if (worktrees.Count == 0)
-        {
-            string? branch = string.IsNullOrEmpty(CurrentBranch.Value) ? null : CurrentBranch.Value;
-            worktrees =
-            [
-                new GitWorktree(
-                    module.WorkingDir,
-                    GitWorktreeHeadType.Branch,
-                    currentCheckout?.ToString(),
-                    branch,
-                    IsDeleted: false)
-            ];
-        }
+        string? branch = string.IsNullOrEmpty(CurrentBranch.Value) ? null : CurrentBranch.Value;
+        GitWorktree currentWorktree = new(
+            module.WorkingDir,
+            GitWorktreeHeadType.Branch,
+            currentCheckout?.ToString(),
+            branch,
+            IsDeleted: false);
 
-        string currentPath = TrimWorktreePath(module.WorkingDir);
-        List<ArtificialWorktreeInfo> infos = [];
-        int worktreeInstance = 1;
-
-        foreach (GitWorktree worktree in worktrees)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (worktree.HeadType is GitWorktreeHeadType.Bare || worktree.IsDeleted)
+        return
+        [
+            new ArtificialWorktreeInfo
             {
-                continue;
+                Worktree = currentWorktree,
+                IsCurrent = true,
+                UICommands = uiCommands,
+                WorkTreeId = ObjectId.WorkTreeId,
+                IndexId = ObjectId.IndexId,
+                HeadId = currentCheckout,
+                WorkTreeChangeCount = _workTreeChangeCount,
+                IndexChangeCount = _indexChangeCount
             }
-
-            bool isCurrent = string.Equals(TrimWorktreePath(worktree.Path), currentPath, StringComparison.OrdinalIgnoreCase);
-            int instance = worktreeInstance++;
-
-            ObjectId? headId;
-            if (isCurrent)
-            {
-                headId = currentCheckout;
-            }
-            else if (ObjectId.TryParse(worktree.Sha1, out ObjectId parsedHeadId))
-            {
-                headId = parsedHeadId;
-            }
-            else
-            {
-                continue;
-            }
-
-            IGitUICommands worktreeCommands = isCurrent ? uiCommands : uiCommands.WithWorkingDirectory(worktree.Path);
-            IReadOnlyList<GitItemStatus> status = worktreeCommands.Module.GetAllChangedFilesWithSubmodulesStatus(cancellationToken);
-            ArtificialCommitChangeCount workTreeChangeCount = isCurrent ? _workTreeChangeCount : new ArtificialCommitChangeCount();
-            ArtificialCommitChangeCount indexChangeCount = isCurrent ? _indexChangeCount : new ArtificialCommitChangeCount();
-            UpdateArtificialChangeCounts(workTreeChangeCount, indexChangeCount, status);
-            bool hasChanges = workTreeChangeCount.HasChanges || indexChangeCount.HasChanges;
-
-            if (!AppSettings.ShowGitStatusForArtificialCommits)
-            {
-                workTreeChangeCount.Update(null);
-                indexChangeCount.Update(null);
-            }
-
-            if (!isCurrent && !hasChanges)
-            {
-                continue;
-            }
-
-            infos.Add(new ArtificialWorktreeInfo
-            {
-                Worktree = worktree,
-                IsCurrent = isCurrent,
-                UICommands = worktreeCommands,
-                WorkTreeId = isCurrent ? ObjectId.WorkTreeId : ObjectId.CreateWorkTreeId(instance),
-                IndexId = isCurrent ? ObjectId.IndexId : ObjectId.CreateIndexId(instance),
-                HeadId = headId,
-                WorkTreeChangeCount = workTreeChangeCount,
-                IndexChangeCount = indexChangeCount
-            });
-        }
-
-        return infos;
+        ];
     }
 
     private void SetArtificialWorktreeInfos(IReadOnlyList<ArtificialWorktreeInfo> infos)
