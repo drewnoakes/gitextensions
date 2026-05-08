@@ -11,12 +11,10 @@ namespace GitUI.UserControls.RevisionGrid.Columns;
 
 internal sealed class RevisionGraphColumnProvider : ColumnProvider
 {
+    private readonly LaneInfoProvider _laneInfoProvider;
+    private readonly RevisionGraph _revisionGraph;
     private readonly GraphCache _graphDisplayCache = new();
     private readonly GraphCache _graphRenderCache = new();
-    private readonly IGitRevisionSummaryBuilder _gitRevisionSummaryBuilder;
-
-    private LaneInfoProvider _laneInfoProvider;
-    private RevisionGraph _revisionGraph;
 
     private int _columnWidth = 0;
 
@@ -26,9 +24,8 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
     public RevisionGraphColumnProvider(RevisionGraph revisionGraph, IGitRevisionSummaryBuilder gitRevisionSummaryBuilder)
         : base("Graph")
     {
-        _gitRevisionSummaryBuilder = gitRevisionSummaryBuilder;
         _revisionGraph = revisionGraph;
-        _laneInfoProvider = new LaneInfoProvider(new LaneNodeLocator(_revisionGraph), _gitRevisionSummaryBuilder);
+        _laneInfoProvider = new LaneInfoProvider(new LaneNodeLocator(_revisionGraph), gitRevisionSummaryBuilder);
 
         Column = new DataGridViewTextBoxColumn
         {
@@ -230,12 +227,6 @@ internal sealed class RevisionGraphColumnProvider : ColumnProvider
     public void HighlightBranch(ObjectId id)
     {
         _revisionGraph.HighlightBranch(id);
-    }
-
-    public void ReplaceRevisionGraph(RevisionGraph revisionGraph)
-    {
-        _revisionGraph = revisionGraph;
-        _laneInfoProvider = new LaneInfoProvider(new LaneNodeLocator(_revisionGraph), _gitRevisionSummaryBuilder);
     }
 
     /// <summary>

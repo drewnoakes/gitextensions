@@ -84,7 +84,6 @@ partial class FormBrowse
         fileToolStripMenuItem = new GitUI.CommandsDialogs.Menus.StartToolStripMenuItem();
         closeToolStripMenuItem = new ToolStripMenuItem();
         refreshToolStripMenuItem = new ToolStripMenuItem();
-        hardRefreshToolStripMenuItem = new ToolStripMenuItem();
         refreshDashboardToolStripMenuItem = new ToolStripMenuItem();
         fileExplorerToolStripMenuItem = new ToolStripMenuItem();
         repositoryToolStripMenuItem = new ToolStripMenuItem();
@@ -824,13 +823,6 @@ partial class FormBrowse
         refreshToolStripMenuItem.Text = "&Refresh";
         refreshToolStripMenuItem.Click += RefreshToolStripMenuItemClick;
         // 
-        // hardRefreshToolStripMenuItem
-        // 
-        hardRefreshToolStripMenuItem.Name = "hardRefreshToolStripMenuItem";
-        hardRefreshToolStripMenuItem.Size = new Size(221, 22);
-        hardRefreshToolStripMenuItem.Text = "&Full Refresh";
-        hardRefreshToolStripMenuItem.Click += HardRefreshToolStripMenuItemClick;
-        // 
         // refreshDashboardToolStripMenuItem
         // 
         refreshDashboardToolStripMenuItem.Image = Properties.Images.ReloadRevisions;
@@ -853,7 +845,6 @@ partial class FormBrowse
         // 
         repositoryToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] {
         refreshToolStripMenuItem,
-        hardRefreshToolStripMenuItem,
         fileExplorerToolStripMenuItem,
         toolStripSeparator8,
         manageRemoteRepositoriesToolStripMenuItem1,
@@ -1545,7 +1536,6 @@ partial class FormBrowse
     private GitUI.CommandsDialogs.Menus.StartToolStripMenuItem fileToolStripMenuItem;
     private ToolStripMenuItem closeToolStripMenuItem;
     private ToolStripMenuItem refreshToolStripMenuItem;
-    private ToolStripMenuItem hardRefreshToolStripMenuItem;
     private ToolStripMenuItem refreshDashboardToolStripMenuItem;
     private ToolStripMenuItem fileExplorerToolStripMenuItem;
     private ToolStripMenuItem repositoryToolStripMenuItem;
