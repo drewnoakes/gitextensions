@@ -288,7 +288,7 @@ internal sealed class MessageColumnProvider : ColumnProvider
             messageBounds,
             graphics,
             dashedLine: false,
-            fill: _settings.FillRefLabels);
+            fill: false);
 
         int max = Math.Max(
             TextRenderer.MeasureText(ResourceManager.TranslatedStrings.Workspace, style.NormalFont).Width,

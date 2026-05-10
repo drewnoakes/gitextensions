@@ -30,8 +30,11 @@ internal static class RevisionGridRefRenderer
         // Solid-fill capsules: choose contrasting text colour for readability.
         // Use 0.40 as the luminance threshold — this ensures green hues (which are perceptually
         // bright despite having luminance ~0.45) get dark text rather than white.
+        // Outline capsules: use the ref colour directly as text (rendered on the row background).
         float luminanceForText = ((0.299f * headColor.R) + (0.587f * headColor.G) + (0.114f * headColor.B)) / 255f;
-        Color textColor = luminanceForText > 0.40f ? Color.FromArgb(30, 30, 30) : Color.White;
+        Color textColor = fill
+            ? luminanceForText > 0.40f ? Color.FromArgb(30, 30, 30) : Color.White
+            : headColor;
 
         Size textSize = !string.IsNullOrEmpty(name)
             ? TextRenderer.MeasureText(graphics, name, font, Size.Empty, TextFormatFlags.NoPadding)
@@ -103,10 +106,19 @@ internal static class RevisionGridRefRenderer
 
         void FillFrameAndHighlight(GraphicsPath path, Rectangle bounds, Color color, bool dashedLine, bool fill, bool isRowSelected, bool highlight)
         {
-            using SolidBrush brush = new(color);
-            graphics.FillPath(brush, path);
-
             bool isDark = SystemColors.Window.GetBrightness() < 0.5f;
+
+            if (fill)
+            {
+                using SolidBrush brush = new(color);
+                graphics.FillPath(brush, path);
+            }
+            else
+            {
+                // Outline mode: draw a 1px border in the ref colour; background is transparent.
+                using Pen outlinePen = new(color, 1f);
+                graphics.DrawPath(outlinePen, path);
+            }
 
             if (dashedLine)
             {

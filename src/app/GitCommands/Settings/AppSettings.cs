@@ -1585,7 +1585,7 @@ public static partial class AppSettings
 
     public static bool FillRefLabels
     {
-        get => GetBool("FillRefLabels", false);
+        get => GetBool("FillRefLabels", true);
         set => SetBool("FillRefLabels", value);
     }
 

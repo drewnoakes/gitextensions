@@ -1447,6 +1447,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             string userName = info.UICommands.Module.GetEffectiveSetting(SettingKeyString.UserName);
             string userEmail = info.UICommands.Module.GetEffectiveSetting(SettingKeyString.UserEmail);
 
+            // Only append the worktree name when another worktree shares the same HEAD commit.
+            // When the commit position is unique in the graph, the label can stay short.
+            bool needsDisambiguation = !info.IsCurrent
+                && artificialWorktrees.Any(
+                    other => !ReferenceEquals(other, info)
+                        && (info.HeadId is null || other.HeadId == info.HeadId));
+
             GitRevision workTreeRev = new(info.WorkTreeId)
             {
                 Author = userName,
@@ -1455,7 +1462,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 Committer = userName,
                 CommitUnixTime = 0,
                 CommitterEmail = userEmail,
-                Subject = GetArtificialRevisionSubject(info, isIndex: false),
+                Subject = GetArtificialRevisionSubject(info, isIndex: false, needsDisambiguation),
                 ParentIds = new[] { info.IndexId },
                 Notes = ""
             };
@@ -1467,7 +1474,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 Committer = userName,
                 CommitUnixTime = 0,
                 CommitterEmail = userEmail,
-                Subject = GetArtificialRevisionSubject(info, isIndex: true),
+                Subject = GetArtificialRevisionSubject(info, isIndex: true, needsDisambiguation),
                 ParentIds = info.HeadId is null ? null : new ObjectId[] { info.HeadId.Value },
                 Notes = ""
             };
@@ -2785,13 +2792,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         indexChangeCount.Update(status?.Where(item => item.Staged == StagedStatus.Index).ToList());
     }
 
-    private static string GetArtificialRevisionSubject(ArtificialWorktreeInfo info, bool isIndex)
+    private static string GetArtificialRevisionSubject(ArtificialWorktreeInfo info, bool isIndex, bool needsDisambiguation)
     {
         string baseSubject = isIndex
             ? ResourceManager.TranslatedStrings.Index
             : ResourceManager.TranslatedStrings.Workspace;
 
-        if (info.IsCurrent)
+        if (info.IsCurrent || !needsDisambiguation)
         {
             return baseSubject;
         }
