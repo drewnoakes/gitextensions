@@ -225,6 +225,8 @@ internal sealed class CommitInfoHtmlBuilder
                 margin-bottom: 0.6em;
             }
             .message pre code { padding: 0; background: none; font-size: 100%; }
+            .message pre.mermaid { padding: 0; background: transparent; text-align: center; }
+            .message .mermaid svg { max-width: 100%; height: auto; }
             .message blockquote {
                 padding: 0 1em;
                 color: {{Css(mutedFg)}};
@@ -291,6 +293,11 @@ internal sealed class CommitInfoHtmlBuilder
                 window.chrome.webview.postMessage(JSON.stringify({ type: 'contextmenu', hasSelection: hasSelection }));
             });
             </script>
+            """);
+
+        sb.Append(Editor.MarkdownToHtmlConverter.GetMermaidRenderingScript(isDark));
+
+        sb.Append("""
             </head>
             <body>
             """);

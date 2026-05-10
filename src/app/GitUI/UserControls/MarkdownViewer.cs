@@ -93,7 +93,7 @@ public class MarkdownViewer : UserControl
                 .Replace("`", "\\`")
                 .Replace("$", "\\$");
             await _webView.CoreWebView2.ExecuteScriptAsync(
-                $"document.getElementById('{elementId}').innerHTML = `{escaped}`;");
+                $"document.getElementById('{elementId}').innerHTML = `{escaped}`;{Editor.MarkdownToHtmlConverter.RenderMermaidScript}");
         }
     }
 
@@ -202,6 +202,15 @@ public class MarkdownViewer : UserControl
             _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 "gitextensions.avatars",
                 avatarCachePath,
+                CoreWebView2HostResourceAccessKind.Allow);
+        }
+
+        string markdownAssetsPath = Path.Combine(AppContext.BaseDirectory, "Resources", "WebView");
+        if (Directory.Exists(markdownAssetsPath))
+        {
+            _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                Editor.MarkdownToHtmlConverter.MermaidAssetVirtualHostName,
+                markdownAssetsPath,
                 CoreWebView2HostResourceAccessKind.Allow);
         }
 

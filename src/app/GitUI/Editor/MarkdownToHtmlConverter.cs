@@ -10,10 +10,17 @@ namespace GitUI.Editor;
 /// </summary>
 internal static class MarkdownToHtmlConverter
 {
+    internal const string MermaidAssetVirtualHostName = "gitextensions.markdown-assets";
+    internal const string MermaidScriptFileName = "mermaid.min.js";
+    internal const string MermaidScriptUri = "https://" + MermaidAssetVirtualHostName + "/" + MermaidScriptFileName;
+    internal const string RenderMermaidScript = "window.gitextensionsRenderMermaid && window.gitextensionsRenderMermaid();";
+
     internal static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UseAutoLinks()
         .UseEmphasisExtras()
+        .UsePipeTables()
         .UseTaskLists()
+        .UseDiagrams()
         .Build();
 
     /// <summary>
@@ -183,6 +190,15 @@ internal static class MarkdownToHtmlConverter
                 word-wrap: normal;
                 font-size: 100%;
             }
+            pre.mermaid {
+                padding: 0;
+                background: transparent;
+                text-align: center;
+            }
+            .mermaid svg {
+                max-width: 100%;
+                height: auto;
+            }
             blockquote {
                 margin: 0 0 1rem 0;
                 padding: 0 1em;
@@ -257,6 +273,8 @@ internal static class MarkdownToHtmlConverter
                 """);
         }
 
+        sb.Append(GetMermaidRenderingScript(isDark));
+
         sb.Append("""
             </head>
             <body>
@@ -270,5 +288,55 @@ internal static class MarkdownToHtmlConverter
         return sb.ToString();
 
         static string FormatColor(Color c) => $"rgb({c.R},{c.G},{c.B})";
+    }
+
+    internal static string GetMermaidRenderingScript(bool isDark)
+    {
+        string mermaidTheme = isDark ? "dark" : "default";
+
+        return $$"""
+            <script>
+            window.gitextensionsMermaidScriptPromise = null;
+            window.gitextensionsRenderMermaid = function() {
+                if (!document.querySelector('.mermaid')) {
+                    return;
+                }
+
+                function render() {
+                    if (!window.mermaid) {
+                        return;
+                    }
+
+                    window.mermaid.initialize({
+                        startOnLoad: false,
+                        securityLevel: 'strict',
+                        theme: '{{mermaidTheme}}'
+                    });
+                    Promise.resolve(window.mermaid.run({ querySelector: '.mermaid' }))
+                        .catch(function(error) { console.error('Failed to render Mermaid diagram', error); });
+                }
+
+                if (window.mermaid) {
+                    render();
+                    return;
+                }
+
+                if (!window.gitextensionsMermaidScriptPromise) {
+                    window.gitextensionsMermaidScriptPromise = new Promise(function(resolve, reject) {
+                        var script = document.createElement('script');
+                        script.src = '{{MermaidScriptUri}}';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                window.gitextensionsMermaidScriptPromise
+                    .then(render)
+                    .catch(function(error) { console.error('Failed to load Mermaid', error); });
+            };
+            document.addEventListener('DOMContentLoaded', window.gitextensionsRenderMermaid);
+            </script>
+            """;
     }
 }

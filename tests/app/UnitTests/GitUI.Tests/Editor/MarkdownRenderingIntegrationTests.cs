@@ -177,6 +177,39 @@ public class MarkdownRenderingIntegrationTests
     }
 
     [Test]
+    public void Convert_pipe_table_should_produce_table()
+    {
+        string html = MarkdownToHtmlConverter.Convert("""
+            | Name | Value |
+            | --- | --- |
+            | A | 1 |
+            """);
+
+        html.Should().Contain("<table>");
+        html.Should().Contain("<th>Name</th>");
+        html.Should().Contain("<td>1</td>");
+    }
+
+    [Test]
+    public void Convert_mermaid_fenced_code_should_produce_mermaid_block()
+    {
+        string html = MarkdownToHtmlConverter.Convert("""
+            ```mermaid
+            graph TD;
+                A-->B;
+            ```
+            """);
+
+        html.Should().Contain("<pre class=\"mermaid\">");
+        html.Should().Contain("graph TD;");
+        html.Should().Contain(MarkdownToHtmlConverter.MermaidScriptUri);
+        html.Should().Contain("window.gitextensionsRenderMermaid");
+        html.Should().NotContain("<pre><code>graph TD;");
+        html.Should().NotContain("cdn.jsdelivr");
+        html.Should().NotContain("unpkg.com");
+    }
+
+    [Test]
     public void Convert_list_continuation_should_stay_in_same_li()
     {
         string html = MarkdownToHtmlConverter.Convert("""
