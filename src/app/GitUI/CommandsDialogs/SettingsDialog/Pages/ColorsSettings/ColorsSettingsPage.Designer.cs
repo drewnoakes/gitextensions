@@ -34,7 +34,6 @@ partial class ColorsSettingsPage
         TableLayoutPanel tlpnlMain;
         gbRevisionGraph = new GroupBox();
         tlpnlRevisionGraph = new TableLayoutPanel();
-        chkFillRefLabels = new CheckBox();
         chkHighlightAuthored = new CheckBox();
         MulticolorBranches = new CheckBox();
         chkDrawAlternateBackColor = new CheckBox();
@@ -99,7 +98,6 @@ partial class ColorsSettingsPage
         tlpnlRevisionGraph.ColumnCount = 2;
         tlpnlRevisionGraph.ColumnStyles.Add(new ColumnStyle());
         tlpnlRevisionGraph.ColumnStyles.Add(new ColumnStyle());
-        tlpnlRevisionGraph.Controls.Add(chkFillRefLabels, 0, 5);
         tlpnlRevisionGraph.Controls.Add(chkHighlightAuthored, 0, 4);
         tlpnlRevisionGraph.Controls.Add(MulticolorBranches, 0, 0);
         tlpnlRevisionGraph.Controls.Add(chkDrawAlternateBackColor, 0, 1);
@@ -108,8 +106,7 @@ partial class ColorsSettingsPage
         tlpnlRevisionGraph.Dock = DockStyle.Fill;
         tlpnlRevisionGraph.Location = new Point(8, 24);
         tlpnlRevisionGraph.Name = "tlpnlRevisionGraph";
-        tlpnlRevisionGraph.RowCount = 6;
-        tlpnlRevisionGraph.RowStyles.Add(new RowStyle());
+        tlpnlRevisionGraph.RowCount = 5;
         tlpnlRevisionGraph.RowStyles.Add(new RowStyle());
         tlpnlRevisionGraph.RowStyles.Add(new RowStyle());
         tlpnlRevisionGraph.RowStyles.Add(new RowStyle());
@@ -117,17 +114,6 @@ partial class ColorsSettingsPage
         tlpnlRevisionGraph.RowStyles.Add(new RowStyle());
         tlpnlRevisionGraph.Size = new Size(1489, 150);
         tlpnlRevisionGraph.TabIndex = 0;
-        // 
-        // chkFillRefLabels
-        // 
-        chkFillRefLabels.AutoSize = true;
-        chkFillRefLabels.Dock = DockStyle.Fill;
-        chkFillRefLabels.Location = new Point(3, 128);
-        chkFillRefLabels.Name = "chkFillRefLabels";
-        chkFillRefLabels.Size = new Size(183, 19);
-        chkFillRefLabels.TabIndex = 6;
-        chkFillRefLabels.Text = "Fill git ref labels";
-        chkFillRefLabels.UseVisualStyleBackColor = true;
         // 
         // chkHighlightAuthored
         // 
@@ -351,5 +337,4 @@ partial class ColorsSettingsPage
     private GitUI.ScriptsEngine.SplitButton sbOpenThemeFolder;
     private ComboBox _NO_TRANSLATE_cbSelectTheme;
     private Label lblRestartNeeded;
-    private CheckBox chkFillRefLabels;
 }

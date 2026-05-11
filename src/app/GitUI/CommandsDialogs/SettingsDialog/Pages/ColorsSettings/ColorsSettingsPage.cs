@@ -114,7 +114,6 @@ public partial class ColorsSettingsPage : SettingsPageWithHeader, IColorsSetting
         DrawNonRelativesGray.Checked = AppSettings.RevisionGraphDrawNonRelativesGray;
         DrawNonRelativesTextGray.Checked = AppSettings.RevisionGraphDrawNonRelativesTextGray;
         chkHighlightAuthored.Checked = AppSettings.HighlightAuthoredRevisions;
-        chkFillRefLabels.Checked = AppSettings.FillRefLabels;
         _controller.ShowThemeSettings();
 
         base.SettingsToPage();
@@ -127,7 +126,6 @@ public partial class ColorsSettingsPage : SettingsPageWithHeader, IColorsSetting
         AppSettings.RevisionGraphDrawNonRelativesGray = DrawNonRelativesGray.Checked;
         AppSettings.RevisionGraphDrawNonRelativesTextGray = DrawNonRelativesTextGray.Checked;
         AppSettings.HighlightAuthoredRevisions = chkHighlightAuthored.Checked;
-        AppSettings.FillRefLabels = chkFillRefLabels.Checked;
         _controller.ApplyThemeSettings();
 
         base.PageToSettings();

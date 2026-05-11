@@ -1583,12 +1583,6 @@ public static partial class AppSettings
         set { SetBool("highlightauthoredrevisions", value); }
     }
 
-    public static bool FillRefLabels
-    {
-        get => GetBool("FillRefLabels", true);
-        set => SetBool("FillRefLabels", value);
-    }
-
     public static ISetting<bool> MergeGraphLanesHavingCommonParent { get; } = Setting.Create(RevisionGraphSettingsPath, nameof(MergeGraphLanesHavingCommonParent), true);
 
     public static ISetting<bool> RenderGraphWithDiagonals { get; } = Setting.Create(RevisionGraphSettingsPath, nameof(RenderGraphWithDiagonals), true);

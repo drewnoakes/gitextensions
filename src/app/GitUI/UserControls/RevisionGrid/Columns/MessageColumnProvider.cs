@@ -17,8 +17,7 @@ namespace GitUI.UserControls.RevisionGrid.Columns;
 internal sealed class MessageColumnProvider : ColumnProvider
 {
     private record struct Settings
-        (bool FillRefLabels,
-        bool NotesInSeparateColumn,
+        (bool NotesInSeparateColumn,
         bool ShowAnnotatedTagsMessages,
         bool ShowCommitBodyInRevisionGrid,
         bool ShowGitNotes,
@@ -78,7 +77,6 @@ internal sealed class MessageColumnProvider : ColumnProvider
     public override void ApplySettings()
     {
         _settings = new Settings(
-            FillRefLabels: AppSettings.FillRefLabels,
             NotesInSeparateColumn: AppSettings.ShowGitNotesColumn.Value,
             ShowAnnotatedTagsMessages: AppSettings.ShowAnnotatedTagsMessages,
             ShowCommitBodyInRevisionGrid: AppSettings.ShowCommitBodyInRevisionGrid,
@@ -176,7 +174,7 @@ internal sealed class MessageColumnProvider : ColumnProvider
                 messageBounds,
                 e.Graphics,
                 dashedLine: false,
-                fill: _settings.FillRefLabels,
+                fill: true,
                 highlight: isStashHighlighted);
             if (stashRect != Rectangle.Empty)
             {
@@ -403,7 +401,8 @@ internal sealed class MessageColumnProvider : ColumnProvider
                 icon,
                 messageBounds,
                 e.Graphics!,
-                dashedLine: true);
+                dashedLine: true,
+                fill: true);
         }
     }
 
@@ -446,7 +445,8 @@ internal sealed class MessageColumnProvider : ColumnProvider
                 isSelected ? RefLabelIcon.ArrowFilled : RefLabelIcon.ArrowNotFilled,
                 messageBounds,
                 e.Graphics!,
-                dashedLine: true);
+                dashedLine: true,
+                fill: true);
         }
     }
 
@@ -512,7 +512,7 @@ internal sealed class MessageColumnProvider : ColumnProvider
             messageBounds,
             e.Graphics!,
             dashedLine: superprojectRef is not null,
-            fill: _settings.FillRefLabels,
+            fill: true,
             highlight: highlight);
     }
 

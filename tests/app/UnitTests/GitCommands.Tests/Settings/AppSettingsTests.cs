@@ -316,7 +316,6 @@ internal sealed class AppSettingsTests
             yield return (properties[nameof(AppSettings.UseSystemVisualStyle)], true, false, false);
             yield return (properties[nameof(AppSettings.MulticolorBranches)], true, false, false);
             yield return (properties[nameof(AppSettings.HighlightAuthoredRevisions)], true, false, false);
-            yield return (properties[nameof(AppSettings.FillRefLabels)], false, false, false);
             yield return (properties[nameof(AppSettings.MergeGraphLanesHavingCommonParent)], true, false, true);
             yield return (properties[nameof(AppSettings.RenderGraphWithDiagonals)], true, false, true);
             yield return (properties[nameof(AppSettings.StraightenGraphDiagonals)], true, false, true);
