@@ -36,4 +36,9 @@ internal sealed class RefContextMenuContext
     ///  Parameters are: base commit ID, head commit ID, base display string, head display string.
     /// </summary>
     public required Action<ObjectId, ObjectId, string, string> ShowFormDiff { get; init; }
+
+    /// <summary>
+    ///  Determines whether the first commit is an ancestor of the second commit in the in-memory revision graph.
+    /// </summary>
+    public required Func<ObjectId, ObjectId, bool> IsAncestorOf { get; init; }
 }

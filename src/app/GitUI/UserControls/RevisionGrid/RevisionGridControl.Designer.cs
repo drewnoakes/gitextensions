@@ -36,6 +36,7 @@ partial class RevisionGridControl
         toolStripSeparator8 = new ToolStripSeparator();
         checkoutBranchToolStripMenuItem = new ToolStripMenuItem();
         mergeBranchToolStripMenuItem = new ToolStripMenuItem();
+        fastForwardCurrentBranchToolStripMenuItem = new ToolStripMenuItem();
         resetCurrentBranchToHereToolStripMenuItem = new ToolStripMenuItem();
         resetAnotherBranchToHereToolStripMenuItem = new ToolStripMenuItem();
         rebaseOnToolStripMenuItem = new ToolStripMenuItem();
@@ -134,6 +135,7 @@ partial class RevisionGridControl
         stashStripSeparator,
         checkoutBranchToolStripMenuItem,
         tsmiPushBranch,
+        fastForwardCurrentBranchToolStripMenuItem,
         mergeBranchToolStripMenuItem,
         rebaseOnToolStripMenuItem,
         resetCurrentBranchToHereToolStripMenuItem,
@@ -243,6 +245,14 @@ partial class RevisionGridControl
         checkoutBranchToolStripMenuItem.Size = new Size(264, 24);
         checkoutBranchToolStripMenuItem.Text = "Chec&kout branch...";
         checkoutBranchToolStripMenuItem.Click += PerformFirstDropdownItemClick;
+        // 
+        // fastForwardCurrentBranchToolStripMenuItem
+        //
+        fastForwardCurrentBranchToolStripMenuItem.Image = Properties.Images.Merge;
+        fastForwardCurrentBranchToolStripMenuItem.Name = nameof(fastForwardCurrentBranchToolStripMenuItem);
+        fastForwardCurrentBranchToolStripMenuItem.Size = new Size(264, 24);
+        fastForwardCurrentBranchToolStripMenuItem.Text = "Fast-forward current branch &here";
+        fastForwardCurrentBranchToolStripMenuItem.Click += FastForwardCurrentBranchToolStripMenuItemClick;
         // 
         // mergeBranchToolStripMenuItem
         // 
@@ -619,6 +629,7 @@ partial class RevisionGridControl
     private ToolStripMenuItem dropStashToolStripMenuItem;
     private ToolStripMenuItem checkoutBranchToolStripMenuItem;
     private ToolStripMenuItem mergeBranchToolStripMenuItem;
+    private ToolStripMenuItem fastForwardCurrentBranchToolStripMenuItem;
     private ToolStripMenuItem cherryPickCommitToolStripMenuItem;
     private ToolStripMenuItem rebaseOnToolStripMenuItem;
     private ToolStripMenuItem rebaseToolStripMenuItem;

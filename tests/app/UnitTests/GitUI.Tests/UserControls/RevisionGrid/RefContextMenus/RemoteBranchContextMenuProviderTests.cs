@@ -30,6 +30,7 @@ public class RemoteBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
     }
 
@@ -148,6 +149,7 @@ public class RemoteBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
 
         IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());

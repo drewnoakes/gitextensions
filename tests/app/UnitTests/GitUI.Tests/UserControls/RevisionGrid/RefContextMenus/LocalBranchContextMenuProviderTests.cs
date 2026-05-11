@@ -30,6 +30,7 @@ public class LocalBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
     }
 
@@ -128,6 +129,45 @@ public class LocalBranchContextMenuProviderTests
     }
 
     [Test]
+    public void Populate_should_include_fast_forward_for_descendant_branch()
+    {
+        ObjectId featureId = ObjectId.Random();
+        IGitRef gitRef = CreateLocalBranchRef("feature", featureId);
+        using ContextMenuStrip menu = new();
+
+        RefContextMenuContext context = CreateContext(
+            isAncestorOf: (ancestorId, descendantId) => ancestorId == _currentCheckout && descendantId == featureId);
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
+
+        menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text?.Replace("&", ""))
+            .Should().Contain(t => t == "Fast-forward to this branch");
+    }
+
+    [Test]
+    public void Populate_should_include_fast_forward_for_descendant_branch_checked_out_in_worktree()
+    {
+        ObjectId featureId = ObjectId.Random();
+        IGitRef gitRef = CreateLocalBranchRef("feature", featureId);
+        using ContextMenuStrip menu = new();
+
+        RefContextMenuContext context = CreateContext(
+            getWorktreePathForBranch: name => name == "feature" ? @"C:\repo-wt" : null,
+            isAncestorOf: (ancestorId, descendantId) => ancestorId == _currentCheckout && descendantId == featureId);
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
+
+        IEnumerable<string?> texts = menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text?.Replace("&", ""));
+        texts.Should().Contain(t => t == "Open branch's worktree");
+        texts.Should().Contain(t => t == "Fast-forward to this branch");
+        texts.Should().NotContain(t => t != null && t.Contains("Checkout"));
+    }
+
+    [Test]
     public void Populate_should_not_include_merge_or_rebase_when_at_current_head()
     {
         IGitRef gitRef = CreateLocalBranchRef("feature", _currentCheckout);
@@ -217,6 +257,7 @@ public class LocalBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -248,6 +289,7 @@ public class LocalBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = name => name == "feature" ? worktreePath : null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -294,6 +336,7 @@ public class LocalBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = name => name == "feature" ? @"C:\repo-wt" : null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -373,6 +416,7 @@ public class LocalBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (b, h, bs, hs) => captured = (b, h, bs, hs),
+            IsAncestorOf = (_, _) => false,
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
@@ -409,6 +453,7 @@ public class LocalBranchContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (b, h, bs, hs) => captured = (b, h, bs, hs),
+            IsAncestorOf = (_, _) => false,
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
@@ -421,6 +466,28 @@ public class LocalBranchContextMenuProviderTests
         captured.capturedHead.Should().Be(_currentCheckout);
         captured.capturedBaseStr.Should().Be("feature");
         captured.capturedHeadStr.Should().Be("main");
+    }
+
+    private RefContextMenuContext CreateContext(
+        Func<string, string?>? getWorktreePathForBranch = null,
+        Func<ObjectId, ObjectId, bool>? isAncestorOf = null)
+    {
+        return new RefContextMenuContext
+        {
+            UICommands = _uiCommands,
+            ParentForm = null,
+            CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
+            CurrentCheckout = _currentCheckout,
+            IsBareRepository = false,
+            GetRefUnambiguousName = r => r.Name,
+            GetLatestSelectedRevision = () => null,
+            PerformRefreshRevisions = () => { },
+            DropStash = (_, _) => { },
+            GetWorktreePathForBranch = getWorktreePathForBranch ?? (_ => null),
+            ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = isAncestorOf ?? ((_, _) => false),
+        };
     }
 
     private static IGitRef CreateLocalBranchRef(string name, ObjectId objectId)

@@ -1,4 +1,5 @@
-﻿using GitExtensions.Extensibility.Git;
+﻿using GitCommands.Git;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.Properties;
 using ResourceManager;
@@ -12,6 +13,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
 {
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
     private readonly TranslationString _openBranchWorktree = new("Open branch's &worktree");
+    private readonly TranslationString _fastForwardToThis = new("Fast-&forward to this branch");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
     private readonly TranslationString _diffCurrentToThis = new("Diff &current → this");
@@ -55,6 +57,18 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
         if (!context.IsBareRepository && !isAtCurrentHead)
         {
             string refUnambiguousName = context.GetRefUnambiguousName(gitRef);
+
+            if (context.CurrentCheckout is ObjectId headId
+                && gitRef.ObjectId is ObjectId branchObjectId
+                && context.IsAncestorOf(headId, branchObjectId))
+            {
+                ToolStripMenuItem fastForward = new(_fastForwardToThis.Text, Images.Merge);
+                fastForward.Click += (_, _) => context.UICommands.StartCommandLineProcessDialog(
+                    context.ParentForm,
+                    Commands.MergeFastForwardOnly(gitRef.Name));
+                menu.Items.Add(fastForward);
+            }
+
             ToolStripMenuItem merge = new(_mergeIntoCurrent.Text, Images.Merge);
             merge.Click += (_, _) => context.UICommands.StartMergeBranchDialog(context.ParentForm, refUnambiguousName);
             menu.Items.Add(merge);

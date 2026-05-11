@@ -26,6 +26,7 @@ public class RefContextMenuComposerTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
     }
 

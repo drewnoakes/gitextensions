@@ -2309,6 +2309,17 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         });
     }
 
+    private void FastForwardCurrentBranchToolStripMenuItemClick(object sender, EventArgs e)
+    {
+        GitRevision? revision = LatestSelectedRevision;
+        if (revision is null)
+        {
+            return;
+        }
+
+        UICommands.StartCommandLineProcessDialog(ParentForm, Commands.MergeFastForwardOnly(revision.Guid));
+    }
+
     public void ShowReflog()
     {
         if (_filterInfo.ShowReflogReferences)
@@ -2547,6 +2558,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         mergeBranchToolStripMenuItem.DropDown = mergeBranchDropDown;
         SetEnabled(mergeBranchToolStripMenuItem, !bareRepositoryOrArtificial && HasEnabledItem(mergeBranchDropDown));
 
+        bool canFastForward = !revision.IsArtificial
+            && !Module.IsBareRepository()
+            && !currentBranchPointsToRevision
+            && CurrentCheckout is ObjectId currentCheckout
+            && IsAncestorOf(currentCheckout, revision.ObjectId);
+        SetEnabled(fastForwardCurrentBranchToolStripMenuItem, canFastForward);
+
         tsmiPushBranch.DropDown = pushBranchDropDown;
         SetEnabled(tsmiPushBranch, !bareRepositoryOrArtificial && HasEnabledItem(pushBranchDropDown));
 
@@ -2642,6 +2660,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             : gitRef.Name;
     }
 
+    private bool IsAncestorOf(ObjectId ancestorId, ObjectId descendantId)
+    {
+        return ancestorId != descendantId
+            && Module.GetMergeBase(ancestorId, descendantId) == ancestorId;
+    }
+
     private void ShowRefSpecificContextMenu(IGitRef? gitRef, string? stashReflogSelector)
     {
         IReadOnlyDictionary<string, string> otherWorktrees = _otherWorktreeBranchPaths;
@@ -2659,6 +2683,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             DropStash = DropStashToolStripMenuItemClick,
             GetWorktreePathForBranch = branchName => otherWorktrees.TryGetValue(branchName, out string? path) ? path : null,
             ShowFormDiff = ShowFormDiff,
+            IsAncestorOf = IsAncestorOf,
         };
 
         ContextMenuStrip? menu = _refContextMenuComposer.Build(gitRef, stashReflogSelector, context);

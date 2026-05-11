@@ -75,6 +75,20 @@ public static partial class Commands
         }
     }
 
+    /// <summary>
+    ///  Creates a <c>git merge --ff-only</c> command for the specified target.
+    /// </summary>
+    /// <param name="target">The branch name or commit ID to fast-forward to.</param>
+    public static IGitCommand MergeFastForwardOnly(string target)
+    {
+        return new GitCommand(accessesRemote: false, changesRepoState: true,
+            new GitArgumentBuilder("merge")
+            {
+                "--ff-only",
+                target.QuoteNE()
+            });
+    }
+
     public static IGitCommand DeleteBranch(IReadOnlyCollection<IGitRef> branches, bool force)
     {
         ArgumentNullException.ThrowIfNull(branches);

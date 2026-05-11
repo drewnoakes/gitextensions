@@ -30,6 +30,7 @@ public class TagContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
     }
 
@@ -128,6 +129,7 @@ public class TagContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
 
         IGitRef gitRef = CreateTagRef("v1.0", ObjectId.Random());

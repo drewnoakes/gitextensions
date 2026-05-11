@@ -116,6 +116,7 @@ public class StashSelectorContextMenuProviderTests
             DropStash = (_, _) => { },
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (_, _) => false,
         };
     }
 }
