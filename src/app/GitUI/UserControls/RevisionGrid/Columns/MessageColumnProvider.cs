@@ -150,6 +150,13 @@ internal sealed class MessageColumnProvider : ColumnProvider
                     continue;
                 }
 
+                // If a local branch's upstream is gone, draw a nestled "gone" indicator.
+                if (gitRef.IsHead && _grid.GoneBranches.Contains(gitRef.Name))
+                {
+                    DrawBranchWithNestledGone(e, gitRef, superprojectRef, style, messageBounds, ref offset, isHighlighted, ref hitInfos);
+                    continue;
+                }
+
                 Rectangle refRect = DrawRef(e, gitRef, superprojectRef, style, messageBounds, ref offset, isHighlighted);
                 if (refRect != Rectangle.Empty)
                 {
@@ -626,6 +633,70 @@ internal sealed class MessageColumnProvider : ColumnProvider
                 remoteRects[i] with { X = hitLeft, Width = diameter },
                 remotes[i],
                 StashReflogSelector: null));
+        }
+    }
+
+    /// <summary>
+    ///  Draws a local branch capsule with a nestled "gone" indicator behind it,
+    ///  showing that the branch's remote tracking branch no longer exists.
+    /// </summary>
+    private void DrawBranchWithNestledGone(
+        DataGridViewCellPaintingEventArgs e,
+        IGitRef gitRef,
+        IGitRef? superprojectRef,
+        CellStyle style,
+        Rectangle messageBounds,
+        ref int offset,
+        bool isHighlighted,
+        ref List<RefLabelHitInfo>? hitInfos)
+    {
+        RefLabelIcon branchIcon = gitRef.IsSelected ? RefLabelIcon.Head : RefLabelIcon.Branch;
+        Font branchFont = gitRef.IsSelected ? style.BoldFont : style.NormalFont;
+        (int branchIdealWidth, int backgroundHeight) = RevisionGridRefRenderer.MeasureRef(branchFont, gitRef.Name, branchIcon, e.Graphics!);
+
+        int branchWidth = Math.Min(messageBounds.Width - offset, branchIdealWidth);
+        if (branchWidth <= 0)
+        {
+            return;
+        }
+
+        int branchRight = messageBounds.X + offset + branchWidth;
+        int diameter = backgroundHeight;
+
+        // Check there's room for the gone indicator
+        if ((branchRight + diameter) - messageBounds.X > messageBounds.Width)
+        {
+            // Not enough room — just draw the branch without the indicator
+            Rectangle refRect = DrawRef(e, gitRef, superprojectRef, style, messageBounds, ref offset, isHighlighted);
+            if (refRect != Rectangle.Empty)
+            {
+                hitInfos ??= RentHitInfoList();
+                hitInfos.Add(new RefLabelHitInfo(refRect, gitRef, StashReflogSelector: null));
+            }
+
+            return;
+        }
+
+        int outerMarginTopBottom = (messageBounds.Height - backgroundHeight) / 2;
+        int capsuleTop = messageBounds.Y + outerMarginTopBottom;
+
+        // Draw the gone indicator behind, then the branch on top.
+        RevisionGridRefRenderer.DrawNestledGoneRef(
+            e.State.HasFlag(DataGridViewElementStates.Selected),
+            branchRight,
+            capsuleTop,
+            backgroundHeight,
+            e.Graphics!,
+            highlight: isHighlighted);
+
+        Rectangle branchRect = DrawRef(e, gitRef, superprojectRef, style, messageBounds, ref offset, isHighlighted);
+
+        offset = (branchRight + diameter) - messageBounds.X + DpiUtil.Scale(5);
+
+        if (branchRect != Rectangle.Empty)
+        {
+            hitInfos ??= RentHitInfoList();
+            hitInfos.Add(new RefLabelHitInfo(branchRect, gitRef, StashReflogSelector: null));
         }
     }
 

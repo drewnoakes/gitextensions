@@ -206,6 +206,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     internal ObjectId? CurrentCheckout { get; private set; }
     internal Lazy<string> CurrentBranch { get; private set; } = new(() => "");
     internal FilterInfo CurrentFilter => _filterInfo;
+
+    /// <summary>
+    ///  Names of local branches whose configured upstream (remote tracking branch) no longer exists.
+    /// </summary>
+    internal IReadOnlySet<string> GoneBranches { get; private set; } = new HashSet<string>();
+
     internal bool ShowUncommittedChangesIfPossible { get; set; } = true;
     internal bool ShowBuildServerInfo { get; set; }
     internal bool DoubleClickDoesNotOpenCommitInfo { get; set; }
@@ -1118,6 +1124,23 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                     : getUnfilteredRefs.Value)
                     .Where(gitRef => gitRef.ObjectId.HasValue)
                     .ToLookup(gitRef => gitRef.ObjectId!.Value);
+
+                // Detect local branches whose configured upstream no longer exists.
+                HashSet<string> allRemoteRefs = [.. getUnfilteredRefs.Value.Where(r => r.IsRemote).Select(r => r.CompleteName)];
+                HashSet<string> goneBranches = [];
+                foreach (IGitRef r in getUnfilteredRefs.Value)
+                {
+                    if (r.IsHead
+                        && !string.IsNullOrEmpty(r.TrackingRemote)
+                        && !string.IsNullOrEmpty(r.MergeWith)
+                        && !allRemoteRefs.Contains($"{GitRefName.RefsRemotesPrefix}{r.TrackingRemote}/{r.MergeWith}"))
+                    {
+                        goneBranches.Add(r.Name);
+                    }
+                }
+
+                GoneBranches = goneBranches;
+
                 cancellationToken.ThrowIfCancellationRequested();
                 ResetNavigationHistory();
                 UpdateSelectedRef(capturedModule, getUnfilteredRefs.Value, headRef.Value);

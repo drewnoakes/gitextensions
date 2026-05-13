@@ -23,6 +23,9 @@ internal enum RefLabelIcon
     /// <summary>Cloud icon for remote tracking branches.</summary>
     Remote,
 
+    /// <summary>X icon for remote tracking branches whose upstream is gone.</summary>
+    RemoteGone,
+
     /// <summary>Tag-shaped background for tags, with the tag name written directly on the shape.</summary>
     Tag,
 

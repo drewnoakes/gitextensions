@@ -543,6 +543,90 @@ internal static class RevisionGridRefRenderer
         return shapeBounds;
     }
 
+    /// <summary>
+    ///  Draws a nestled "gone" indicator (D-shape with an X icon) to show
+    ///  that the local branch's remote tracking branch no longer exists.
+    /// </summary>
+    public static Rectangle DrawNestledGoneRef(
+        bool isRowSelected,
+        int precedingRight,
+        int capsuleTop,
+        int backgroundHeight,
+        Graphics graphics,
+        bool highlight)
+    {
+        int diameter = backgroundHeight;
+        int radius = diameter / 2;
+
+        int shapeLeft = precedingRight - radius;
+        int shapeTop = capsuleTop;
+        int shapeBottom = capsuleTop + backgroundHeight;
+        float midY = shapeTop + radius;
+
+        Rectangle shapeBounds = new(shapeLeft, shapeTop, 3 * radius, backgroundHeight);
+
+        if (shapeBounds.Width <= 0 || shapeBounds.Height <= 0)
+        {
+            return Rectangle.Empty;
+        }
+
+        bool isDark = SystemColors.Window.GetBrightness() < 0.5f;
+        Color goneColor = isDark ? Color.FromArgb(140, 50, 50) : Color.FromArgb(200, 100, 100);
+
+        SmoothingMode oldMode = graphics.SmoothingMode;
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        try
+        {
+            using GraphicsPath fillPath = new();
+            fillPath.AddLine(shapeLeft, shapeTop, shapeLeft + (2 * radius), shapeTop);
+            fillPath.AddArc(precedingRight, shapeTop, diameter, diameter, -90, 180);
+            fillPath.AddLine(shapeLeft + (2 * radius), shapeBottom, shapeLeft, shapeBottom);
+            fillPath.CloseFigure();
+
+            using SolidBrush fillBrush = new(goneColor);
+            graphics.FillPath(fillBrush, fillPath);
+
+            using GraphicsPath strokePath = new();
+            strokePath.AddLine(shapeLeft, shapeTop, shapeLeft + (2 * radius), shapeTop);
+            strokePath.AddArc(precedingRight, shapeTop, diameter, diameter, -90, 180);
+            strokePath.AddLine(shapeLeft + (2 * radius), shapeBottom, shapeLeft, shapeBottom);
+
+            float highlightFactor = highlight ? 0.8f : 0.5f;
+            Color borderColor = isDark
+                ? ColorHelper.Lerp(goneColor, Color.White, highlightFactor)
+                : ColorHelper.Lerp(goneColor, Color.Black, highlightFactor);
+            float borderWidth = highlight ? 2f : 1.25f;
+            using Pen borderPen = new(borderColor, borderWidth);
+            graphics.DrawPath(borderPen, strokePath);
+        }
+        finally
+        {
+            graphics.SmoothingMode = oldMode;
+        }
+
+        // X icon centred in the semicircle
+        Color iconColor = isDark ? Color.FromArgb(255, 200, 200) : Color.White;
+
+        int paddingTopBottom = DpiUtil.Scale(2);
+        int iconSize = Math.Max(4, backgroundHeight - (paddingTopBottom * 4) + 1);
+        float iconX = (precedingRight + radius) - (iconSize / 2f);
+        float iconY = midY - (iconSize / 2f);
+
+        SmoothingMode iconOldMode = graphics.SmoothingMode;
+        graphics.SmoothingMode = SmoothingMode.HighQuality;
+        try
+        {
+            DrawGoneIcon(graphics, iconColor, iconX, iconY, iconSize);
+        }
+        finally
+        {
+            graphics.SmoothingMode = iconOldMode;
+        }
+
+        return shapeBounds;
+    }
+
     public static Color GetHeadColor(IGitRef gitRef)
     {
         if (gitRef.IsTag)
@@ -641,6 +725,24 @@ internal static class RevisionGridRefRenderer
             x + (0.221f * s), y + (0.420f * s));
 
         graphics.DrawPath(pen, path);
+    }
+
+    /// <summary>
+    ///  Draws a small X icon at the specified position, indicating a "gone" remote tracking branch.
+    /// </summary>
+    private static void DrawGoneIcon(Graphics graphics, Color color, float x, float y, float iconSize)
+    {
+        float penWidth = Math.Max(1.5f, iconSize * 0.14f);
+        using Pen pen = new(color, penWidth) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+
+        float padding = iconSize * 0.22f;
+        float left = x + padding;
+        float top = y + padding;
+        float right = x + iconSize - padding;
+        float bottom = y + iconSize - padding;
+
+        graphics.DrawLine(pen, left, top, right, bottom);
+        graphics.DrawLine(pen, right, top, left, bottom);
     }
 
     private static void DrawArrow(Graphics graphics, float x, float y, float rowHeight, Color color, bool filled)
