@@ -1023,6 +1023,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         ILookup<ObjectId, ArtificialWorktreeInfo> artificialWorktreesByHead = Enumerable.Empty<ArtificialWorktreeInfo>().ToLookup(info => default(ObjectId));
         HashSet<ArtificialWorktreeInfo> handledArtificialWorktrees = [];
 
+        ObjectId? previousCheckout = CurrentCheckout;
+
         // getRefs (refreshing from Browse) is Lazy already, but not from RevGrid (updating filters etc)
         Lazy<IReadOnlyList<IGitRef>> getUnfilteredRefs = new(() => (getRefs ?? capturedModule.GetRefs)(RefsFilter.NoFilter));
         _ambiguousRefs = new(() => GitRef.GetAmbiguousRefNames(getUnfilteredRefs.Value));
@@ -1085,8 +1087,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             Lazy<ObjectId?> currentCheckout = new(() =>
                 headRef.Value?.ObjectId ?? capturedModule.GetCurrentCheckout());
 
-            ObjectId? previousCheckout = CurrentCheckout;
-
             bool showStashes = AppSettings.ShowStashes;
 
             // Evaluate GitRefs and current commit
@@ -1094,8 +1094,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // If the current checkout (HEAD) is changed, don't get the currently selected rows,
-                // select the new current checkout instead.
+                // Update CurrentCheckout; the selection is always preserved (scroll may adjust to show new HEAD).
                 CurrentCheckout = currentCheckout.Value;
 
                 // Fetch worktrees once for both artificial commit placement and branch-label decoration.
@@ -1112,18 +1111,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 _otherWorktreeBranchPaths = otherWorktreeBranchPaths;
                 _gridView.Invalidate();
                 await TaskScheduler.Default;
-
-                if (CurrentCheckout != previousCheckout)
-                {
-                    if (CurrentCheckout is null)
-                    {
-                        currentlySelectedObjectIds = null;
-                    }
-                    else
-                    {
-                        currentlySelectedObjectIds = new List<ObjectId> { CurrentCheckout.Value };
-                    }
-                }
 
                 // Exclude the 'stash' ref, it is specially handled when stashes are shown
                 refsByObjectId = (showStashes
@@ -1624,6 +1611,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 await this.SwitchToMainThreadAsync(cancellationToken);
 
                 SetPage(_gridView);
+
+                // After selection is restored, scroll to show the new HEAD if it moved,
+                // while keeping the selected commit visible.
+                if (CurrentCheckout != previousCheckout && CurrentCheckout is not null)
+                {
+                    _gridView.TryScrollToShowRevision(CurrentCheckout.Value);
+                }
 
                 _isRefreshingRevisions = false;
                 RevisionsLoaded?.Invoke(this, new RevisionLoadEventArgs(this, UICommands, getUnfilteredRefs, getStashRevs, forceRefresh));

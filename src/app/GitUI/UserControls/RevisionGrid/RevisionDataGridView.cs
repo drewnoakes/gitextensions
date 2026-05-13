@@ -457,6 +457,68 @@ public sealed partial class RevisionDataGridView : DataGridView
     }
 
     /// <summary>
+    ///  Tries to scroll the viewport to make <paramref name="revisionId"/> visible,
+    ///  while ensuring the currently selected commit remains visible.
+    ///  If both cannot be shown simultaneously, the selected commit takes priority.
+    /// </summary>
+    public void TryScrollToShowRevision(ObjectId revisionId)
+    {
+        int? targetRow = TryGetRevisionIndex(revisionId);
+        if (targetRow is null)
+        {
+            return;
+        }
+
+        int countVisible = DisplayedRowCount(includePartialRow: false);
+        if (countVisible <= 0)
+        {
+            return;
+        }
+
+        int firstVisible = FirstDisplayedScrollingRowIndex;
+
+        // Already visible, nothing to do
+        if (targetRow >= firstVisible && targetRow < firstVisible + countVisible)
+        {
+            return;
+        }
+
+        int? selectedRow = CurrentCell?.RowIndex;
+        if (selectedRow is null)
+        {
+            EnsureRowVisible(targetRow.Value);
+            return;
+        }
+
+        // Only scroll if the selected commit is currently visible
+        bool selectedIsVisible = selectedRow >= firstVisible && selectedRow < firstVisible + countVisible;
+        if (!selectedIsVisible)
+        {
+            return;
+        }
+
+        // Scroll toward the target, but keep the selected row within the viewport.
+        // Row indices increase downward (older commits), so a target above the viewport
+        // has a smaller index than firstVisible.
+        int newFirst;
+        if (targetRow < firstVisible)
+        {
+            // Scroll up: show target, but don't push selected off the bottom
+            newFirst = Math.Max(targetRow.Value, selectedRow.Value - countVisible + 1);
+        }
+        else
+        {
+            // Scroll down: show target, but don't push selected off the top
+            newFirst = Math.Min(targetRow.Value - countVisible + 1, selectedRow.Value);
+        }
+
+        if (newFirst >= 0 && newFirst != firstVisible)
+        {
+            FirstDisplayedScrollingRowIndex = newFirst;
+        }
+    }
+
+    /// <summary>
     /// Returns if any of the to-be-selected was found in the loaded revisions but are not yet selected.
     /// </summary>
     public bool PendingToBeSelected => _loadedToBeSelectedRevisionsCount > 0;
