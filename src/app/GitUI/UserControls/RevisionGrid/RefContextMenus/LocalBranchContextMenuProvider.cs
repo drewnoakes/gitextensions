@@ -1,4 +1,6 @@
-﻿using GitCommands.Git;
+using GitCommands;
+using GitCommands.Git;
+using GitCommands.Remotes;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.Properties;
@@ -22,6 +24,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
     private readonly TranslationString _deleteBranch = new("&Delete this branch");
     private readonly TranslationString _deleteBranchAndWorktree = new("&Delete branch and worktree...");
     private readonly TranslationString _pushBranch = new("Pus&h this branch");
+    private readonly TranslationString _viewOnRemote = new("View branch on &remote site");
 
     public bool Handles(IGitRef? gitRef, string? stashReflogSelector) => gitRef?.IsHead is true;
 
@@ -126,6 +129,16 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
             ToolStripMenuItem push = new(_pushBranch.Text, Images.Push);
             push.Click += (_, _) => context.UICommands.StartPushDialog(context.ParentForm, pushOnShow: false, forceWithLease: false, out _, gitRef.Name);
             menu.Items.Add(push);
+        }
+
+        if (!string.IsNullOrEmpty(gitRef.TrackingRemote)
+            && !string.IsNullOrEmpty(gitRef.MergeWith)
+            && RemoteBranchWebUrl.TryBuild(context.UICommands.Module, gitRef.TrackingRemote, gitRef.MergeWith, out string? webUrl))
+        {
+            menu.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem viewOnRemote = new(_viewOnRemote.Text, Images.Globe);
+            viewOnRemote.Click += (_, _) => OsShellUtil.OpenUrlInDefaultBrowser(webUrl);
+            menu.Items.Add(viewOnRemote);
         }
     }
 }

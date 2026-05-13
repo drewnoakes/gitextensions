@@ -1,4 +1,6 @@
-﻿using GitExtensions.Extensibility.Git;
+using GitCommands;
+using GitCommands.Remotes;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.Properties;
 using ResourceManager;
@@ -16,6 +18,7 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
     private readonly TranslationString _diffCurrentToThis = new("Diff &current → this");
     private readonly TranslationString _diffThisToCurrent = new("Diff this → cu&rrent");
     private readonly TranslationString _deleteBranch = new("&Delete this branch");
+    private readonly TranslationString _viewOnRemote = new("View branch on &remote site");
 
     public bool Handles(IGitRef? gitRef, string? stashReflogSelector) => gitRef?.IsRemote is true;
 
@@ -65,5 +68,13 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
         ToolStripMenuItem delete = new(_deleteBranch.Text, Images.BranchDelete);
         delete.Click += (_, _) => context.UICommands.StartDeleteRemoteBranchDialog(context.ParentForm, gitRef.Name);
         menu.Items.Add(delete);
+
+        if (RemoteBranchWebUrl.TryBuild(context.UICommands.Module, gitRef.Remote, gitRef.LocalName, out string? webUrl))
+        {
+            menu.Items.Add(new ToolStripSeparator());
+            ToolStripMenuItem viewOnRemote = new(_viewOnRemote.Text, Images.Globe);
+            viewOnRemote.Click += (_, _) => OsShellUtil.OpenUrlInDefaultBrowser(webUrl);
+            menu.Items.Add(viewOnRemote);
+        }
     }
 }
