@@ -1,4 +1,5 @@
-﻿using GitCommands.ExternalLinks;
+﻿using System.Diagnostics.CodeAnalysis;
+using GitCommands.ExternalLinks;
 using GitCommands.Remotes;
 using GitUI.Properties;
 
@@ -13,6 +14,24 @@ public sealed class AzureDevopsExternalLinkDefinitionExtractor : ExternalLinkDef
     public override bool IsValidRemoteUrl(string remoteUrl)
     {
         return _azureDevOpsRemoteParser.IsValidRemoteUrl(remoteUrl);
+    }
+
+    public override bool TryBuildBranchUrl(string remoteUrl, string branchName, [NotNullWhen(true)] out string? url)
+    {
+        url = null;
+        if (!_azureDevOpsRemoteParser.TryExtractAzureDevopsDataFromRemoteUrl(remoteUrl, out string? owner, out string? project, out string? repo))
+        {
+            return false;
+        }
+
+        string? repoWebUrl = AzureDevOpsRemoteParser.BuildRepositoryUrl(remoteUrl, owner, project, repo);
+        if (repoWebUrl is null)
+        {
+            return false;
+        }
+
+        url = $"{repoWebUrl}?version=GB{Uri.EscapeDataString(branchName)}";
+        return true;
     }
 
     public override IList<ExternalLinkDefinition> GetDefinitions(string remoteUrl)

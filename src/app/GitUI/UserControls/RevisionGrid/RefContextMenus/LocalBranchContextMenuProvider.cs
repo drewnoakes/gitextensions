@@ -1,8 +1,9 @@
 using GitCommands;
+using GitCommands.Config;
 using GitCommands.Git;
-using GitCommands.Remotes;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
+using GitUI.CommandsDialogs.SettingsDialog.RevisionLinks;
 using GitUI.Properties;
 using ResourceManager;
 
@@ -24,7 +25,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
     private readonly TranslationString _deleteBranch = new("&Delete this branch");
     private readonly TranslationString _deleteBranchAndWorktree = new("&Delete branch and worktree...");
     private readonly TranslationString _pushBranch = new("Pus&h this branch");
-    private readonly TranslationString _viewOnRemote = new("View branch on &remote site");
+    private readonly TranslationString _viewOnRemote = new("View branch on {0}");
 
     public bool Handles(IGitRef? gitRef, string? stashReflogSelector) => gitRef?.IsHead is true;
 
@@ -131,14 +132,30 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
             menu.Items.Add(push);
         }
 
-        if (!string.IsNullOrEmpty(gitRef.TrackingRemote)
-            && !string.IsNullOrEmpty(gitRef.MergeWith)
-            && RemoteBranchWebUrl.TryBuild(context.UICommands.Module, gitRef.TrackingRemote, gitRef.MergeWith, out string? webUrl))
+        if (!string.IsNullOrEmpty(gitRef.TrackingRemote) && !string.IsNullOrEmpty(gitRef.MergeWith))
         {
-            menu.Items.Add(new ToolStripSeparator());
-            ToolStripMenuItem viewOnRemote = new(_viewOnRemote.Text, Images.Globe);
-            viewOnRemote.Click += (_, _) => OsShellUtil.OpenUrlInDefaultBrowser(webUrl);
-            menu.Items.Add(viewOnRemote);
+            AddViewOnRemoteItem(menu, context.UICommands.Module, gitRef.TrackingRemote, gitRef.MergeWith);
+        }
+    }
+
+    private void AddViewOnRemoteItem(ContextMenuStrip menu, IGitModule module, string remoteName, string branchName)
+    {
+        string remoteUrl = module.GetSetting(string.Format(SettingKeyString.RemoteUrl, remoteName));
+        if (string.IsNullOrWhiteSpace(remoteUrl))
+        {
+            return;
+        }
+
+        foreach (ICloudProviderExternalLinkDefinitionExtractor extractor in new CloudProviderExternalLinkDefinitionExtractorFactory().GetAllExtractor())
+        {
+            if (extractor.TryBuildBranchUrl(remoteUrl, branchName, out string? url))
+            {
+                menu.Items.Add(new ToolStripSeparator());
+                ToolStripMenuItem viewOnRemote = new(string.Format(_viewOnRemote.Text, extractor.ServiceName), extractor.Icon);
+                viewOnRemote.Click += (_, _) => OsShellUtil.OpenUrlInDefaultBrowser(url);
+                menu.Items.Add(viewOnRemote);
+                return;
+            }
         }
     }
 }

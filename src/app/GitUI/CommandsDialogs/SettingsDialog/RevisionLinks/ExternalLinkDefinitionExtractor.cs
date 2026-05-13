@@ -1,4 +1,5 @@
-﻿using GitCommands.ExternalLinks;
+using System.Diagnostics.CodeAnalysis;
+using GitCommands.ExternalLinks;
 using ResourceManager;
 
 namespace GitUI.CommandsDialogs.SettingsDialog.RevisionLinks;
@@ -16,4 +17,11 @@ public abstract class ExternalLinkDefinitionExtractor : ICloudProviderExternalLi
 
     public abstract bool IsValidRemoteUrl(string remoteUrl);
     public abstract IList<ExternalLinkDefinition> GetDefinitions(string remoteUrl);
+
+    /// <inheritdoc />
+    public virtual bool TryBuildBranchUrl(string remoteUrl, string branchName, [NotNullWhen(true)] out string? url)
+    {
+        url = null;
+        return false;
+    }
 }

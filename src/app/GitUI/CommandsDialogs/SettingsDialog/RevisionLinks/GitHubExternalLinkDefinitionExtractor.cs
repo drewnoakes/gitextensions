@@ -1,4 +1,5 @@
-﻿using GitCommands.ExternalLinks;
+﻿using System.Diagnostics.CodeAnalysis;
+using GitCommands.ExternalLinks;
 using GitCommands.Remotes;
 using GitUI.Properties;
 
@@ -13,6 +14,18 @@ public sealed class GitHubExternalLinkDefinitionExtractor : ExternalLinkDefiniti
     public override bool IsValidRemoteUrl(string remoteUrl)
     {
         return _remoteParser.IsValidRemoteUrl(remoteUrl);
+    }
+
+    public override bool TryBuildBranchUrl(string remoteUrl, string branchName, [NotNullWhen(true)] out string? url)
+    {
+        url = null;
+        if (!_remoteParser.TryExtractGitHubDataFromRemoteUrl(remoteUrl, out string? owner, out string? repo))
+        {
+            return false;
+        }
+
+        url = $"https://github.com/{owner}/{repo}/tree/{Uri.EscapeDataString(branchName)}";
+        return true;
     }
 
     public override IList<ExternalLinkDefinition> GetDefinitions(string remoteUrl)
