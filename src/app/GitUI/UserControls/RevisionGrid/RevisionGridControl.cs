@@ -169,6 +169,13 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     internal IReadOnlyDictionary<string, string> OtherWorktreeBranchPaths => _otherWorktreeBranchPaths;
 
+    private readonly WorktreeStatusCache _worktreeStatusCache = new();
+
+    /// <summary>
+    ///  Cached status for non-current worktrees, keyed by worktree path.
+    /// </summary>
+    internal WorktreeStatusCache WorktreeStatusCache => _worktreeStatusCache;
+
     private int _updatingFilters;
 
     private IDisposable? _revisionSubscription;
@@ -296,6 +303,9 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         _toolTipProvider = new RevisionGridToolTipProvider(_gridView);
         _toolTipProvider.ShowRevisionGridTooltips = AppSettings.ShowRevisionGridTooltips.Value;
 
+        _worktreeStatusCache.StatusChanged += () =>
+            this.InvokeAndForget(() => _gridView.Invalidate());
+
         _quickSearchProvider = new QuickSearchProvider(_gridView, () => Module.WorkingDir);
 
         // Parent-child navigation can expect that SetSelectedRevision is always successful since it always uses first-parents
@@ -386,6 +396,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             _buildServerWatcher?.Dispose();
             _customDiffToolsSequence.Dispose();
             _refreshRevisionsSequence.Dispose();
+            _worktreeStatusCache.Dispose();
 
             if (_indexWatcher.IsValueCreated)
             {
@@ -1113,6 +1124,10 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
                 // Update branch-label decoration on the UI thread while refs loading continues.
                 IReadOnlyDictionary<string, string> otherWorktreeBranchPaths = BuildOtherWorktreeBranchPaths(capturedModule, worktrees);
+
+                // Start background status queries for non-current worktrees (used for badge indicators).
+                _worktreeStatusCache.BeginRefresh(capturedUICommands, worktrees);
+
                 await this.SwitchToMainThreadAsync(cancellationToken);
                 _otherWorktreeBranchPaths = otherWorktreeBranchPaths;
                 _gridView.Invalidate();
