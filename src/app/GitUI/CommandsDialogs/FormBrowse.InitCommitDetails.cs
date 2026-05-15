@@ -32,14 +32,11 @@ partial class FormBrowse
         CommitInfoTabPage.ImageKey = nameof(Images.CommitSummary);
         DiffTabPage.ImageKey = nameof(Images.Diff);
         TreeTabPage.ImageKey = nameof(Images.FileTree);
-        GpgInfoTabPage.ImageKey = nameof(Images.Key);
 
-        if (!AppSettings.ShowGpgInformation.Value)
-        {
-            CommitInfoTabControl.SelectedIndexChanged -= CommitInfoTabControl_SelectedIndexChanged;
-            CommitInfoTabControl.RemoveIfExists(GpgInfoTabPage);
-            CommitInfoTabControl.SelectedIndexChanged += CommitInfoTabControl_SelectedIndexChanged;
-        }
+        // GPG signature status is now shown inline in the commit info header.
+        CommitInfoTabControl.SelectedIndexChanged -= CommitInfoTabControl_SelectedIndexChanged;
+        CommitInfoTabControl.RemoveIfExists(GpgInfoTabPage);
+        CommitInfoTabControl.SelectedIndexChanged += CommitInfoTabControl_SelectedIndexChanged;
 
         FillBuildReport(revision: null); // Ensure correct page visibility
 

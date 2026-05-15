@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using GitCommands.ExternalLinks;
+using GitCommands.Git.Gpg;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUIPluginInterfaces;
@@ -56,7 +57,8 @@ internal sealed class CommitInfoHtmlBuilder
         string? remoteUrl = null,
         IReadOnlyList<ExternalLink>? externalLinks = null,
         Color? themeBackground = null,
-        Color? themeForeground = null)
+        Color? themeForeground = null,
+        GpgInfo? gpgInfo = null)
     {
         bool isDark = Application.IsDarkModeEnabled;
 
@@ -306,7 +308,7 @@ internal sealed class CommitInfoHtmlBuilder
         sb.Append("<div id=\"header\" class=\"header\">");
         if (commitData is not null)
         {
-            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks, commitMessageBody, remoteUrl));
+            sb.Append(BuildHeaderInner(commitData, avatarUrl, showRevisionsAsLinks, commitMessageBody, remoteUrl, gpgInfo));
         }
 
         sb.Append("</div>");
@@ -333,7 +335,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the header section (for incremental updates).
     /// </summary>
-    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null)
+    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null, GpgInfo? gpgInfo = null)
     {
         bool isArtificial = commitData.ObjectId.IsArtificial;
         bool authorIsCommitter = string.Equals(commitData.Author, commitData.Committer, StringComparison.CurrentCulture);
@@ -350,7 +352,17 @@ internal sealed class CommitInfoHtmlBuilder
         sb.Append("<div class=\"header-details\">");
 
         // --- People section ---
-        AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author, FormatPersonHtml(commitData.Author));
+        string authorHtml = FormatPersonHtml(commitData.Author);
+
+        // GPG signature badge: show on the committer row if different from author,
+        // otherwise on the author row.
+        string gpgBadgeHtml = BuildGpgBadgeHtml(gpgInfo);
+        if (authorIsCommitter)
+        {
+            authorHtml += gpgBadgeHtml;
+        }
+
+        AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Author, authorHtml);
 
         (IReadOnlyList<string> additionalAuthors, IReadOnlyList<string> signedOffBy) = ExtractTrailers(commitBody);
 
@@ -363,7 +375,8 @@ internal sealed class CommitInfoHtmlBuilder
 
         if (!authorIsCommitter)
         {
-            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Committer, FormatPersonHtml(commitData.Committer));
+            string committerHtml = FormatPersonHtml(commitData.Committer) + gpgBadgeHtml;
+            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Committer, committerHtml);
         }
 
         foreach (string signer in signedOffBy)
@@ -446,6 +459,35 @@ internal sealed class CommitInfoHtmlBuilder
 
         sb.Append("</div>");
         return sb.ToString();
+    }
+
+    /// <summary>
+    ///  Builds an inline HTML badge for the GPG signature status.
+    ///  Returns an empty string if there is no signature.
+    /// </summary>
+    private static string BuildGpgBadgeHtml(GpgInfo? gpgInfo)
+    {
+        if (gpgInfo is null || gpgInfo.CommitStatus == CommitStatus.NoSignature)
+        {
+            return string.Empty;
+        }
+
+        (string icon, string color, string label) = gpgInfo.CommitStatus switch
+        {
+            CommitStatus.GoodSignature => ("&#x2705;", "#1a7f37", "Verified"),
+            CommitStatus.SignatureError => ("&#x274C;", "#cf222e", "Invalid signature"),
+            CommitStatus.MissingPublicKey => ("&#x26A0;", "#9a6700", "Unknown key"),
+            _ => ("", "", ""),
+        };
+
+        if (icon.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        string tooltip = WebUtility.HtmlEncode(gpgInfo.CommitVerificationMessage);
+
+        return $" <span class=\"gpg-badge\" style=\"color:{color}; cursor:default;\" title=\"{tooltip}\">{icon} {label}</span>";
     }
 
     /// <summary>

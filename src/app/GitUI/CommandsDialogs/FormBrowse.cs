@@ -754,7 +754,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             RevisionGrid.Refresh();
         }
 
-        revisionGpgInfo1.InvokeAndForget(() => FillGpgInfoAsync(selectedRevision));
+        LoadGpgStatus(selectedRevision);
         FillBuildReport(selectedRevision);
         repoObjectsTree.SelectionChanged(selectedRevisions);
         UpdateWorktreeCommitTab(selectedRevision);
@@ -1349,36 +1349,21 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
         RevisionInfo.SetRevisionWithChildren(revision, children);
     }
 
-    private async Task FillGpgInfoAsync(GitRevision? revision)
+    private void LoadGpgStatus(GitRevision? revision)
     {
-        // Don't show the "GPG" tab for artificial commits
-        bool showGpgInfoTab = revision?.IsArtificial is false && AppSettings.ShowGpgInformation.Value;
-
-        if (!showGpgInfoTab)
+        if (revision?.IsArtificial is not false)
         {
-            GpgInfoTabPage.Parent = null;
+            RevisionInfo.UpdateGpgStatus(null);
             return;
         }
 
-        if (GpgInfoTabPage.Parent is null)
+        ThreadHelper.FileAndForget(async () =>
         {
-            int index = CommitInfoTabControl.TabPages.IndexOf(TreeTabPage);
-            Debug.Assert(index != -1, "TabControl should contain file tree tab page");
-            CommitInfoTabControl.TabPages.Insert(index + 1, GpgInfoTabPage);
-        }
+            GpgInfo? info = await _controller.LoadGpgInfoAsync(revision);
 
-        if (!AppSettings.ShowGpgInformation.Value || CommitInfoTabControl.SelectedTab != GpgInfoTabPage)
-        {
-            return;
-        }
-
-        if (revision is null)
-        {
-            return;
-        }
-
-        GpgInfo? info = await _controller.LoadGpgInfoAsync(revision);
-        revisionGpgInfo1.DisplayGpgInfo(info);
+            await this.SwitchToMainThreadAsync();
+            RevisionInfo.UpdateGpgStatus(info);
+        });
     }
 
     private void RefreshLeftPanel(Func<RefsFilter, IReadOnlyList<IGitRef>> getRefs, Lazy<IReadOnlyCollection<GitRevision>> getStashRevs, bool forceRefresh)

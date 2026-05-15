@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using GitCommands;
 using GitCommands.ExternalLinks;
 using GitCommands.Git;
+using GitCommands.Git.Gpg;
 using GitCommands.Remotes;
 using GitCommands.Settings;
 using GitExtensions.Extensibility;
@@ -71,6 +72,7 @@ public partial class CommitInfo : GitModuleControl
 
     private GitRevision? _revision;
     private IReadOnlyList<ObjectId>? _children;
+    private GpgInfo? _gpgInfo;
     private string? _linksInfo;
     private IReadOnlyList<ExternalLink>? _externalLinks;
     private string? _lastRawBody;
@@ -278,6 +280,7 @@ public partial class CommitInfo : GitModuleControl
 
         _revision = revision;
         _children = children;
+        _gpgInfo = null;
 
         if (revision is null)
         {
@@ -291,6 +294,24 @@ public partial class CommitInfo : GitModuleControl
         unifiedViewer.Visible = true;
 
         ReloadCommitInfo(cancellationToken);
+    }
+
+    /// <summary>
+    ///  Updates the GPG signature status shown in the commit header.
+    ///  Call after <see cref="SetRevisionWithChildren"/> when GPG data becomes available.
+    /// </summary>
+    public void UpdateGpgStatus(GpgInfo? gpgInfo)
+    {
+        _gpgInfo = gpgInfo;
+
+        // Re-render the header to include the GPG badge.
+        if (_revision is not null && _htmlBuilder is not null && _unifiedViewerInitialized)
+        {
+            CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
+            bool showLinks = CommandClickedEvent is not null;
+            string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), gpgInfo);
+            unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
+        }
     }
 
     private void ShowAll(string? what)
@@ -968,14 +989,15 @@ public partial class CommitInfo : GitModuleControl
                     remoteUrl: GetOriginUrl(),
                     externalLinks: _externalLinks,
                     themeBackground: BackColor,
-                    themeForeground: ForeColor);
+                    themeForeground: ForeColor,
+                    gpgInfo: _gpgInfo);
                 unifiedViewer.SetHtml(html);
                 _unifiedViewerInitialized = true;
             }
             else
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
-                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl());
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl(), _gpgInfo);
                 string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, _externalLinks);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,
