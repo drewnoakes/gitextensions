@@ -47,7 +47,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
                 // Branch is checked out in another worktree — offer to switch to that worktree
                 // rather than checking it out again (which git would reject).
                 ToolStripMenuItem openWorktree = new(_openBranchWorktree.Text, Images.WorkTree);
-                openWorktree.Click += (_, _) => context.UICommands.WorktreeSwitch(context.ParentForm, worktreePath);
+                openWorktree.Click += (_, _) => context.UICommands.WorktreeSwitch(context.ParentForm, worktreePath, skipConfirmation: true);
                 menu.Items.Add(openWorktree);
             }
             else
@@ -112,7 +112,11 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
                 {
                     if (context.UICommands.WorktreeDelete(context.ParentForm, worktreePath))
                     {
-                        context.UICommands.StartDeleteBranchDialog(context.ParentForm, gitRef.Name);
+                        // The user already confirmed deletion of the worktree and branch.
+                        // Delete the branch directly without a second confirmation dialog.
+                        IGitCommand cmd = Commands.DeleteBranch([gitRef], force: true);
+                        context.UICommands.StartCommandLineProcessDialog(context.ParentForm, cmd);
+                        context.PerformRefreshRevisions();
                     }
                 };
                 menu.Items.Add(deleteWithWorktree);

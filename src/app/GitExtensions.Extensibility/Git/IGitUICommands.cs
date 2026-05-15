@@ -150,6 +150,7 @@ public interface IGitUICommands : IServiceProvider
     /// </summary>
     /// <param name="owner">Owner window for the confirmation dialog. Must be or have <see cref="IBrowseRepo"/> as the owning <c>FormBrowse</c>.</param>
     /// <param name="worktreePath">Absolute path of the worktree to switch to.</param>
+    /// <param name="skipConfirmation">When <see langword="true"/>, skip the confirmation prompt regardless of settings.</param>
     /// <returns><see langword="true"/> if the switch was performed.</returns>
-    bool WorktreeSwitch(IWin32Window? owner, string worktreePath);
+    bool WorktreeSwitch(IWin32Window? owner, string worktreePath, bool skipConfirmation = false);
 }

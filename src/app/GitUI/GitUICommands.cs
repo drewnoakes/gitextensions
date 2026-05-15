@@ -294,9 +294,9 @@ public sealed class GitUICommands : IGitUICommands
         });
     }
 
-    public bool WorktreeSwitch(IWin32Window? owner, string worktreePath)
+    public bool WorktreeSwitch(IWin32Window? owner, string worktreePath, bool skipConfirmation = false)
     {
-        if (!AppSettings.DontConfirmSwitchWorktree)
+        if (!skipConfirmation && !AppSettings.DontConfirmSwitchWorktree)
         {
             TaskDialogButton result = TaskDialog.ShowDialog(owner!, new TaskDialogPage
             {
