@@ -228,7 +228,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     private OutputHistoryControllerBase? _outputHistoryController;
 
     private TabPage? _worktreeCommitTabPage;
-    private WorktreeCommitPanel? _worktreeCommitPanel;
+    private FormCommit? _embeddedCommitForm;
 
     private readonly Dictionary<Brush, Icon> _overlayIconByBrush = [];
     private bool _refreshRevisionsPending;
@@ -771,7 +771,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
 
     /// <summary>
     ///  Shows or hides the worktree commit tab based on whether the selected revision
-    ///  is the HEAD of a worktree with uncommitted changes.
+    ///  is the HEAD of a worktree (including the current one).
     /// </summary>
     private void UpdateWorktreeCommitTab(GitRevision? selectedRevision)
     {
@@ -781,55 +781,101 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             return;
         }
 
-        // Check if any ref on this commit is a branch checked out in another worktree.
-        IReadOnlyDictionary<string, string> worktreeBranches = RevisionGrid.OtherWorktreeBranchPaths;
+        // Check if any ref on this commit is a branch checked out in a worktree.
+        IReadOnlyDictionary<string, string> otherWorktreeBranches = RevisionGrid.OtherWorktreeBranchPaths;
         string? matchedBranch = null;
-        string? worktreePath = null;
+        IGitUICommands? targetCommands = null;
 
         foreach (IGitRef gitRef in selectedRevision.Refs)
         {
-            if (gitRef.IsHead && worktreeBranches.TryGetValue(gitRef.Name, out string? path))
+            if (!gitRef.IsHead)
             {
+                continue;
+            }
+
+            if (otherWorktreeBranches.TryGetValue(gitRef.Name, out string? path))
+            {
+                // Branch is checked out in another worktree.
                 matchedBranch = gitRef.Name;
-                worktreePath = path;
+                targetCommands = UICommands.WithWorkingDirectory(path);
+                break;
+            }
+
+            if (gitRef.IsSelected)
+            {
+                // This is the current branch / HEAD — show for current worktree too.
+                matchedBranch = gitRef.Name;
+                targetCommands = UICommands;
                 break;
             }
         }
 
-        if (matchedBranch is null || worktreePath is null)
+        if (matchedBranch is null || targetCommands is null)
         {
             HideWorktreeCommitTab();
             return;
         }
 
-        // Show the tab, creating it lazily.
-        if (_worktreeCommitTabPage is null)
-        {
-            _worktreeCommitPanel = new WorktreeCommitPanel { Dock = DockStyle.Fill };
-            _worktreeCommitTabPage = new TabPage("Worktree")
-            {
-                ImageKey = nameof(Images.WorkTree),
-            };
-            _worktreeCommitTabPage.Controls.Add(_worktreeCommitPanel);
-        }
-
-        if (_worktreeCommitTabPage.Parent is null)
-        {
-            CommitInfoTabControl.TabPages.Add(_worktreeCommitTabPage);
-        }
-
-        _worktreeCommitTabPage.Text = matchedBranch;
-        IGitUICommands worktreeCommands = UICommands.WithWorkingDirectory(worktreePath);
-        _worktreeCommitPanel!.Bind(worktreeCommands, matchedBranch);
+        ShowWorktreeCommitTab(matchedBranch, targetCommands);
 
         return;
+
+        void ShowWorktreeCommitTab(string tabTitle, IGitUICommands commands)
+        {
+            // Dispose any previous embedded form if the target changed.
+            if (_embeddedCommitForm is not null
+                && !string.Equals(_embeddedCommitForm.Module.WorkingDir, commands.Module.WorkingDir, StringComparison.OrdinalIgnoreCase))
+            {
+                DisposeEmbeddedCommitForm();
+            }
+
+            if (_worktreeCommitTabPage is null)
+            {
+                _worktreeCommitTabPage = new TabPage
+                {
+                    ImageKey = nameof(Images.RepoStateDirty),
+                };
+            }
+
+            _worktreeCommitTabPage.Text = tabTitle;
+
+            if (_embeddedCommitForm is null)
+            {
+                _embeddedCommitForm = new FormCommit(commands)
+                {
+                    TopLevel = false,
+                    FormBorderStyle = FormBorderStyle.None,
+                    Dock = DockStyle.Fill,
+                    ShowInTaskbar = false,
+                };
+                _worktreeCommitTabPage.Controls.Add(_embeddedCommitForm);
+                _embeddedCommitForm.Show();
+            }
+
+            if (_worktreeCommitTabPage.Parent is null)
+            {
+                CommitInfoTabControl.TabPages.Add(_worktreeCommitTabPage);
+            }
+        }
 
         void HideWorktreeCommitTab()
         {
             if (_worktreeCommitTabPage?.Parent is not null)
             {
-                _worktreeCommitPanel?.Unbind();
                 _worktreeCommitTabPage.Parent = null;
+            }
+
+            DisposeEmbeddedCommitForm();
+        }
+
+        void DisposeEmbeddedCommitForm()
+        {
+            if (_embeddedCommitForm is not null)
+            {
+                _worktreeCommitTabPage?.Controls.Remove(_embeddedCommitForm);
+                _embeddedCommitForm.Close();
+                _embeddedCommitForm.Dispose();
+                _embeddedCommitForm = null;
             }
         }
     }

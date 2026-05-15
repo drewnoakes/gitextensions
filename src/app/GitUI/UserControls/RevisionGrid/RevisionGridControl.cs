@@ -2761,48 +2761,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         ObjectId? currentCheckout,
         IReadOnlyList<GitWorktree> worktrees)
     {
-        if (!ShowUncommittedChangesIfPossible
-            || !AppSettings.RevisionGraphShowArtificialCommits
-            || module.IsBareRepository())
-        {
-            return [];
-        }
-
-        string currentPath = TrimWorktreePath(module.WorkingDir);
-
-        foreach (GitWorktree wt in worktrees)
-        {
-            if (wt.IsDeleted || wt.HeadType is GitWorktreeHeadType.Bare)
-            {
-                continue;
-            }
-
-            bool isCurrent = string.Equals(
-                TrimWorktreePath(wt.Path),
-                currentPath,
-                StringComparison.OrdinalIgnoreCase);
-
-            if (!isCurrent)
-            {
-                continue;
-            }
-
-            return
-            [
-                new ArtificialWorktreeInfo
-                {
-                    Worktree = wt,
-                    IsCurrent = true,
-                    UICommands = uiCommands,
-                    WorkTreeId = ObjectId.WorkTreeId,
-                    IndexId = ObjectId.IndexId,
-                    HeadId = currentCheckout,
-                    WorkTreeChangeCount = _workTreeChangeCount,
-                    IndexChangeCount = _indexChangeCount
-                }
-            ];
-        }
-
+        // Artificial commit rows are no longer shown; the worktree commit tab replaces them.
         return [];
     }
 
