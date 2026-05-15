@@ -833,7 +833,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             {
                 _worktreeCommitTabPage = new TabPage
                 {
-                    ImageKey = nameof(Images.RepoStateDirty),
+                    ImageKey = nameof(Images.WorkTree),
                 };
             }
 
