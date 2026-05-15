@@ -2754,8 +2754,6 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         }
 
         string currentPath = TrimWorktreePath(module.WorkingDir);
-        List<ArtificialWorktreeInfo> result = [];
-        int otherWorktreeIndex = 0;
 
         foreach (GitWorktree wt in worktrees)
         {
@@ -2769,48 +2767,28 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 currentPath,
                 StringComparison.OrdinalIgnoreCase);
 
-            ObjectId? headId = wt.Sha1 is not null && ObjectId.TryParse(wt.Sha1, out ObjectId parsed)
-                ? parsed
-                : null;
-
-            ObjectId workTreeId;
-            ObjectId indexId;
-            ArtificialCommitChangeCount workTreeChangeCount;
-            ArtificialCommitChangeCount indexChangeCount;
-            IGitUICommands worktreeUICommands;
-
-            if (isCurrent)
+            if (!isCurrent)
             {
-                workTreeId = ObjectId.WorkTreeId;
-                indexId = ObjectId.IndexId;
-                workTreeChangeCount = _workTreeChangeCount;
-                indexChangeCount = _indexChangeCount;
-                worktreeUICommands = uiCommands;
-            }
-            else
-            {
-                otherWorktreeIndex++;
-                workTreeId = ObjectId.CreateWorkTreeId(otherWorktreeIndex);
-                indexId = ObjectId.CreateIndexId(otherWorktreeIndex);
-                workTreeChangeCount = new ArtificialCommitChangeCount();
-                indexChangeCount = new ArtificialCommitChangeCount();
-                worktreeUICommands = uiCommands.WithWorkingDirectory(wt.Path);
+                continue;
             }
 
-            result.Add(new ArtificialWorktreeInfo
-            {
-                Worktree = wt,
-                IsCurrent = isCurrent,
-                UICommands = worktreeUICommands,
-                WorkTreeId = workTreeId,
-                IndexId = indexId,
-                HeadId = isCurrent ? currentCheckout : headId,
-                WorkTreeChangeCount = workTreeChangeCount,
-                IndexChangeCount = indexChangeCount
-            });
+            return
+            [
+                new ArtificialWorktreeInfo
+                {
+                    Worktree = wt,
+                    IsCurrent = true,
+                    UICommands = uiCommands,
+                    WorkTreeId = ObjectId.WorkTreeId,
+                    IndexId = ObjectId.IndexId,
+                    HeadId = currentCheckout,
+                    WorkTreeChangeCount = _workTreeChangeCount,
+                    IndexChangeCount = _indexChangeCount
+                }
+            ];
         }
 
-        return result;
+        return [];
     }
 
     private void SetArtificialWorktreeInfos(IReadOnlyList<ArtificialWorktreeInfo> infos)
