@@ -227,6 +227,9 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     private TabPage? _consoleTabPage;
     private OutputHistoryControllerBase? _outputHistoryController;
 
+    private TabPage? _worktreeCommitTabPage;
+    private WorktreeCommitPanel? _worktreeCommitPanel;
+
     private readonly Dictionary<Brush, Icon> _overlayIconByBrush = [];
     private bool _refreshRevisionsPending;
 
@@ -754,6 +757,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
         revisionGpgInfo1.InvokeAndForget(() => FillGpgInfoAsync(selectedRevision));
         FillBuildReport(selectedRevision);
         repoObjectsTree.SelectionChanged(selectedRevisions);
+        UpdateWorktreeCommitTab(selectedRevision);
     }
 
     #region IBrowseRepo
@@ -764,6 +768,71 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     public void GoToRef(string refName, bool showNoRevisionMsg, bool toggleSelection = false) => RevisionGrid.GoToRef(refName, showNoRevisionMsg, toggleSelection);
 
     #endregion
+
+    /// <summary>
+    ///  Shows or hides the worktree commit tab based on whether the selected revision
+    ///  is the HEAD of a worktree with uncommitted changes.
+    /// </summary>
+    private void UpdateWorktreeCommitTab(GitRevision? selectedRevision)
+    {
+        if (selectedRevision is null || selectedRevision.IsArtificial)
+        {
+            HideWorktreeCommitTab();
+            return;
+        }
+
+        // Check if any ref on this commit is a branch checked out in another worktree.
+        IReadOnlyDictionary<string, string> worktreeBranches = RevisionGrid.OtherWorktreeBranchPaths;
+        string? matchedBranch = null;
+        string? worktreePath = null;
+
+        foreach (IGitRef gitRef in selectedRevision.Refs)
+        {
+            if (gitRef.IsHead && worktreeBranches.TryGetValue(gitRef.Name, out string? path))
+            {
+                matchedBranch = gitRef.Name;
+                worktreePath = path;
+                break;
+            }
+        }
+
+        if (matchedBranch is null || worktreePath is null)
+        {
+            HideWorktreeCommitTab();
+            return;
+        }
+
+        // Show the tab, creating it lazily.
+        if (_worktreeCommitTabPage is null)
+        {
+            _worktreeCommitPanel = new WorktreeCommitPanel { Dock = DockStyle.Fill };
+            _worktreeCommitTabPage = new TabPage("Worktree")
+            {
+                ImageKey = nameof(Images.WorkTree),
+            };
+            _worktreeCommitTabPage.Controls.Add(_worktreeCommitPanel);
+        }
+
+        if (_worktreeCommitTabPage.Parent is null)
+        {
+            CommitInfoTabControl.TabPages.Add(_worktreeCommitTabPage);
+        }
+
+        _worktreeCommitTabPage.Text = matchedBranch;
+        IGitUICommands worktreeCommands = UICommands.WithWorkingDirectory(worktreePath);
+        _worktreeCommitPanel!.Bind(worktreeCommands, matchedBranch);
+
+        return;
+
+        void HideWorktreeCommitTab()
+        {
+            if (_worktreeCommitTabPage?.Parent is not null)
+            {
+                _worktreeCommitPanel?.Unbind();
+                _worktreeCommitTabPage.Parent = null;
+            }
+        }
+    }
 
     /// <summary>
     /// Set the path filter.
