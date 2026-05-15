@@ -163,6 +163,14 @@ internal sealed class MessageColumnProvider : ColumnProvider
                     hitInfos ??= RentHitInfoList();
                     hitInfos.Add(new RefLabelHitInfo(refRect, gitRef, StashReflogSelector: null));
                 }
+
+                // Draw a status dot after the branch label if the branch is checked out
+                // in another worktree that has uncommitted changes.
+                if (gitRef.IsHead
+                    && _grid.OtherWorktreeBranchPaths.TryGetValue(gitRef.Name, out string? worktreePath))
+                {
+                    DrawWorktreeStatusBadge(e, style, messageBounds, ref offset, worktreePath);
+                }
             }
         }
 
@@ -457,6 +465,73 @@ internal sealed class MessageColumnProvider : ColumnProvider
         }
     }
 
+    /// <summary>
+    ///  Draws a small status badge (change count) next to a worktree branch label.
+    /// </summary>
+    private void DrawWorktreeStatusBadge(
+        DataGridViewCellPaintingEventArgs e,
+        CellStyle style,
+        Rectangle messageBounds,
+        ref int offset,
+        string worktreePath)
+    {
+        WorktreeStatus? status = _grid.WorktreeStatusCache.GetStatus(worktreePath);
+        if (status is null || !status.HasChanges)
+        {
+            return;
+        }
+
+        Graphics graphics = e.Graphics!;
+        int margin = DpiUtil.Scale(2);
+        string text = status.TotalCount.ToString();
+        Font font = style.NormalFont;
+
+        Size textSize = TextRenderer.MeasureText(graphics, text, font, Size.Empty, TextFormatFlags.NoPadding);
+        int padding = DpiUtil.Scale(3);
+        int badgeWidth = textSize.Width + (padding * 2);
+        int badgeHeight = textSize.Height + DpiUtil.Scale(2);
+
+        int badgeX = messageBounds.Left + offset + margin;
+        int badgeY = messageBounds.Top + ((messageBounds.Height - badgeHeight) / 2);
+
+        // Draw rounded badge background.
+        Color badgeColor = status.StagedCount > 0 && status.UnstagedCount > 0
+            ? Color.FromArgb(200, 180, 80)
+            : status.StagedCount > 0
+                ? Color.FromArgb(80, 160, 80)
+                : Color.FromArgb(200, 120, 50);
+
+        using SolidBrush brush = new(badgeColor);
+        int radius = DpiUtil.Scale(4);
+        Rectangle badgeRect = new(badgeX, badgeY, badgeWidth, badgeHeight);
+        DrawRoundedRect(graphics, brush, badgeRect, radius);
+
+        // Draw the count text.
+        TextRenderer.DrawText(
+            graphics,
+            text,
+            font,
+            new Rectangle(badgeX + padding, badgeY, textSize.Width, badgeHeight),
+            Color.White,
+            TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+
+        offset += margin + badgeWidth + margin;
+
+        return;
+
+        static void DrawRoundedRect(Graphics g, Brush brush, Rectangle rect, int radius)
+        {
+            using System.Drawing.Drawing2D.GraphicsPath path = new();
+            int diameter = radius * 2;
+            path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
+            path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
+            path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            g.FillPath(brush, path);
+        }
+    }
+
     private Rectangle DrawRef(
         DataGridViewCellPaintingEventArgs e,
         IGitRef gitRef,
@@ -633,6 +708,12 @@ internal sealed class MessageColumnProvider : ColumnProvider
                 remoteRects[i] with { X = hitLeft, Width = diameter },
                 remotes[i],
                 StashReflogSelector: null));
+        }
+
+        // Draw a status dot if this branch is checked out in a worktree with changes.
+        if (_grid.OtherWorktreeBranchPaths.TryGetValue(gitRef.Name, out string? worktreePath))
+        {
+            DrawWorktreeStatusBadge(e, style, messageBounds, ref offset, worktreePath);
         }
     }
 
