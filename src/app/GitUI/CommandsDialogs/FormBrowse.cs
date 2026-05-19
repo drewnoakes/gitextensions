@@ -828,10 +828,10 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
             string dir = NormalizeDir(commands.Module.WorkingDir);
 
             // Update title of existing tab if the branch name changed.
-            (TabPage tab, FormCommit form)? existing = _worktreeCommitTabs.Find(t => string.Equals(NormalizeDir(t.form.Module.WorkingDir), dir, StringComparison.OrdinalIgnoreCase));
-            if (existing is not null)
+            int existingIndex = _worktreeCommitTabs.FindIndex(t => string.Equals(NormalizeDir(t.form.Module.WorkingDir), dir, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
             {
-                existing.Value.tab.Text = branch;
+                _worktreeCommitTabs[existingIndex].tab.Text = branch;
                 continue;
             }
 
