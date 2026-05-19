@@ -1816,9 +1816,50 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
 
     public void SetWorkingDir(string? path, ObjectId? selectedId = null, ObjectId? firstId = null)
     {
+        GitModule newModule = new(UICommands.GetRequiredService<IGitExecutorProvider>(), path);
+
+        // When switching between worktrees of the same repository, the commit graph
+        // is identical (shared object database). Skip the expensive full reload and
+        // just update the module, HEAD decoration, and status monitor.
+        if (selectedId is null
+            && firstId is null
+            && Module.IsValidGitWorkingDir()
+            && newModule.IsValidGitWorkingDir()
+            && string.Equals(
+                Module.GitCommonDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                newModule.GitCommonDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            SwitchWorktreeLightweight(newModule);
+            return;
+        }
+
         RevisionGrid.SelectedId = selectedId;
         RevisionGrid.FirstId = firstId;
-        SetGitModule(this, new GitModuleEventArgs(new GitModule(UICommands.GetRequiredService<IGitExecutorProvider>(), path)));
+        SetGitModule(this, new GitModuleEventArgs(newModule));
+    }
+
+    /// <summary>
+    ///  Switches to another worktree in the same repository without a full UI reset.
+    ///  The commit graph is reloaded (refs may differ by HEAD) but the selected commit
+    ///  is preserved so the bottom panel stays in place.
+    /// </summary>
+    private void SwitchWorktreeLightweight(GitModule newModule)
+    {
+        // Preserve the current selection so the bottom panel doesn't jump.
+        ObjectId? selectedId = RevisionGrid.LatestSelectedRevision?.ObjectId;
+        RevisionGrid.SelectedId = selectedId;
+
+        _gitStatusMonitor.InvalidateGitWorkingDirectoryStatus();
+
+        newModule.ResetRemoteColors();
+        UICommands = UICommands.WithGitModule(newModule);
+        RevisionGrid.OnRepositoryChanged();
+
+        ChangeTerminalActiveFolder(Module.WorkingDir);
+        AppSettings.RecentWorkingDir = Module.WorkingDir;
+
+        RevisionGrid.PerformRefreshRevisions();
     }
 
     private void SetGitModule(object? sender, GitModuleEventArgs e)
