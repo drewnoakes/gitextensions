@@ -118,12 +118,16 @@ internal static class DashboardHtmlBuilder
             .repo-details {
                 flex: 1;
                 min-width: 0;
+                display: flex;
+                align-items: baseline;
+                gap: 6px;
             }
             .repo-name {
                 font-weight: 600;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                flex-shrink: 0;
             }
             .repo-path {
                 font-size: 11px;
@@ -131,6 +135,7 @@ internal static class DashboardHtmlBuilder
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                flex-shrink: 1;
             }
 
             .repo-branch {
@@ -216,7 +221,7 @@ internal static class DashboardHtmlBuilder
             string path = repo.Repo.Path;
             string name = repo.ShortName ?? Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             string parentDir = repo.DirName;
-            string escapedPath = WebUtility.HtmlEncode(path).Replace("'", "\\'");
+            string escapedPath = path.Replace("\\", "\\\\").Replace("'", "\\'");
             string branch = getBranchName(path) ?? "";
             string category = repo.Repo.Category ?? "";
             string searchText = WebUtility.HtmlEncode($"{name} {path} {branch} {category}".ToLowerInvariant());

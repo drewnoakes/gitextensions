@@ -303,9 +303,9 @@ public partial class UserRepositoriesList : GitExtensionsControl
         IReadOnlyList<RecentRepoInfo> favouriteRepositories;
         (recentRepositories, favouriteRepositories) = Controller.PreRenderRepositories(textBoxSearch.Text);
 
-        // Hide the legacy NativeListView and use WebView2 instead.
-        listView1.Visible = false;
-        textBoxSearch.Visible = false;
+        // Hide the legacy NativeListView + search box and use WebView2 instead.
+        // The WebView has its own built-in search.
+        tableLayoutPanel2.Visible = false;
 
         if (_webView is null)
         {
@@ -313,35 +313,31 @@ public partial class UserRepositoriesList : GitExtensionsControl
             {
                 Dock = DockStyle.Fill,
             };
-            _webView.WebMessageReceived += (_, url) =>
-            {
-                // Messages arrive as the raw URL string from MarkdownViewer's link handler,
-                // but our dashboard posts JSON messages. Parse the open-repo message.
-                if (url.Contains("open-repo"))
-                {
-                    return;
-                }
-
-                // Fallback: treat as a direct path (shouldn't happen, but safe).
-            };
 
             // Listen for raw WebView2 messages via the underlying control.
             _webView.RawWebMessageReceived += (_, json) =>
             {
                 if (json.Contains("\"open-repo\""))
                 {
-                    int pathStart = json.IndexOf("\"path\":\"") + 8;
-                    int pathEnd = json.IndexOf('"', pathStart);
-                    if (pathStart > 7 && pathEnd > pathStart)
+                    try
                     {
-                        string path = json[pathStart..pathEnd].Replace("\\'", "'");
-                        TryOpenRepository(path);
+                        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("path", out System.Text.Json.JsonElement pathElement))
+                        {
+                            string path = pathElement.GetString() ?? "";
+                            if (path.Length > 0)
+                            {
+                                TryOpenRepository(path);
+                            }
+                        }
+                    }
+                    catch
+                    {
                     }
                 }
             };
 
-            // Insert into the same container as listView1.
-            listView1.Parent!.Controls.Add(_webView);
+            pnlBody.Controls.Add(_webView);
         }
 
         string html = DashboardHtmlBuilder.Build(
