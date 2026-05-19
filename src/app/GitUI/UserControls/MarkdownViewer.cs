@@ -128,6 +128,12 @@ public class MarkdownViewer : UserControl
     public event EventHandler<string>? WebMessageReceived;
 
     /// <summary>
+    ///  Raised for every raw JSON message from the WebView2 content,
+    ///  before any built-in message handling. Allows custom message types.
+    /// </summary>
+    public event EventHandler<string>? RawWebMessageReceived;
+
+    /// <summary>
     ///  Raised when the user right-clicks in the WebView2 content.
     ///  The bool indicates whether text is currently selected.
     /// </summary>
@@ -228,6 +234,8 @@ public class MarkdownViewer : UserControl
         _webView.CoreWebView2.WebMessageReceived += (s, args) =>
         {
             string message = args.TryGetWebMessageAsString() ?? string.Empty;
+
+            RawWebMessageReceived?.Invoke(this, message);
 
             if (message.Contains("\"type\""))
             {

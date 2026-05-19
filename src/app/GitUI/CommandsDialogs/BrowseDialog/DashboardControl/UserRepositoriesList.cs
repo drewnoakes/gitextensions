@@ -59,8 +59,8 @@ public partial class UserRepositoriesList : GitExtensionsControl
     private Brush _hoverColorBrush = new SolidBrush(SystemColors.InactiveCaption);
     private ListViewItem? _hoveredItem;
     private readonly ListViewGroup _lvgRecentRepositories;
-    private bool _hasInvalidRepos;
     private ListViewItem? _rightClickedItem;
+    private UserControls.MarkdownViewer? _webView;
 
     public event EventHandler<GitModuleEventArgs>? GitModuleChanged;
 
@@ -303,77 +303,55 @@ public partial class UserRepositoriesList : GitExtensionsControl
         IReadOnlyList<RecentRepoInfo> favouriteRepositories;
         (recentRepositories, favouriteRepositories) = Controller.PreRenderRepositories(textBoxSearch.Text);
 
-        try
+        // Hide the legacy NativeListView and use WebView2 instead.
+        listView1.Visible = false;
+        textBoxSearch.Visible = false;
+
+        if (_webView is null)
         {
-            listView1.BeginUpdate();
-            listView1.Groups.Clear();
-            listView1.Items.Clear();
-            if (recentRepositories.Count > 0 || favouriteRepositories.Count > 0)
+            _webView = new UserControls.MarkdownViewer
             {
-                listView1.TileSize = GetTileSize(recentRepositories, favouriteRepositories);
-            }
-
-            _hasInvalidRepos = false;
-
-            ListViewGroup[] groups =
-            [
-                _lvgRecentRepositories,
-                .. recentRepositories.Concat(favouriteRepositories)
-                        .Select(repo => repo.Repo.Category)
-                        .Where(c => !string.IsNullOrWhiteSpace(c))
-                        .Distinct(GroupHeaderComparer)
-                        .OrderBy(c => c)
-                        .Select(c => new ListViewGroup(c, c)
-                        {
-                            CollapsedState = ListViewGroupCollapsedState.Expanded,
-                            TaskLink = _groupActions.Text
-                        }),
-            ];
-
-            listView1.Groups.AddRange(groups);
-            BindRepositories(recentRepositories, isFavourite: false);
-            BindRepositories(favouriteRepositories, isFavourite: true);
-        }
-        finally
-        {
-            listView1.EndUpdate();
-        }
-
-        void BindRepositories(IReadOnlyList<RecentRepoInfo> repos, bool isFavourite)
-        {
-            for (int index = 0; index < repos.Count; index++)
+                Dock = DockStyle.Fill,
+            };
+            _webView.WebMessageReceived += (_, url) =>
             {
-                RecentRepoInfo recent = repos[index];
-                ListViewItem item = new(recent.Caption)
+                // Messages arrive as the raw URL string from MarkdownViewer's link handler,
+                // but our dashboard posts JSON messages. Parse the open-repo message.
+                if (url.Contains("open-repo"))
                 {
-                    ForeColor = ForeColor,
-                    Font = AppSettings.Font,
-                    Group = isFavourite ? GetTileGroup(recent.Repo) : _lvgRecentRepositories,
-                    ImageIndex = 0,
-                    UseItemStyleForSubItems = false,
-                    Tag = recent.Repo,
-                    ToolTipText = recent.Repo.Path
-                };
-                listView1.Items.Add(item);
+                    return;
+                }
 
-                ThreadHelper.FileAndForget(async () =>
+                // Fallback: treat as a direct path (shouldn't happen, but safe).
+            };
+
+            // Listen for raw WebView2 messages via the underlying control.
+            _webView.RawWebMessageReceived += (_, json) =>
+            {
+                if (json.Contains("\"open-repo\""))
                 {
-                    bool isValidGitDir = Controller.IsValidGitWorkingDir(recent.Repo.Path);
-                    string branchName = isValidGitDir ? Controller.GetCurrentBranchName(recent.Repo.Path) : "";
-                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    if (isValidGitDir)
+                    int pathStart = json.IndexOf("\"path\":\"") + 8;
+                    int pathEnd = json.IndexOf('"', pathStart);
+                    if (pathStart > 7 && pathEnd > pathStart)
                     {
-                        item.SubItems.Add(new ListViewSubItem(item, branchName, BranchNameColor, BackColor, _secondaryFont));
-                        //// NB: we can add a 3rd row as well: { repository.Repo.Category, SystemColors.GrayText, BackColor, _secondaryFont }
+                        string path = json[pathStart..pathEnd].Replace("\\'", "'");
+                        TryOpenRepository(path);
                     }
-                    else
-                    {
-                        item.ImageIndex = 1;
-                        _hasInvalidRepos = true;
-                    }
-                });
-            }
+                }
+            };
+
+            // Insert into the same container as listView1.
+            listView1.Parent!.Controls.Add(_webView);
         }
+
+        string html = DashboardHtmlBuilder.Build(
+            recentRepositories,
+            favouriteRepositories,
+            Controller.GetCurrentBranchName,
+            themeBackground: BackColor,
+            themeForeground: ForeColor);
+
+        _webView.SetHtml(html);
     }
 
     protected override void OnVisibleChanged(EventArgs e)
@@ -573,7 +551,7 @@ public partial class UserRepositoriesList : GitExtensionsControl
                     toolStripMenuItem2.Visible =
                         tsmiOpenFolder.Visible = selected is not null;
 
-        tsmiRemoveMissingReposFromList.Visible = _hasInvalidRepos;
+        tsmiRemoveMissingReposFromList.Visible = false;
 
         if (selected is null || _rightClickedItem is null)
         {
@@ -952,13 +930,18 @@ public partial class UserRepositoriesList : GitExtensionsControl
             return false;
         }
 
-        if (Controller.IsValidGitWorkingDir(repository.Path))
+        return TryOpenRepository(repository.Path);
+    }
+
+    private bool TryOpenRepository(string path)
+    {
+        if (Controller.IsValidGitWorkingDir(path))
         {
-            OnModuleChanged(new GitModuleEventArgs(new GitModule(ServiceProvider.GetRequiredService<IGitExecutorProvider>(), repository.Path)));
+            OnModuleChanged(new GitModuleEventArgs(new GitModule(ServiceProvider.GetRequiredService<IGitExecutorProvider>(), path)));
             return true;
         }
 
-        if (Controller.RemoveInvalidRepository(repository.Path))
+        if (Controller.RemoveInvalidRepository(path))
         {
             ShowRecentRepositories();
             return true;
