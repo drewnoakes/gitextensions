@@ -1170,14 +1170,46 @@ public sealed class GitUICommands : IGitUICommands
 
     public bool StartRebaseDialog(IWin32Window? owner, string? from, string? to, string? onto, bool interactive = false, bool startRebaseImmediately = true)
     {
+        return DoActionOnRepo(owner, Action);
+
         bool Action()
         {
-            using FormRebase form = new(this, from, to, onto, interactive, startRebaseImmediately);
-            form.ShowDialog(owner);
+            if (startRebaseImmediately && onto is not null)
+            {
+                // Run the rebase directly without showing the FormRebase UI.
+                Commands.RebaseOptions rebaseOptions = new()
+                {
+                    BranchName = onto,
+                    Interactive = interactive,
+                    AutoSquash = interactive && Module.GetEffectiveSetting<bool>("rebase.autosquash") is true,
+                    AutoStash = AppSettings.RebaseAutoStash,
+                    SupportRebaseMerges = Module.GitVersion.SupportRebaseMerges,
+                };
+
+                if (!string.IsNullOrEmpty(from))
+                {
+                    rebaseOptions.OnTo = onto;
+                    rebaseOptions.From = from;
+                    rebaseOptions.BranchName = to ?? Module.GetSelectedBranch();
+                }
+
+                string rebaseCmd = Commands.Rebase(rebaseOptions);
+                FormProcess.ShowDialog(owner, this, arguments: rebaseCmd, Module.WorkingDir, input: null, useDialogSettings: true);
+
+                // If the rebase hit conflicts, open FormRebase for resolution.
+                if (Module.InTheMiddleOfRebase())
+                {
+                    using FormRebase conflictForm = new(this, from: "", to: null, defaultBranch: null, interactive: false, startRebaseImmediately: false);
+                    conflictForm.ShowDialog(owner);
+                }
+
+                return true;
+            }
+
+            using FormRebase rebaseForm = new(this, from, to, onto, interactive, startRebaseImmediately: false);
+            rebaseForm.ShowDialog(owner);
             return true;
         }
-
-        return DoActionOnRepo(owner, Action);
     }
 
     public bool StartRenameDialog(IWin32Window? owner, string branch)
