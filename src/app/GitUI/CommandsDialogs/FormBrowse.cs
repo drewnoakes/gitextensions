@@ -227,8 +227,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     private TabPage? _consoleTabPage;
     private OutputHistoryControllerBase? _outputHistoryController;
 
-    private TabPage? _worktreeCommitTabPage;
-    private FormCommit? _embeddedCommitForm;
+    private readonly List<(TabPage tab, FormCommit form)> _worktreeCommitTabs = [];
 
     private readonly Dictionary<Brush, Icon> _overlayIconByBrush = [];
     private bool _refreshRevisionsPending;
@@ -777,14 +776,13 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
     {
         if (selectedRevision is null || selectedRevision.IsArtificial)
         {
-            HideWorktreeCommitTab();
+            HideAllWorktreeCommitTabs();
             return;
         }
 
-        // Check if any ref on this commit is a branch checked out in a worktree.
+        // Collect all worktrees whose HEAD matches this commit.
         IReadOnlyDictionary<string, string> otherWorktreeBranches = RevisionGrid.OtherWorktreeBranchPaths;
-        string? matchedBranch = null;
-        IGitUICommands? targetCommands = null;
+        List<(string branch, IGitUICommands commands)> matches = [];
 
         foreach (IGitRef gitRef in selectedRevision.Refs)
         {
@@ -795,88 +793,90 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
 
             if (otherWorktreeBranches.TryGetValue(gitRef.Name, out string? path))
             {
-                // Branch is checked out in another worktree.
-                matchedBranch = gitRef.Name;
-                targetCommands = UICommands.WithWorkingDirectory(path);
-                break;
+                matches.Add((gitRef.Name, UICommands.WithWorkingDirectory(path)));
             }
-
-            if (gitRef.IsSelected)
+            else if (gitRef.IsSelected)
             {
-                // This is the current branch / HEAD — show for current worktree too.
-                matchedBranch = gitRef.Name;
-                targetCommands = UICommands;
-                break;
+                matches.Add((gitRef.Name, UICommands));
             }
         }
 
-        if (matchedBranch is null || targetCommands is null)
+        if (matches.Count == 0)
         {
-            HideWorktreeCommitTab();
+            HideAllWorktreeCommitTabs();
             return;
         }
 
-        ShowWorktreeCommitTab(matchedBranch, targetCommands);
+        // Build a set of working dirs we want tabs for, to detect what changed.
+        HashSet<string> desiredDirs = new(matches.Select(m => NormalizeDir(m.commands.Module.WorkingDir)), StringComparer.OrdinalIgnoreCase);
+
+        // Remove tabs that are no longer needed.
+        for (int i = _worktreeCommitTabs.Count - 1; i >= 0; i--)
+        {
+            (TabPage tab, FormCommit form) = _worktreeCommitTabs[i];
+            if (!desiredDirs.Contains(NormalizeDir(form.Module.WorkingDir)))
+            {
+                RemoveWorktreeTab(i);
+            }
+        }
+
+        // Add or update tabs for each match.
+        HashSet<string> existingDirs = new(_worktreeCommitTabs.Select(t => NormalizeDir(t.form.Module.WorkingDir)), StringComparer.OrdinalIgnoreCase);
+
+        foreach ((string branch, IGitUICommands commands) in matches)
+        {
+            string dir = NormalizeDir(commands.Module.WorkingDir);
+
+            // Update title of existing tab if the branch name changed.
+            (TabPage tab, FormCommit form)? existing = _worktreeCommitTabs.Find(t => string.Equals(NormalizeDir(t.form.Module.WorkingDir), dir, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                existing.Value.tab.Text = branch;
+                continue;
+            }
+
+            // Create a new tab.
+            FormCommit commitForm = new(commands)
+            {
+                TopLevel = false,
+                FormBorderStyle = FormBorderStyle.None,
+                Dock = DockStyle.Fill,
+                ShowInTaskbar = false,
+            };
+
+            TabPage tabPage = new(branch)
+            {
+                ImageKey = nameof(Images.WorkTree),
+            };
+            tabPage.Controls.Add(commitForm);
+            commitForm.Show();
+
+            _worktreeCommitTabs.Add((tabPage, commitForm));
+            CommitInfoTabControl.TabPages.Add(tabPage);
+        }
 
         return;
 
-        void ShowWorktreeCommitTab(string tabTitle, IGitUICommands commands)
+        static string NormalizeDir(string path)
+            => path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        void HideAllWorktreeCommitTabs()
         {
-            // Dispose any previous embedded form if the target changed.
-            if (_embeddedCommitForm is not null
-                && !string.Equals(_embeddedCommitForm.Module.WorkingDir, commands.Module.WorkingDir, StringComparison.OrdinalIgnoreCase))
+            for (int i = _worktreeCommitTabs.Count - 1; i >= 0; i--)
             {
-                DisposeEmbeddedCommitForm();
-            }
-
-            if (_worktreeCommitTabPage is null)
-            {
-                _worktreeCommitTabPage = new TabPage
-                {
-                    ImageKey = nameof(Images.WorkTree),
-                };
-            }
-
-            _worktreeCommitTabPage.Text = tabTitle;
-
-            if (_embeddedCommitForm is null)
-            {
-                _embeddedCommitForm = new FormCommit(commands)
-                {
-                    TopLevel = false,
-                    FormBorderStyle = FormBorderStyle.None,
-                    Dock = DockStyle.Fill,
-                    ShowInTaskbar = false,
-                };
-                _worktreeCommitTabPage.Controls.Add(_embeddedCommitForm);
-                _embeddedCommitForm.Show();
-            }
-
-            if (_worktreeCommitTabPage.Parent is null)
-            {
-                CommitInfoTabControl.TabPages.Add(_worktreeCommitTabPage);
+                RemoveWorktreeTab(i);
             }
         }
 
-        void HideWorktreeCommitTab()
+        void RemoveWorktreeTab(int index)
         {
-            if (_worktreeCommitTabPage?.Parent is not null)
-            {
-                _worktreeCommitTabPage.Parent = null;
-            }
-
-            DisposeEmbeddedCommitForm();
-        }
-
-        void DisposeEmbeddedCommitForm()
-        {
-            if (_embeddedCommitForm is not null)
-            {
-                _worktreeCommitTabPage?.Controls.Remove(_embeddedCommitForm);
-                _embeddedCommitForm.Close();
-                _embeddedCommitForm.Dispose();
-                _embeddedCommitForm = null;
-            }
+            (TabPage tab, FormCommit form) = _worktreeCommitTabs[index];
+            _worktreeCommitTabs.RemoveAt(index);
+            tab.Parent = null;
+            tab.Controls.Remove(form);
+            form.Close();
+            form.Dispose();
+            tab.Dispose();
         }
     }
 
