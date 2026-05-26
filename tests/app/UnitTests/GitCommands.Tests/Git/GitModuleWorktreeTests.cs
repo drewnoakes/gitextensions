@@ -7,6 +7,8 @@ using GitExtensions.Extensibility.Git;
 namespace GitCommandsTests.Git;
 public sealed class GitModuleWorktreeTests
 {
+    private const string LogCommandPrefix = "-c log.showsignature=false log --no-walk --format=\"%H %aI\"";
+
     private GitModule _gitModule = null!;
     private MockExecutable _executable = null!;
 
@@ -29,9 +31,10 @@ public sealed class GitModuleWorktreeTests
     [Test]
     public void GetWorktrees_should_parse_single_worktree_with_branch()
     {
+        string sha = "abc1234abc1234abc1234abc1234abc1234abc12";
         string output = string.Join('\0',
             "worktree C:/repos/main",
-            "HEAD abc1234abc1234abc1234abc1234abc1234abc12",
+            $"HEAD {sha}",
             "branch refs/heads/master",
             "", "");
 
@@ -42,18 +45,20 @@ public sealed class GitModuleWorktreeTests
             worktrees.Should().HaveCount(1);
             worktrees[0].Path.Should().Be("C:\\repos\\main");
             worktrees[0].HeadType.Should().Be(GitWorktreeHeadType.Branch);
-            worktrees[0].Sha1.Should().Be("abc1234abc1234abc1234abc1234abc1234abc12");
+            worktrees[0].Sha1.Should().Be(sha);
             worktrees[0].Branch.Should().Be("master");
             worktrees[0].IsDeleted.Should().BeTrue();
+            worktrees[0].LastCommitDate.Should().BeNull();
         }
     }
 
     [Test]
     public void GetWorktrees_should_parse_detached_head()
     {
+        string sha = "def5678def5678def5678def5678def5678def56";
         string output = string.Join('\0',
             "worktree C:/repos/detached",
-            "HEAD def5678def5678def5678def5678def5678def56",
+            $"HEAD {sha}",
             "detached",
             "", "");
 
@@ -63,7 +68,7 @@ public sealed class GitModuleWorktreeTests
 
             worktrees.Should().HaveCount(1);
             worktrees[0].HeadType.Should().Be(GitWorktreeHeadType.Detached);
-            worktrees[0].Sha1.Should().Be("def5678def5678def5678def5678def5678def56");
+            worktrees[0].Sha1.Should().Be(sha);
             worktrees[0].Branch.Should().BeNull();
         }
     }
@@ -84,19 +89,22 @@ public sealed class GitModuleWorktreeTests
             worktrees[0].HeadType.Should().Be(GitWorktreeHeadType.Bare);
             worktrees[0].Sha1.Should().BeNull();
             worktrees[0].Branch.Should().BeNull();
+            worktrees[0].LastCommitDate.Should().BeNull();
         }
     }
 
     [Test]
     public void GetWorktrees_should_parse_multiple_worktrees()
     {
+        string sha1 = "aaaa1234aaaa1234aaaa1234aaaa1234aaaa1234";
+        string sha2 = "bbbb5678bbbb5678bbbb5678bbbb5678bbbb5678";
         string output = string.Join('\0',
             "worktree C:/repos/main",
-            "HEAD aaaa1234aaaa1234aaaa1234aaaa1234aaaa1234",
+            $"HEAD {sha1}",
             "branch refs/heads/master",
             "", // end of first record
             "worktree C:/repos/feature",
-            "HEAD bbbb5678bbbb5678bbbb5678bbbb5678bbbb5678",
+            $"HEAD {sha2}",
             "branch refs/heads/feature/my-feature",
             "", "");
 
@@ -158,6 +166,46 @@ public sealed class GitModuleWorktreeTests
             IReadOnlyList<GitWorktree> worktrees = _gitModule.GetWorktrees();
 
             worktrees.Should().BeEmpty();
+        }
+    }
+
+    [Test]
+    public void GetWorktrees_should_populate_last_commit_date()
+    {
+        string sha = "abc1234abc1234abc1234abc1234abc1234abc12";
+        string output = string.Join('\0',
+            "worktree C:/repos/main",
+            $"HEAD {sha}",
+            "branch refs/heads/main",
+            "", "");
+
+        using (_executable.StageOutput("worktree list --porcelain -z", output))
+        using (_executable.StageOutput($"{LogCommandPrefix} {sha}", $"{sha} 2025-05-20T10:30:00+10:00\n"))
+        {
+            IReadOnlyList<GitWorktree> worktrees = _gitModule.GetWorktrees(includeCommitDates: true);
+
+            worktrees.Should().HaveCount(1);
+            worktrees[0].LastCommitDate.Should().Be(new DateTimeOffset(2025, 5, 20, 10, 30, 0, TimeSpan.FromHours(10)).LocalDateTime);
+        }
+    }
+
+    [Test]
+    public void GetWorktrees_should_handle_missing_date_gracefully()
+    {
+        string sha = "abc1234abc1234abc1234abc1234abc1234abc12";
+        string output = string.Join('\0',
+            "worktree C:/repos/main",
+            $"HEAD {sha}",
+            "branch refs/heads/main",
+            "", "");
+
+        using (_executable.StageOutput("worktree list --porcelain -z", output))
+        using (_executable.StageOutput($"{LogCommandPrefix} {sha}", ""))
+        {
+            IReadOnlyList<GitWorktree> worktrees = _gitModule.GetWorktrees(includeCommitDates: true);
+
+            worktrees.Should().HaveCount(1);
+            worktrees[0].LastCommitDate.Should().BeNull();
         }
     }
 

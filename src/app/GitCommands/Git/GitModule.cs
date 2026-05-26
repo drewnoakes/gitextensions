@@ -2166,7 +2166,12 @@ public sealed partial class GitModule : IGitModule
     /// Returns the list of git worktrees for this repository by parsing
     /// the output of <c>git worktree list --porcelain -z</c>.
     /// </summary>
-    public IReadOnlyList<GitWorktree> GetWorktrees()
+    /// <param name="includeCommitDates">
+    ///  When <see langword="true"/>, populates <see cref="GitWorktree.LastCommitDate"/>
+    ///  by running an additional <c>git log</c> command. Only enable when the dates
+    ///  are needed, as it spawns an extra process.
+    /// </param>
+    public IReadOnlyList<GitWorktree> GetWorktrees(bool includeCommitDates = false)
     {
         GitArgumentBuilder args = new("worktree")
         {
@@ -2234,6 +2239,62 @@ public sealed partial class GitModule : IGitModule
             string fullPath = GetWindowsPath(path);
             bool isDeleted = !Directory.Exists(fullPath);
             worktrees.Add(new GitWorktree(fullPath, headType, sha1, branch, isDeleted));
+        }
+
+        return includeCommitDates ? PopulateWorktreeCommitDates(worktrees) : worktrees;
+    }
+
+    /// <summary>
+    /// Batch-fetches the author date for each worktree's HEAD commit and returns
+    /// a new list with <see cref="GitWorktree.LastCommitDate"/> populated.
+    /// </summary>
+    private List<GitWorktree> PopulateWorktreeCommitDates(List<GitWorktree> worktrees)
+    {
+        string[] shas = worktrees
+            .Where(w => w.Sha1 is not null)
+            .Select(w => w.Sha1!)
+            .Distinct()
+            .ToArray();
+
+        if (shas.Length == 0)
+        {
+            return worktrees;
+        }
+
+        GitArgumentBuilder dateArgs = new("log")
+        {
+            "--no-walk",
+            "--format=\"%H %aI\"",
+        };
+
+        foreach (string sha in shas)
+        {
+            dateArgs.Add(sha);
+        }
+
+        string dateOutput = GitExecutable.GetOutput(dateArgs);
+        Dictionary<string, DateTime> datesBySha = [];
+
+        foreach (string line in dateOutput.LazySplit('\n'))
+        {
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            int spaceIndex = line.IndexOf(' ');
+            if (spaceIndex > 0 && DateTimeOffset.TryParse(line[(spaceIndex + 1)..], out DateTimeOffset dto))
+            {
+                datesBySha[line[..spaceIndex]] = dto.LocalDateTime;
+            }
+        }
+
+        for (int i = 0; i < worktrees.Count; i++)
+        {
+            if (worktrees[i].Sha1 is not null && datesBySha.TryGetValue(worktrees[i].Sha1!, out DateTime date))
+            {
+                worktrees[i] = worktrees[i] with { LastCommitDate = date };
+            }
         }
 
         return worktrees;

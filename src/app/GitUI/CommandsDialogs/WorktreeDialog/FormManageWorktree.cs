@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using GitCommands;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
@@ -8,7 +9,8 @@ namespace GitUI.CommandsDialogs.WorktreeDialog;
 
 public partial class FormManageWorktree : GitExtensionsDialog
 {
-    private IReadOnlyList<GitWorktree>? _worktrees;
+    private SortableWorktreeList? _worktrees;
+    private string? _mainWorktreePath;
 
     public bool ShouldRefreshRevisionGrid { get; private set; }
 
@@ -24,6 +26,7 @@ public partial class FormManageWorktree : GitExtensionsDialog
         Type.DataPropertyName = nameof(GitWorktree.HeadType);
         Branch.DataPropertyName = nameof(GitWorktree.Branch);
         Sha1.DataPropertyName = nameof(GitWorktree.Sha1);
+        LastCommit.DataPropertyName = nameof(GitWorktree.LastCommitDate);
 
         Worktrees.Columns[3].DefaultCellStyle.Font = AppSettings.MonospaceFont;
         Worktrees.Columns[3].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
@@ -43,11 +46,18 @@ public partial class FormManageWorktree : GitExtensionsDialog
         base.OnRuntimeLoad(e);
 
         Initialize();
+        RestoreSortOrder();
     }
 
     private void Initialize()
     {
-        _worktrees = Module.GetWorktrees();
+        IReadOnlyList<GitWorktree> worktreeData = Module.GetWorktrees(includeCommitDates: true);
+
+        // The main worktree is always listed first by git
+        _mainWorktreePath = worktreeData.Count > 0 ? worktreeData[0].Path : null;
+
+        _worktrees = new SortableWorktreeList();
+        _worktrees.AddRange(worktreeData);
 
         Worktrees.DataSource = _worktrees;
 
@@ -62,7 +72,37 @@ public partial class FormManageWorktree : GitExtensionsDialog
             }
         }
 
-        buttonPruneWorktrees.Enabled = _worktrees.Skip(1).Any(w => w.IsDeleted);
+        buttonPruneWorktrees.Enabled = worktreeData.Skip(1).Any(w => w.IsDeleted);
+    }
+
+    private void RestoreSortOrder()
+    {
+        string columnName = AppSettings.ManageWorktreeSortColumn;
+        if (string.IsNullOrEmpty(columnName))
+        {
+            return;
+        }
+
+        DataGridViewColumn? column = Worktrees.Columns[columnName];
+        if (column is null)
+        {
+            return;
+        }
+
+        ListSortDirection direction = AppSettings.ManageWorktreeSortAscending
+            ? ListSortDirection.Ascending
+            : ListSortDirection.Descending;
+
+        Worktrees.Sort(column, direction);
+    }
+
+    private void Worktrees_ColumnHeaderMouseClick(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        if (Worktrees.SortedColumn is not null)
+        {
+            AppSettings.ManageWorktreeSortColumn = Worktrees.SortedColumn.Name;
+            AppSettings.ManageWorktreeSortAscending = Worktrees.SortOrder == SortOrder.Ascending;
+        }
     }
 
     private void buttonPruneWorktrees_Click(object sender, EventArgs e) => PruneWorktrees();
@@ -124,7 +164,7 @@ public partial class FormManageWorktree : GitExtensionsDialog
     }
 
     private bool CanDeleteSelectedWorkspace()
-        => CanActOnSelectedWorkspace(out _) && Worktrees.SelectedRows[0].Index != 0;
+        => CanActOnSelectedWorkspace(out GitWorktree? workTree) && workTree.Path != _mainWorktreePath;
 
     private bool CanActOnSelectedWorkspace([NotNullWhen(true)] out GitWorktree? workTree)
     {
@@ -150,14 +190,24 @@ public partial class FormManageWorktree : GitExtensionsDialog
 
     private void buttonCreateNewWorktree_Click(object sender, EventArgs e)
     {
-        string basePath = _worktrees is { Count: > 0 }
-            ? _worktrees[0].Path
-            : UICommands.Module.WorkingDir;
+        string basePath = _mainWorktreePath ?? UICommands.Module.WorkingDir;
 
         if (UICommands.WorktreeCreate(this, basePath))
         {
             ShouldRefreshRevisionGrid = true;
             Initialize();
+        }
+    }
+
+    private sealed class SortableWorktreeList : SortableBindingList<GitWorktree>
+    {
+        static SortableWorktreeList()
+        {
+            AddSortableProperty(w => w.Path, (x, y) => string.Compare(x.Path, y.Path, StringComparison.OrdinalIgnoreCase));
+            AddSortableProperty(w => w.HeadType, (x, y) => x.HeadType.CompareTo(y.HeadType));
+            AddSortableProperty(w => w.Branch, (x, y) => string.Compare(x.Branch, y.Branch, StringComparison.OrdinalIgnoreCase));
+            AddSortableProperty(w => w.Sha1, (x, y) => string.Compare(x.Sha1, y.Sha1, StringComparison.Ordinal));
+            AddSortableProperty(w => w.LastCommitDate, (x, y) => Nullable.Compare(x.LastCommitDate, y.LastCommitDate));
         }
     }
 }

@@ -38,6 +38,7 @@ partial class FormManageWorktree
         Type = new DataGridViewTextBoxColumn();
         Branch = new DataGridViewTextBoxColumn();
         Sha1 = new DataGridViewTextBoxColumn();
+        LastCommit = new DataGridViewTextBoxColumn();
         buttonPruneWorktrees = new Button();
         buttonCreateNewWorktree = new Button();
         flowLayoutPanel1 = new FlowLayoutPanel();
@@ -135,7 +136,8 @@ partial class FormManageWorktree
         Path,
         Type,
         Branch,
-        Sha1});
+        Sha1,
+        LastCommit});
         Worktrees.Dock = DockStyle.Fill;
         Worktrees.Location = new Point(3, 3);
         Worktrees.MultiSelect = false;
@@ -148,6 +150,7 @@ partial class FormManageWorktree
         Worktrees.SelectionChanged += Worktrees_SelectionChanged;
         Worktrees.CellDoubleClick += WorktreesOnCellDoubleClick;
         Worktrees.KeyDown += Worktrees_KeyDown;
+        Worktrees.ColumnHeaderMouseClick += Worktrees_ColumnHeaderMouseClick;
         // 
         // Path
         // 
@@ -155,7 +158,6 @@ partial class FormManageWorktree
         Path.HeaderText = "Path";
         Path.Name = "Path";
         Path.ReadOnly = true;
-        Path.SortMode = DataGridViewColumnSortMode.NotSortable;
         Path.Width = 37;
         // 
         // Type
@@ -164,7 +166,6 @@ partial class FormManageWorktree
         Type.HeaderText = "Type";
         Type.Name = "Type";
         Type.ReadOnly = true;
-        Type.SortMode = DataGridViewColumnSortMode.NotSortable;
         Type.Width = 37;
         // 
         // Branch
@@ -173,7 +174,6 @@ partial class FormManageWorktree
         Branch.HeaderText = "Branch";
         Branch.Name = "Branch";
         Branch.ReadOnly = true;
-        Branch.SortMode = DataGridViewColumnSortMode.NotSortable;
         Branch.Width = 50;
         // 
         // Sha1
@@ -183,7 +183,13 @@ partial class FormManageWorktree
         Sha1.MinimumWidth = 90;
         Sha1.Name = "Sha1";
         Sha1.ReadOnly = true;
-        Sha1.SortMode = DataGridViewColumnSortMode.NotSortable;
+        // 
+        // LastCommit
+        // 
+        LastCommit.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+        LastCommit.HeaderText = "Last Commit";
+        LastCommit.Name = "LastCommit";
+        LastCommit.ReadOnly = true;
         // 
         // buttonPruneWorktrees
         // 
@@ -249,5 +255,6 @@ partial class FormManageWorktree
     private DataGridViewTextBoxColumn Type;
     private DataGridViewTextBoxColumn Branch;
     private DataGridViewTextBoxColumn Sha1;
+    private DataGridViewTextBoxColumn LastCommit;
     private Button buttonCreateNewWorktree;
 }

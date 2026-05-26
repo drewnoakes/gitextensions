@@ -18,12 +18,14 @@ public enum GitWorktreeHeadType
 /// <param name="Sha1">The HEAD commit SHA, or <see langword="null"/> for bare worktrees.</param>
 /// <param name="Branch">The branch name (without <c>refs/heads/</c> prefix), or <see langword="null"/> if detached or bare.</param>
 /// <param name="IsDeleted"><see langword="true"/> if the worktree directory no longer exists on disk.</param>
+/// <param name="LastCommitDate">The author date of the HEAD commit, or <see langword="null"/> if unknown.</param>
 public sealed record GitWorktree(
     string Path,
     GitWorktreeHeadType HeadType,
     string? Sha1,
     string? Branch,
-    bool IsDeleted)
+    bool IsDeleted,
+    DateTime? LastCommitDate = null)
 {
     /// <summary>
     /// Formats a display name by combining <paramref name="name"/> with the branch, detached HEAD, or bare status.

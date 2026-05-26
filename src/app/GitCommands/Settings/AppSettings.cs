@@ -1154,6 +1154,18 @@ public static partial class AppSettings
         set => SetBool("DontConfirmSwitchWorktree", value);
     }
 
+    public static string ManageWorktreeSortColumn
+    {
+        get => GetString("ManageWorktree.SortColumn", "") ?? "";
+        set => SetString("ManageWorktree.SortColumn", value);
+    }
+
+    public static bool ManageWorktreeSortAscending
+    {
+        get => GetBool("ManageWorktree.SortAscending", true);
+        set => SetBool("ManageWorktree.SortAscending", value);
+    }
+
     public static bool IncludeUntrackedFilesInAutoStash
     {
         get => GetBool("includeUntrackedFilesInAutoStash", false);
