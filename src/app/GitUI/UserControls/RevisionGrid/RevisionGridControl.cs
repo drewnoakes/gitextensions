@@ -219,6 +219,12 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
     /// </summary>
     internal IReadOnlySet<string> GoneBranches { get; private set; } = new HashSet<string>();
 
+    /// <summary>
+    ///  Names of all local branches in the repository, used to determine whether a remote
+    ///  ref has a local tracking counterpart (for outline vs filled label rendering).
+    /// </summary>
+    internal IReadOnlySet<string> LocalBranchNames { get; private set; } = new HashSet<string>();
+
     internal bool ShowUncommittedChangesIfPossible { get; set; } = true;
     internal bool ShowBuildServerInfo { get; set; }
     internal bool DoubleClickDoesNotOpenCommitInfo { get; set; }
@@ -1155,6 +1161,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 }
 
                 GoneBranches = goneBranches;
+                LocalBranchNames = new HashSet<string>(
+                    getUnfilteredRefs.Value.Where(r => r.IsHead).Select(r => r.Name));
 
                 cancellationToken.ThrowIfCancellationRequested();
                 ResetNavigationHistory();

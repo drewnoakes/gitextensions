@@ -584,6 +584,11 @@ internal sealed class MessageColumnProvider : ColumnProvider
             name += " [...]";
         }
 
+        // Remote-only branches (no local tracking counterpart) render as outline
+        // to reduce visual clutter. Remote branches that have a local branch with
+        // the same name are rendered as solid fill.
+        bool fill = !gitRef.IsRemote || _grid.LocalBranchNames.Contains(gitRef.LocalName);
+
         return RevisionGridRefRenderer.DrawRef(
             e.State.HasFlag(DataGridViewElementStates.Selected),
             font,
@@ -594,7 +599,7 @@ internal sealed class MessageColumnProvider : ColumnProvider
             messageBounds,
             e.Graphics!,
             dashedLine: superprojectRef is not null,
-            fill: true,
+            fill: fill,
             highlight: highlight);
     }
 
