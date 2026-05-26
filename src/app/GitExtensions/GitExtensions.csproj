@@ -21,6 +21,8 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
 
+    <PackageReference Include="LibGit2Sharp" />
+
     <!-- This is needed for eng\Publish.targets to resolve .NET references -->
     <PackageReference Include="NETStandard.Library" GeneratePathProperty="true" VersionOverride="2.0.3">
       <PrivateAssets>all</PrivateAssets>

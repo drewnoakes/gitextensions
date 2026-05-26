@@ -96,4 +96,10 @@ internal partial class ToolsToolStripMenuItem : ToolStripMenuItemEx
             MessageBoxes.FailedToRunShell(OwnerForm, shell.Name, exception);
         }
     }
+
+    private void LibGit2BenchmarkToolStripMenuItemClick(object sender, EventArgs e)
+    {
+        using FormLibGit2Benchmark form = new(Module);
+        form.ShowDialog(OwnerForm);
+    }
 }

@@ -40,6 +40,8 @@ partial class ToolsToolStripMenuItem
         settingsToolStripMenuItem = new ToolStripMenuItem();
         startAuthenticationAgentToolStripMenuItem = new ToolStripMenuItem();
         generateOrImportKeyToolStripMenuItem = new ToolStripMenuItem();
+        libgit2BenchmarkToolStripMenuItem = new ToolStripMenuItem();
+        toolStripSeparatorBenchmark = new ToolStripSeparator();
         // 
         // gitBashToolStripMenuItem
         // 
@@ -122,6 +124,18 @@ partial class ToolsToolStripMenuItem
         settingsToolStripMenuItem.Size = new Size(217, 22);
         settingsToolStripMenuItem.Text = "&Settings...";
         settingsToolStripMenuItem.Click += OnShowSettingsClick;
+        //
+        // libgit2BenchmarkToolStripMenuItem
+        //
+        libgit2BenchmarkToolStripMenuItem.Name = "libgit2BenchmarkToolStripMenuItem";
+        libgit2BenchmarkToolStripMenuItem.Size = new Size(217, 22);
+        libgit2BenchmarkToolStripMenuItem.Text = "Lib&Git2Sharp benchmark...";
+        libgit2BenchmarkToolStripMenuItem.Click += LibGit2BenchmarkToolStripMenuItemClick;
+        //
+        // toolStripSeparatorBenchmark
+        //
+        toolStripSeparatorBenchmark.Name = "toolStripSeparatorBenchmark";
+        toolStripSeparatorBenchmark.Size = new Size(214, 6);
 
         DropDownItems.AddRange(new ToolStripItem[] {
         gitBashToolStripMenuItem,
@@ -131,6 +145,8 @@ partial class ToolsToolStripMenuItem
         PuTTYToolStripMenuItem,
         toolStripSeparator41,
         gitcommandLogToolStripMenuItem,
+        toolStripSeparatorBenchmark,
+        libgit2BenchmarkToolStripMenuItem,
         toolStripSeparator7,
         settingsToolStripMenuItem});
         Text = "&Tools";
@@ -149,4 +165,6 @@ partial class ToolsToolStripMenuItem
     private ToolStripSeparator toolStripSeparator41;
     private ToolStripMenuItem gitcommandLogToolStripMenuItem;
     private ToolStripSeparator toolStripSeparator7;
+    private ToolStripMenuItem libgit2BenchmarkToolStripMenuItem;
+    private ToolStripSeparator toolStripSeparatorBenchmark;
 }

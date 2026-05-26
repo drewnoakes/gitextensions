@@ -24,6 +24,7 @@
     <PackageReference Include="Microsoft-WindowsAPICodePack-Core" />
     <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" />
     <PackageReference Include="JetBrains.Annotations" />
+    <PackageReference Include="LibGit2Sharp" />
     <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
