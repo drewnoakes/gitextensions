@@ -83,6 +83,7 @@ public partial class CommitInfo : GitModuleControl
     private List<string>? _branches;
     private string? _branchInfo;
     private string? _gitDescribeInfo;
+    private CommitDiffStats? _diffStats;
     private IDictionary<string, int>? _tagsOrderDict;
     private int _revisionInfoHeight;
     private int _commitMessageHeight;
@@ -309,7 +310,7 @@ public partial class CommitInfo : GitModuleControl
         {
             CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
             bool showLinks = CommandClickedEvent is not null;
-            string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), gpgInfo);
+            string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), gpgInfo, _diffStats);
             unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
         }
     }
@@ -410,6 +411,7 @@ public partial class CommitInfo : GitModuleControl
         _branchInfo = "";
         _tagInfo = "";
         _gitDescribeInfo = "";
+        _diffStats = null;
         _cachedAvatarDataUrl = null;
 
         if (_revision is not null && !_revision.IsArtificial && !_revision.IsAutostash)
@@ -492,7 +494,8 @@ public partial class CommitInfo : GitModuleControl
 
                 List<Task> tasks = [
                     UpdateCommitMessageAsync(cancellationToken),
-                    LoadLinksForRevisionAsync(initialRevision, settings).WithCancellation(cancellationToken)
+                    LoadLinksForRevisionAsync(initialRevision, settings).WithCancellation(cancellationToken),
+                    LoadDiffStatsAsync(initialRevision.ObjectId, cancellationToken)
                 ];
 
                 // No branch/tag data for artificial commands
@@ -695,6 +698,78 @@ public partial class CommitInfo : GitModuleControl
                     return gitDescribeInfo.ToString();
                 }
             }
+
+            async Task LoadDiffStatsAsync(ObjectId commitId, CancellationToken cancellationToken)
+            {
+                await TaskScheduler.Default;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                CommitDiffStats? stats = GetDiffStats(commitId);
+
+                await this.SwitchToMainThreadAsync(cancellationToken);
+                _diffStats = stats;
+
+                // Re-render the header to include the diff stats
+                if (_revision is not null && _htmlBuilder is not null && _unifiedViewerInitialized)
+                {
+                    CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
+                    bool showLinks = CommandClickedEvent is not null;
+                    string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), _gpgInfo, _diffStats);
+                    unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///  Runs <c>git diff-tree --shortstat</c> to get lines added/removed for a commit.
+    /// </summary>
+    private CommitDiffStats? GetDiffStats(ObjectId commitId)
+    {
+        GitArgumentBuilder args = new("diff-tree")
+        {
+            "--shortstat",
+            "-r",
+            commitId.ToString()
+        };
+
+        string output = Module.GitExecutable.GetOutput(args);
+        return ParseShortStat(output);
+
+        static CommitDiffStats? ParseShortStat(string output)
+        {
+            // Example: " 3 files changed, 42 insertions(+), 15 deletions(-)"
+            // Also handles single-stat lines: " 1 file changed, 2 insertions(+)"
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return null;
+            }
+
+            int files = 0;
+            int insertions = 0;
+            int deletions = 0;
+
+            foreach (string part in output.Split(','))
+            {
+                string trimmed = part.Trim();
+
+                if (trimmed.Contains("file"))
+                {
+                    int.TryParse(trimmed.AsSpan(0, trimmed.IndexOf(' ')), out files);
+                }
+                else if (trimmed.Contains("insertion"))
+                {
+                    int.TryParse(trimmed.AsSpan(0, trimmed.IndexOf(' ')), out insertions);
+                }
+                else if (trimmed.Contains("deletion"))
+                {
+                    int.TryParse(trimmed.AsSpan(0, trimmed.IndexOf(' ')), out deletions);
+                }
+            }
+
+            return files > 0 || insertions > 0 || deletions > 0
+                ? new CommitDiffStats(files, insertions, deletions)
+                : null;
         }
     }
 
@@ -997,7 +1072,7 @@ public partial class CommitInfo : GitModuleControl
             else
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
-                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl(), _gpgInfo);
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl(), _gpgInfo, _diffStats);
                 string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, _externalLinks);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,

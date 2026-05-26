@@ -15,6 +15,7 @@ public sealed class TabbedHeaderRenderStyleProvider : IHeaderRenderStyleProvider
             TranslatedStrings.Committer,
             TranslatedStrings.CommitDate,
             TranslatedStrings.CommitHash,
+            TranslatedStrings.Changes,
             TranslatedStrings.GetChildren(10), // assume text for plural case is longer
             TranslatedStrings.GetParents(10)
         ];

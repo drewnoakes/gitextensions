@@ -162,6 +162,17 @@ internal sealed class CommitInfoHtmlBuilder
             .date-sep {
                 color: {{Css(mutedFg)}};
             }
+            .stat-insertions {
+                color: #1a7f37;
+                font-weight: 600;
+            }
+            .stat-deletions {
+                color: #cf222e;
+                font-weight: 600;
+            }
+            .stat-files {
+                color: {{Css(mutedFg)}};
+            }
             .hash {
                 font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
                 font-size: 11px;
@@ -335,7 +346,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the header section (for incremental updates).
     /// </summary>
-    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null, GpgInfo? gpgInfo = null)
+    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null, GpgInfo? gpgInfo = null, CommitDiffStats? diffStats = null)
     {
         bool isArtificial = commitData.ObjectId.IsArtificial;
         bool authorIsCommitter = string.Equals(commitData.Author, commitData.Committer, StringComparison.CurrentCulture);
@@ -396,6 +407,13 @@ internal sealed class CommitInfoHtmlBuilder
             {
                 AppendHeaderRow(sb, ResourceManager.TranslatedStrings.CommitDate, FormatDateHtml(commitData.CommitDate));
             }
+        }
+
+        // --- Diff stats section ---
+        if (!isArtificial && diffStats is not null)
+        {
+            string statsHtml = FormatDiffStatsHtml(diffStats);
+            AppendHeaderRow(sb, ResourceManager.TranslatedStrings.Changes, statsHtml);
         }
 
         // --- Metadata section ---
@@ -765,6 +783,39 @@ internal sealed class CommitInfoHtmlBuilder
 
         string relative = WebUtility.HtmlEncode(LocalizationHelpers.GetRelativeDateString(DateTime.UtcNow, date.UtcDateTime));
         return $"{fullDate} <span class=\"date-relative\">{relative}</span>";
+    }
+
+    private static string FormatDiffStatsHtml(CommitDiffStats stats)
+    {
+        StringBuilder sb = new();
+
+        if (stats.Insertions > 0)
+        {
+            sb.Append($"<span class=\"stat-insertions\">+{stats.Insertions:N0}</span>");
+        }
+
+        if (stats.Deletions > 0)
+        {
+            if (sb.Length > 0)
+            {
+                sb.Append("&ensp;");
+            }
+
+            sb.Append($"<span class=\"stat-deletions\">&minus;{stats.Deletions:N0}</span>");
+        }
+
+        if (stats.FilesChanged > 0)
+        {
+            if (sb.Length > 0)
+            {
+                sb.Append("&ensp;");
+            }
+
+            string fileWord = stats.FilesChanged == 1 ? "file" : "files";
+            sb.Append($"<span class=\"stat-files\">({stats.FilesChanged} {fileWord})</span>");
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>
