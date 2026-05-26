@@ -285,13 +285,20 @@ partial class FormBrowse
         }
 
         GitPullAction defaultPullAction = AppSettings.DefaultPullAction;
+        bool hasMultipleRemotes = Module.IsValidGitWorkingDir() && Module.GetRemoteNames().Count > 1;
 
         foreach (ToolStripMenuItem menuItem in setDefaultPullButtonActionToolStripMenuItem.DropDown.Items)
         {
             menuItem.Checked = (GitPullAction)menuItem.Tag! == defaultPullAction;
         }
 
-        switch (defaultPullAction)
+        // When "Fetch all" is the default but only one remote exists, degrade
+        // to "Fetch" for the toolbar button since fetch-all is redundant.
+        GitPullAction effectiveAction = defaultPullAction is GitPullAction.FetchAll && !hasMultipleRemotes
+            ? GitPullAction.Fetch
+            : defaultPullAction;
+
+        switch (effectiveAction)
         {
             case GitPullAction.Fetch:
                 toolStripButtonPull.Image = fetchToolStripMenuItem.Image;
@@ -305,7 +312,9 @@ partial class FormBrowse
 
             case GitPullAction.FetchPruneAll:
                 toolStripButtonPull.Image = fetchPruneAllToolStripMenuItem.Image;
-                toolStripButtonPull.ToolTipText = _pullFetchPruneAll.Text;
+                toolStripButtonPull.ToolTipText = hasMultipleRemotes
+                    ? _pullFetchPruneAll.Text
+                    : _pullFetchPrune.Text;
                 break;
 
             case GitPullAction.Merge:
@@ -328,15 +337,20 @@ partial class FormBrowse
     }
 
     /// <summary>
-    ///  Hides "Fetch all" and "Fetch and prune all" items when there is only one remote,
-    ///  since they are redundant with the single-remote "Fetch" command.
+    ///  Hides "Fetch all" items when there is only one remote (redundant with "Fetch"),
+    ///  and relabels "Fetch and prune all" to "Fetch and prune" for clarity.
     /// </summary>
     private void UpdateFetchAllVisibility()
     {
         bool hasMultipleRemotes = Module.IsValidGitWorkingDir() && Module.GetRemoteNames().Count > 1;
 
         fetchAllToolStripMenuItem.Visible = hasMultipleRemotes;
-        fetchPruneAllToolStripMenuItem.Visible = hasMultipleRemotes;
+
+        // "Fetch and prune" remains available regardless of remote count,
+        // but the label drops the "all" suffix when there is only one remote.
+        fetchPruneAllToolStripMenuItem.Text = hasMultipleRemotes
+            ? _pullFetchPruneAll.Text
+            : _pullFetchPrune.Text;
 
         // Update the corresponding toolbar shortcut buttons
         string fetchAllButtonName = FetchPullToolbarShortcutsPrefix + fetchAllToolStripMenuItem.Name;
@@ -348,7 +362,7 @@ partial class FormBrowse
 
         if (ToolStripMain.Items[fetchPruneAllButtonName] is ToolStripItem fetchPruneAllButton)
         {
-            fetchPruneAllButton.Visible = hasMultipleRemotes;
+            fetchPruneAllButton.Text = fetchPruneAllToolStripMenuItem.Text;
         }
 
         // Update the "set default pull action" submenu items
@@ -356,9 +370,13 @@ partial class FormBrowse
         {
             foreach (ToolStripItem item in setDefaultMenu.Items)
             {
-                if (item.Tag is GitPullAction.FetchAll or GitPullAction.FetchPruneAll)
+                if (item.Tag is GitPullAction.FetchAll)
                 {
                     item.Visible = hasMultipleRemotes;
+                }
+                else if (item.Tag is GitPullAction.FetchPruneAll)
+                {
+                    item.Text = fetchPruneAllToolStripMenuItem.Text;
                 }
             }
         }

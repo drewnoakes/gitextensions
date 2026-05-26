@@ -186,6 +186,7 @@ public sealed partial class FormBrowse : GitModuleForm, IBrowseRepo
 
     private readonly TranslationString _pullFetch = new("Fetch");
     private readonly TranslationString _pullFetchAll = new("Fetch all");
+    private readonly TranslationString _pullFetchPrune = new("Fetch and prune");
     private readonly TranslationString _pullFetchPruneAll = new("Fetch and prune all");
     private readonly TranslationString _pullMerge = new("Pull - merge");
     private readonly TranslationString _pullRebase = new("Pull - rebase");

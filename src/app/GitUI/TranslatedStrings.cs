@@ -36,6 +36,8 @@ internal sealed class TranslatedStrings : Translate
     private readonly TranslationString _branchText = new("Branch");
     private readonly TranslationString _branchesText = new("Branches");
     private readonly TranslationString _remotesText = new("Remotes");
+    private readonly TranslationString _fetchAndPruneAllRemotes = new("Fetch and prune all remotes");
+    private readonly TranslationString _fetchAndPruneRemote = new("Fetch and prune remote");
     private readonly TranslationString _tagsText = new("Tags");
     private readonly TranslationString _stashesText = new("Stashes");
     private readonly TranslationString _submodulesText = new("Submodules");
@@ -236,6 +238,8 @@ Copy error details to clipboard?");
     public static string Branch => _instance.Value._branchText.Text;
     public static string Branches => _instance.Value._branchesText.Text;
     public static string Remotes => _instance.Value._remotesText.Text;
+    public static string FetchAndPruneAllRemotes => _instance.Value._fetchAndPruneAllRemotes.Text;
+    public static string FetchAndPruneRemote => _instance.Value._fetchAndPruneRemote.Text;
     public static string Tags => _instance.Value._tagsText.Text;
     public static string Stashes => _instance.Value._stashesText.Text;
     public static string Submodules => _instance.Value._submodulesText.Text;

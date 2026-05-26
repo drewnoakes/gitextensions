@@ -267,8 +267,19 @@ partial class RepoObjectsTree : IMenuItemFactory
 
         EnableRemoteBranchContextMenu(hasSingleSelection, selectedNode);
         EnableMenuItems(_tagNodeMenuItems, _ => hasSingleSelection && selectedNode is TagNode);
-        EnableMenuItems(hasSingleSelection && selectedNode is RemoteBranchTree, mnuBtnManageRemotesFromRootNode, mnuBtnPruneAllRemotes);
-        EnableMenuItems(hasSingleSelection && selectedNode is RemoteBranchTree && Module.GetRemoteNames().Count > 1, mnuBtnFetchAllRemotes);
+        bool isRemoteBranchTree = hasSingleSelection && selectedNode is RemoteBranchTree;
+        bool hasMultipleRemotes = isRemoteBranchTree && Module.GetRemoteNames().Count > 1;
+        EnableMenuItems(isRemoteBranchTree, mnuBtnManageRemotesFromRootNode, mnuBtnPruneAllRemotes);
+        EnableMenuItems(hasMultipleRemotes, mnuBtnFetchAllRemotes);
+
+        // Relabel "Fetch and prune" to drop the "all" suffix when there is only one remote
+        if (isRemoteBranchTree)
+        {
+            mnuBtnPruneAllRemotes.Text = hasMultipleRemotes
+                ? TranslatedStrings.FetchAndPruneAllRemotes
+                : TranslatedStrings.FetchAndPruneRemote;
+        }
+
         EnableRemoteRepoContextMenu(hasSingleSelection, selectedNode);
         EnableMenuItems(hasSingleSelection && selectedNode is StashTree, mnubtnStashAllFromRootNode, mnubtnStashStagedFromRootNode, mnubtnManageStashFromRootNode);
         EnableStashContextMenu(hasSingleSelection, selectedNode);
