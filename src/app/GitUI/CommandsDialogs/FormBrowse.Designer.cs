@@ -206,6 +206,7 @@ partial class FormBrowse
         ToolStripMain.ImeMode = ImeMode.NoControl;
         ToolStripMain.Items.AddRange(new ToolStripItem[] {
         RefreshButton,
+        toolStripButtonCommit,
         toolStripSeparator0,
         toggleLeftPanel,
         toggleSplitViewLayout,
@@ -218,7 +219,6 @@ partial class FormBrowse
         toolStripSeparator1,
         toolStripButtonPull,
         toolStripButtonPush,
-        toolStripButtonCommit,
         toolStripSplitStash,
         toolStripSeparator2,
         toolStripFileExplorer,
