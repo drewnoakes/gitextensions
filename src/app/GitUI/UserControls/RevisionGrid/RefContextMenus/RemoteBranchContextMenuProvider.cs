@@ -1,5 +1,6 @@
 using GitCommands;
 using GitCommands.Config;
+using GitCommands.Git;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.CommandsDialogs.SettingsDialog.RevisionLinks;
@@ -14,6 +15,7 @@ namespace GitUI.UserControls.RevisionGrid.RefContextMenus;
 internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMenuProvider
 {
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
+    private readonly TranslationString _fastForwardToThis = new("Fast-&forward current branch to here");
     private readonly TranslationString _goToLocalBranch = new("Go to &local branch ({0})");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
@@ -42,6 +44,18 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
             if (!isAtCurrentHead)
             {
                 string refUnambiguousName = context.GetRefUnambiguousName(gitRef);
+
+                if (context.CurrentCheckout is ObjectId headId
+                    && gitRef.ObjectId is ObjectId branchObjectId
+                    && context.IsAncestorOf(headId, branchObjectId))
+                {
+                    ToolStripMenuItem fastForward = new(_fastForwardToThis.Text, Images.Merge);
+                    fastForward.Click += (_, _) => context.UICommands.StartCommandLineProcessDialog(
+                        context.ParentForm,
+                        Commands.MergeFastForwardOnly(gitRef.Name));
+                    menu.Items.Add(fastForward);
+                }
+
                 ToolStripMenuItem merge = new(_mergeIntoCurrent.Text, Images.Merge);
                 merge.Click += (_, _) => context.UICommands.StartMergeBranchDialog(context.ParentForm, refUnambiguousName);
                 menu.Items.Add(merge);

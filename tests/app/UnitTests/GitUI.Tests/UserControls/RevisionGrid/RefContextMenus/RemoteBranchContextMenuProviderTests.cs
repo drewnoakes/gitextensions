@@ -198,6 +198,54 @@ public class RemoteBranchContextMenuProviderTests
             .Should().NotContain(t => t != null && t.Contains("→"));
     }
 
+    [Test]
+    public void Populate_should_include_fast_forward_when_current_is_ancestor()
+    {
+        ObjectId branchObjectId = ObjectId.Random();
+        IGitRef gitRef = CreateRemoteBranchRef("origin/feature", branchObjectId);
+        using ContextMenuStrip menu = new();
+
+        RefContextMenuContext ancestorContext = new()
+        {
+            UICommands = _uiCommands,
+            ParentForm = null,
+            CurrentBranchRef = "refs/heads/main",
+            CurrentBranchName = "main",
+            CurrentCheckout = _currentCheckout,
+            IsBareRepository = false,
+            GetRefUnambiguousName = r => r.Name,
+            GetLatestSelectedRevision = () => null,
+            PerformRefreshRevisions = () => { },
+            DropStash = (_, _) => { },
+            GetWorktreePathForBranch = _ => null,
+            ShowFormDiff = (_, _, _, _) => { },
+            IsAncestorOf = (ancestor, descendant) => ancestor == _currentCheckout && descendant == branchObjectId,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
+        };
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, ancestorContext);
+
+        menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text!.Replace("&", ""))
+            .Should().Contain(t => t.Contains("Fast-forward"));
+    }
+
+    [Test]
+    public void Populate_should_not_include_fast_forward_when_not_ancestor()
+    {
+        IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());
+        using ContextMenuStrip menu = new();
+
+        _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
+
+        menu.Items.Cast<ToolStripItem>()
+            .Where(i => i is not ToolStripSeparator)
+            .Select(i => i.Text!.Replace("&", ""))
+            .Should().NotContain(t => t.Contains("Fast-forward"));
+    }
+
     private static IGitRef CreateRemoteBranchRef(string name, ObjectId objectId)
     {
         IGitRef gitRef = Substitute.For<IGitRef>();

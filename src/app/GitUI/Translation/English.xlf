@@ -824,10 +824,6 @@ Please make sure that Git for Windows is installed or set the correct command ma
         <source>Draw alternate background</source>
         <target />
       </trans-unit>
-      <trans-unit id="chkFillRefLabels.Text">
-        <source>Fill git ref labels</source>
-        <target />
-      </trans-unit>
       <trans-unit id="chkHighlightAuthored.Text">
         <source>Highlight authored revisions</source>
         <target />
@@ -2819,6 +2815,10 @@ compare with first:</source>
         <source>Fetch all</source>
         <target />
       </trans-unit>
+      <trans-unit id="_pullFetchPrune.Text">
+        <source>Fetch and prune</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_pullFetchPruneAll.Text">
         <source>Fetch and prune all</source>
         <target />
@@ -3098,6 +3098,10 @@ Do you want to continue?</source>
       </trans-unit>
       <trans-unit id="kGitToolStripMenuItem.Text">
         <source>Git&amp;K</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="libgit2BenchmarkToolStripMenuItem.Text">
+        <source>Lib&amp;Git2Sharp benchmark...</source>
         <target />
       </trans-unit>
       <trans-unit id="manageRemoteRepositoriesToolStripMenuItem1.Text">
@@ -5503,6 +5507,10 @@ command "git help shortlog"</source>
       </trans-unit>
       <trans-unit id="Branch.HeaderText">
         <source>Branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="LastCommit.HeaderText">
+        <source>Last Commit</source>
         <target />
       </trans-unit>
       <trans-unit id="Path.HeaderText">
@@ -8604,6 +8612,14 @@ help</source>
         <source>Diff this → cu&amp;rrent</source>
         <target />
       </trans-unit>
+      <trans-unit id="_fastForwardToThis.Text">
+        <source>Fast-&amp;forward to this branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_goToRemoteBranch.Text">
+        <source>Go to remote &amp;branch ({0})</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">
         <source>&amp;Merge into current branch</source>
         <target />
@@ -8622,6 +8638,10 @@ help</source>
       </trans-unit>
       <trans-unit id="_renameBranch.Text">
         <source>R&amp;ename this branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_viewOnRemote.Text">
+        <source>View branch on {0}</source>
         <target />
       </trans-unit>
     </body>
@@ -8866,8 +8886,20 @@ This will just checkout on the submodule the commit determined by the superproje
   </file>
   <file datatype="plaintext" original="RefContextMenuComposer" source-language="en">
     <body>
+      <trans-unit id="_copyBranchName.Text">
+        <source>Copy &amp;branch name</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_copyName.Text">
-        <source>&amp;Copy name to clipboard</source>
+        <source>&amp;Copy name</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_copyTagName.Text">
+        <source>Copy &amp;tag name</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_copyWorktreePath.Text">
+        <source>Copy worktree &amp;path</source>
         <target />
       </trans-unit>
     </body>
@@ -8890,12 +8922,24 @@ This will just checkout on the submodule the commit determined by the superproje
         <source>Diff this → cu&amp;rrent</source>
         <target />
       </trans-unit>
+      <trans-unit id="_fastForwardToThis.Text">
+        <source>Fast-&amp;forward current branch to here</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_goToLocalBranch.Text">
+        <source>Go to &amp;local branch ({0})</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">
         <source>&amp;Merge into current branch</source>
         <target />
       </trans-unit>
       <trans-unit id="_rebaseOnto.Text">
         <source>&amp;Rebase current branch onto this</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_viewOnRemote.Text">
+        <source>View branch on {0}</source>
         <target />
       </trans-unit>
     </body>
@@ -9676,6 +9720,10 @@ Reset the filter via View &gt; Show all branches.</source>
         <source>&amp;Edit commit</source>
         <target />
       </trans-unit>
+      <trans-unit id="fastForwardCurrentBranchToolStripMenuItem.Text">
+        <source>Fast-forward current branch &amp;here</source>
+        <target />
+      </trans-unit>
       <trans-unit id="fixupCommitToolStripMenuItem.Text">
         <source>Create a &amp;fixup commit...</source>
         <target />
@@ -10341,6 +10389,10 @@ Select this commit to populate the full message.</source>
         <source>This action cannot be undone.</source>
         <target />
       </trans-unit>
+      <trans-unit id="_changesText.Text">
+        <source>Changes</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_childrenText.Text">
         <source>{0:Child|Children}</source>
         <target />
@@ -10531,6 +10583,14 @@ Select this commit to populate the full message.</source>
 {0}
 
 Copy error details to clipboard?</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_fetchAndPruneAllRemotes.Text">
+        <source>Fetch and prune all remotes</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_fetchAndPruneRemote.Text">
+        <source>Fetch and prune remote</source>
         <target />
       </trans-unit>
       <trans-unit id="_filterFileInGrid.Text">

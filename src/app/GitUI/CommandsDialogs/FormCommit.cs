@@ -522,6 +522,12 @@ public sealed partial class FormCommit : GitModuleForm
 
     private void UpdateSplitRightOrientation()
     {
+        // Skip during degenerate sizes (e.g. minimize, rapid resize)
+        if (splitRight.Width < 100 || splitRight.Height < 100)
+        {
+            return;
+        }
+
         int breakpoint = DpiUtil.Scale(SplitRightVerticalBreakpointWidth);
         int hysteresis = DpiUtil.Scale(SplitRightVerticalHysteresis);
 
@@ -569,6 +575,12 @@ public sealed partial class FormCommit : GitModuleForm
             }
 
             _splitRightIsVertical = shouldBeVertical;
+        }
+        catch (InvalidOperationException)
+        {
+            // WinForms SplitContainer can throw during rapid resize transitions
+            // when intermediate sizes violate distance constraints. The next
+            // resize event will retry with a valid size.
         }
         finally
         {
