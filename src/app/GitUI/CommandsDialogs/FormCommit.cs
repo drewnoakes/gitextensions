@@ -140,6 +140,7 @@ public sealed partial class FormCommit : GitModuleForm
     private readonly CancellationTokenSequence _interactiveAddSequence = new();
     private readonly CancellationTokenSequence _viewChangesSequence = new();
     private readonly SplitterManager _splitterManager = new(new AppSettingsPath("CommitDialog"));
+    private static readonly AppSettingsPath _commitDialogSettings = new("CommitDialog");
     private readonly Subject<string> _selectionFilterSubject = new();
     private readonly IFullPathResolver _fullPathResolver;
     private readonly List<string> _formattedLines = [];
@@ -163,6 +164,10 @@ public sealed partial class FormCommit : GitModuleForm
     private bool _bypassActivatedEventHandler;
     private bool _loadUnstagedOutputFirstTime = true;
     private bool _initialized;
+    private bool _responsiveLayoutEnabled;
+    private bool _splitRightIsVertical;
+    private int _splitRightHorizontalDistance;
+    private int _splitRightVerticalDistance;
     private IReadOnlyList<GitItemStatus>? _currentSelection;
     private int _alreadyLoadedTemplatesCount = -1;
     private EventHandler? _branchNameLabelOnClick;
@@ -215,6 +220,7 @@ public sealed partial class FormCommit : GitModuleForm
         CommitAndPush.Text = _commitAndPush.Text;
 
         splitRight.Panel2MinSize = DpiUtil.Scale(100);
+        splitRight.Resize += SplitRight_Resize;
 
         _commitMessageManager = new CommitMessageManager(this, Module.WorkingDirGitDir, Module.CommitEncoding, commitMessage);
 
@@ -438,7 +444,23 @@ public sealed partial class FormCommit : GitModuleForm
         // Do not attempt to store again if the form has already been closed. Unfortunately, OnFormClosed is always called by Close.
         if (Visible)
         {
+            // Ensure horizontal orientation before saving so the SplitterManager
+            // persists the correct (height-based) distance for horizontal mode.
+            if (_splitRightIsVertical)
+            {
+                _splitRightVerticalDistance = splitRight.SplitterDistance;
+                _responsiveLayoutEnabled = false;
+                splitRight.BeginInit();
+                splitRight.Panel2MinSize = 0;
+                splitRight.SplitterDistance = splitRight.Panel1MinSize + 1;
+                splitRight.Orientation = Orientation.Horizontal;
+                splitRight.Panel2MinSize = DpiUtil.Scale(100);
+                splitRight.EndInit();
+                SetSplitRightDistanceSafe(_splitRightHorizontalDistance);
+            }
+
             _splitterManager.SaveSplitters();
+            _commitDialogSettings.SetInt("splitRight_VerticalDistance", _splitRightVerticalDistance > 0 ? _splitRightVerticalDistance : null);
 
             // Do not remember commit message of fixup or squash commits, since they have
             // a special meaning, and can be dangerous if used inappropriately.
@@ -463,6 +485,9 @@ public sealed partial class FormCommit : GitModuleForm
         MinimizeBox = Owner is null;
 
         base.OnLoad(e);
+
+        _responsiveLayoutEnabled = true;
+        UpdateSplitRightOrientation();
     }
 
     private void RestoreSplitters()
@@ -471,6 +496,100 @@ public sealed partial class FormCommit : GitModuleForm
         _splitterManager.AddSplitter(splitRight, nameof(splitRight));
         _splitterManager.AddSplitter(splitLeft, nameof(splitLeft));
         _splitterManager.RestoreSplitters();
+
+        _splitRightHorizontalDistance = splitRight.SplitterDistance;
+        _splitRightVerticalDistance = _commitDialogSettings.GetInt("splitRight_VerticalDistance") ?? 0;
+    }
+
+    /// <summary>
+    ///  Width threshold (in logical pixels) at which the commit message pane moves
+    ///  from below the diff view to a side column on the right.
+    /// </summary>
+    private const int SplitRightVerticalBreakpointWidth = 750;
+
+    /// <summary>
+    ///  Hysteresis margin to prevent rapid toggling near the breakpoint.
+    /// </summary>
+    private const int SplitRightVerticalHysteresis = 50;
+
+    private void SplitRight_Resize(object? sender, EventArgs e)
+    {
+        if (_responsiveLayoutEnabled)
+        {
+            UpdateSplitRightOrientation();
+        }
+    }
+
+    private void UpdateSplitRightOrientation()
+    {
+        int breakpoint = DpiUtil.Scale(SplitRightVerticalBreakpointWidth);
+        int hysteresis = DpiUtil.Scale(SplitRightVerticalHysteresis);
+
+        bool shouldBeVertical = _splitRightIsVertical
+            ? splitRight.Width >= breakpoint - hysteresis
+            : splitRight.Width >= breakpoint + hysteresis;
+
+        if (shouldBeVertical == _splitRightIsVertical)
+        {
+            return;
+        }
+
+        splitRight.BeginInit();
+        splitRight.SuspendLayout();
+
+        try
+        {
+            if (shouldBeVertical)
+            {
+                _splitRightHorizontalDistance = splitRight.SplitterDistance;
+
+                // Shrink distance to a value valid in both dimensions before
+                // WinForms recalculates during the orientation switch.
+                splitRight.Panel2MinSize = 0;
+                splitRight.SplitterDistance = splitRight.Panel1MinSize + 1;
+                splitRight.Orientation = Orientation.Vertical;
+                splitRight.Panel2MinSize = DpiUtil.Scale(300);
+
+                int distance = _splitRightVerticalDistance > 0
+                    ? _splitRightVerticalDistance
+                    : (int)(splitRight.Width * 0.6);
+                SetSplitRightDistanceSafe(distance);
+            }
+            else
+            {
+                _splitRightVerticalDistance = splitRight.SplitterDistance;
+
+                splitRight.Panel2MinSize = 0;
+                splitRight.SplitterDistance = splitRight.Panel1MinSize + 1;
+                splitRight.Orientation = Orientation.Horizontal;
+                splitRight.Panel2MinSize = DpiUtil.Scale(100);
+                splitRight.Panel2MinSize = Math.Max(splitRight.Panel2MinSize, flowCommitButtons.PreferredSize.Height);
+
+                SetSplitRightDistanceSafe(_splitRightHorizontalDistance);
+            }
+
+            _splitRightIsVertical = shouldBeVertical;
+        }
+        finally
+        {
+            splitRight.EndInit();
+            splitRight.ResumeLayout();
+        }
+    }
+
+    private void SetSplitRightDistanceSafe(int distance)
+    {
+        int size = splitRight.Orientation == Orientation.Vertical ? splitRight.Width : splitRight.Height;
+        int clamped = Math.Max(splitRight.Panel1MinSize + 1, Math.Min(distance, size - splitRight.Panel2MinSize - 1));
+
+        try
+        {
+            splitRight.SplitterDistance = clamped;
+        }
+        catch
+        {
+            // Layout may not be ready yet during transitions
+        }
     }
 
     protected override void OnShown(EventArgs e)
