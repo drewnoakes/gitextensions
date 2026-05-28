@@ -1,4 +1,4 @@
-﻿using GitExtensions.Extensibility.Git;
+using GitExtensions.Extensibility.Git;
 using GitUI.UserControls.RevisionGrid.RefContextMenus;
 using NSubstitute;
 
@@ -31,6 +31,8 @@ public class RemoteBranchContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
     }
 
@@ -150,6 +152,8 @@ public class RemoteBranchContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());

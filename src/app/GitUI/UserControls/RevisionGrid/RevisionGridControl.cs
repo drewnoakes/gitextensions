@@ -2706,6 +2706,19 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             && Module.GetMergeBase(ancestorId, descendantId) == ancestorId;
     }
 
+    private (string Name, ObjectId ObjectId)? FindLocalBranchTrackingRemote(IGitRef remoteRef)
+    {
+        foreach (IGitRef localRef in Module.GetRefs(RefsFilter.Heads))
+        {
+            if (localRef.IsTrackingRemote(remoteRef) && localRef.ObjectId is ObjectId objectId)
+            {
+                return (localRef.Name, objectId);
+            }
+        }
+
+        return null;
+    }
+
     private void ShowRefSpecificContextMenu(IGitRef? gitRef, string? stashReflogSelector)
     {
         IReadOnlyDictionary<string, string> otherWorktrees = _otherWorktreeBranchPaths;
@@ -2724,6 +2737,8 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             GetWorktreePathForBranch = branchName => otherWorktrees.TryGetValue(branchName, out string? path) ? path : null,
             ShowFormDiff = ShowFormDiff,
             IsAncestorOf = IsAncestorOf,
+            GoToRevision = commitId => SetSelectedRevision(commitId),
+            FindLocalBranchTrackingRemote = FindLocalBranchTrackingRemote,
         };
 
         ContextMenuStrip? menu = _refContextMenuComposer.Build(gitRef, stashReflogSelector, context);

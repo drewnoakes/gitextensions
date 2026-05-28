@@ -1,4 +1,4 @@
-﻿using GitExtensions.Extensibility.Git;
+using GitExtensions.Extensibility.Git;
 using GitUI.UserControls.RevisionGrid.RefContextMenus;
 using NSubstitute;
 
@@ -29,6 +29,8 @@ public class StashRefContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
     }
 

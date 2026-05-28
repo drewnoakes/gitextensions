@@ -16,6 +16,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
 {
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
     private readonly TranslationString _openBranchWorktree = new("Open branch's &worktree");
+    private readonly TranslationString _goToRemoteBranch = new("Go to remote &branch ({0})");
     private readonly TranslationString _fastForwardToThis = new("Fast-&forward to this branch");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
@@ -93,6 +94,8 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
             menu.Items.Add(diffThisToCurrent);
         }
 
+        AddGoToRemoteBranchItem(menu, gitRef, context);
+
         if (menu.Items.Count > 0)
         {
             menu.Items.Add(new ToolStripSeparator());
@@ -140,6 +143,26 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
         {
             AddViewOnRemoteItem(menu, context.UICommands.Module, gitRef.TrackingRemote, gitRef.MergeWith);
         }
+    }
+
+    private void AddGoToRemoteBranchItem(ContextMenuStrip menu, IGitRef gitRef, RefContextMenuContext context)
+    {
+        if (string.IsNullOrEmpty(gitRef.TrackingRemote) || string.IsNullOrEmpty(gitRef.MergeWith))
+        {
+            return;
+        }
+
+        string remoteBranchName = $"{gitRef.TrackingRemote}/{gitRef.MergeWith}";
+
+        if (context.UICommands.Module.RevParse($"{GitRefName.RefsRemotesPrefix}{remoteBranchName}") is not ObjectId remoteObjectId
+            || remoteObjectId == gitRef.ObjectId)
+        {
+            return;
+        }
+
+        ToolStripMenuItem goToRemote = new(string.Format(_goToRemoteBranch.Text, remoteBranchName), Images.BranchRemote);
+        goToRemote.Click += (_, _) => context.GoToRevision(remoteObjectId);
+        menu.Items.Add(goToRemote);
     }
 
     private void AddViewOnRemoteItem(ContextMenuStrip menu, IGitModule module, string remoteName, string branchName)

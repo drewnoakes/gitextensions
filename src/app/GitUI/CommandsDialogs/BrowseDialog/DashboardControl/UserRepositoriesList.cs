@@ -75,6 +75,10 @@ public partial class UserRepositoriesList : GitExtensionsControl
         InitializeComponent();
         InitializeComplete();
 
+        // The legacy NativeListView + search box are superseded by the WebView2 dashboard.
+        // Hide immediately to prevent a brief flash of the old search box during loading.
+        tableLayoutPanel2.Visible = false;
+
         mnuTop.DropDownItems.Clear();
 
         _lvgRecentRepositories = new ListViewGroup(_groupRecentRepositories.Text, HorizontalAlignment.Left)

@@ -1,4 +1,4 @@
-﻿using GitExtensions.Extensibility.Git;
+using GitExtensions.Extensibility.Git;
 using GitUI.UserControls.RevisionGrid.RefContextMenus;
 using NSubstitute;
 
@@ -31,6 +31,8 @@ public class TagContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
     }
 
@@ -130,6 +132,8 @@ public class TagContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         IGitRef gitRef = CreateTagRef("v1.0", ObjectId.Random());

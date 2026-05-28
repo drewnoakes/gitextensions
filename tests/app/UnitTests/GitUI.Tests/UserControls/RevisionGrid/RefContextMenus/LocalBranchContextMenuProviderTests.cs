@@ -1,4 +1,4 @@
-﻿using GitExtensions.Extensibility.Git;
+using GitExtensions.Extensibility.Git;
 using GitUI.UserControls.RevisionGrid.RefContextMenus;
 using NSubstitute;
 
@@ -31,6 +31,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
     }
 
@@ -258,6 +260,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -290,6 +294,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = name => name == "feature" ? worktreePath : null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -337,6 +343,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = name => name == "feature" ? @"C:\repo-wt" : null,
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -417,6 +425,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (b, h, bs, hs) => captured = (b, h, bs, hs),
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
@@ -454,6 +464,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = _ => null,
             ShowFormDiff = (b, h, bs, hs) => captured = (b, h, bs, hs),
             IsAncestorOf = (_, _) => false,
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
@@ -487,6 +499,8 @@ public class LocalBranchContextMenuProviderTests
             GetWorktreePathForBranch = getWorktreePathForBranch ?? (_ => null),
             ShowFormDiff = (_, _, _, _) => { },
             IsAncestorOf = isAncestorOf ?? ((_, _) => false),
+            GoToRevision = _ => { },
+            FindLocalBranchTrackingRemote = _ => null,
         };
     }
 

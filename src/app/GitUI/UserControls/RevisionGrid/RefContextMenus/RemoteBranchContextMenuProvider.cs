@@ -14,6 +14,7 @@ namespace GitUI.UserControls.RevisionGrid.RefContextMenus;
 internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMenuProvider
 {
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
+    private readonly TranslationString _goToLocalBranch = new("Go to &local branch ({0})");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
     private readonly TranslationString _diffCurrentToThis = new("Diff &current → this");
@@ -66,11 +67,27 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
             menu.Items.Add(new ToolStripSeparator());
         }
 
+        AddGoToLocalBranchItem(menu, gitRef, context);
+
         ToolStripMenuItem delete = new(_deleteBranch.Text, Images.BranchDelete);
         delete.Click += (_, _) => context.UICommands.StartDeleteRemoteBranchDialog(context.ParentForm, gitRef.Name);
         menu.Items.Add(delete);
 
         AddViewOnRemoteItem(menu, context.UICommands.Module, gitRef.Remote, gitRef.LocalName);
+    }
+
+    private void AddGoToLocalBranchItem(ContextMenuStrip menu, IGitRef remoteRef, RefContextMenuContext context)
+    {
+        (string name, ObjectId objectId)? localBranch = context.FindLocalBranchTrackingRemote(remoteRef);
+
+        if (localBranch is not { } local || local.objectId == remoteRef.ObjectId)
+        {
+            return;
+        }
+
+        ToolStripMenuItem goToLocal = new(string.Format(_goToLocalBranch.Text, local.name), Images.BranchLocal);
+        goToLocal.Click += (_, _) => context.GoToRevision(local.objectId);
+        menu.Items.Add(goToLocal);
     }
 
     private void AddViewOnRemoteItem(ContextMenuStrip menu, IGitModule module, string remoteName, string branchName)

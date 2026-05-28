@@ -41,4 +41,15 @@ internal sealed class RefContextMenuContext
     ///  Determines whether the first commit is an ancestor of the second commit in the in-memory revision graph.
     /// </summary>
     public required Func<ObjectId, ObjectId, bool> IsAncestorOf { get; init; }
+
+    /// <summary>
+    ///  Navigates the revision grid to the specified commit.
+    /// </summary>
+    public required Action<ObjectId> GoToRevision { get; init; }
+
+    /// <summary>
+    ///  For a remote branch ref, returns the name and <see cref="ObjectId"/> of the local
+    ///  branch that tracks it, or <see langword="null"/> if no local branch tracks it.
+    /// </summary>
+    public required Func<IGitRef, (string Name, ObjectId ObjectId)?> FindLocalBranchTrackingRemote { get; init; }
 }
