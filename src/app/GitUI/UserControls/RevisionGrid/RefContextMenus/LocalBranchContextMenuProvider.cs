@@ -16,7 +16,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
 {
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
     private readonly TranslationString _openBranchWorktree = new("Open branch's &worktree");
-    private readonly TranslationString _goToRemoteBranch = new("Go to remote &branch ({0})");
+    private readonly TranslationString _goToRemoteBranch = new("Go to remote &branch");
     private readonly TranslationString _fastForwardToThis = new("Fast-&forward to this branch");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
     private readonly TranslationString _rebaseOnto = new("&Rebase current branch onto this");
@@ -160,7 +160,7 @@ internal sealed class LocalBranchContextMenuProvider : Translate, IRefContextMen
             return;
         }
 
-        ToolStripMenuItem goToRemote = new(string.Format(_goToRemoteBranch.Text, remoteBranchName), Images.BranchRemote);
+        ToolStripMenuItem goToRemote = new(_goToRemoteBranch.Text, Images.BranchRemote);
         goToRemote.Click += (_, _) => context.GoToRevision(remoteObjectId);
         menu.Items.Add(goToRemote);
     }

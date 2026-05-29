@@ -8617,7 +8617,7 @@ help</source>
         <target />
       </trans-unit>
       <trans-unit id="_goToRemoteBranch.Text">
-        <source>Go to remote &amp;branch ({0})</source>
+        <source>Go to remote &amp;branch</source>
         <target />
       </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">
@@ -8927,7 +8927,7 @@ This will just checkout on the submodule the commit determined by the superproje
         <target />
       </trans-unit>
       <trans-unit id="_goToLocalBranch.Text">
-        <source>Go to &amp;local branch ({0})</source>
+        <source>Go to &amp;local branch</source>
         <target />
       </trans-unit>
       <trans-unit id="_mergeIntoCurrent.Text">
