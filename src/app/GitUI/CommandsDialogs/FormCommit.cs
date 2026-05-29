@@ -167,7 +167,7 @@ public sealed partial class FormCommit : GitModuleForm
     private bool _responsiveLayoutEnabled;
     private bool _splitRightIsVertical;
     private int _splitRightHorizontalDistance;
-    private int _splitRightVerticalDistance;
+    private int _splitRightVerticalPanel2Width;
     private IReadOnlyList<GitItemStatus>? _currentSelection;
     private int _alreadyLoadedTemplatesCount = -1;
     private EventHandler? _branchNameLabelOnClick;
@@ -448,7 +448,7 @@ public sealed partial class FormCommit : GitModuleForm
             // persists the correct (height-based) distance for horizontal mode.
             if (_splitRightIsVertical)
             {
-                _splitRightVerticalDistance = splitRight.SplitterDistance;
+                _splitRightVerticalPanel2Width = splitRight.Width - splitRight.SplitterDistance;
                 _responsiveLayoutEnabled = false;
                 splitRight.BeginInit();
                 splitRight.Panel2MinSize = 0;
@@ -460,7 +460,7 @@ public sealed partial class FormCommit : GitModuleForm
             }
 
             _splitterManager.SaveSplitters();
-            _commitDialogSettings.SetInt("splitRight_VerticalDistance", _splitRightVerticalDistance > 0 ? _splitRightVerticalDistance : null);
+            _commitDialogSettings.SetInt("splitRight_VerticalPanel2Width", _splitRightVerticalPanel2Width > 0 ? _splitRightVerticalPanel2Width : null);
 
             // Do not remember commit message of fixup or squash commits, since they have
             // a special meaning, and can be dangerous if used inappropriately.
@@ -484,6 +484,14 @@ public sealed partial class FormCommit : GitModuleForm
     {
         MinimizeBox = Owner is null;
 
+        if (!TopLevel)
+        {
+            // When embedded in FormBrowse, hide buttons that duplicate
+            // functionality already available in the main menu/toolbar.
+            CommitAndPush.Visible = false;
+            createBranchToolStripButton.Visible = false;
+        }
+
         base.OnLoad(e);
 
         _responsiveLayoutEnabled = true;
@@ -498,7 +506,7 @@ public sealed partial class FormCommit : GitModuleForm
         _splitterManager.RestoreSplitters();
 
         _splitRightHorizontalDistance = splitRight.SplitterDistance;
-        _splitRightVerticalDistance = _commitDialogSettings.GetInt("splitRight_VerticalDistance") ?? 0;
+        _splitRightVerticalPanel2Width = _commitDialogSettings.GetInt("splitRight_VerticalPanel2Width") ?? 0;
     }
 
     /// <summary>
@@ -556,14 +564,15 @@ public sealed partial class FormCommit : GitModuleForm
                 splitRight.Orientation = Orientation.Vertical;
                 splitRight.Panel2MinSize = DpiUtil.Scale(300);
 
-                int distance = _splitRightVerticalDistance > 0
-                    ? _splitRightVerticalDistance
-                    : (int)(splitRight.Width * 0.6);
-                SetSplitRightDistanceSafe(distance);
+                // Restore commit pane width, defaulting to a sensible size
+                int panel2Width = _splitRightVerticalPanel2Width > 0
+                    ? _splitRightVerticalPanel2Width
+                    : DpiUtil.Scale(400);
+                SetSplitRightDistanceSafe(splitRight.Width - panel2Width);
             }
             else
             {
-                _splitRightVerticalDistance = splitRight.SplitterDistance;
+                _splitRightVerticalPanel2Width = splitRight.Width - splitRight.SplitterDistance;
 
                 splitRight.Panel2MinSize = 0;
                 splitRight.SplitterDistance = splitRight.Panel1MinSize + 1;
