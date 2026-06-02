@@ -8902,6 +8902,14 @@ This will just checkout on the submodule the commit determined by the superproje
         <source>Copy worktree &amp;path</source>
         <target />
       </trans-unit>
+      <trans-unit id="_openInVsCode.Text">
+        <source>Open worktree in VS &amp;Code</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_openInVsCodeInsiders.Text">
+        <source>Open worktree in VS Code &amp;Insiders</source>
+        <target />
+      </trans-unit>
     </body>
   </file>
   <file datatype="plaintext" original="RemoteBranchContextMenuProvider" source-language="en">

@@ -1134,6 +1134,9 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
                 // Start background status queries for non-current worktrees (used for badge indicators).
                 _worktreeStatusCache.BeginRefresh(capturedUICommands, worktrees);
 
+                // Warm up VS Code locator so right-click menus don't pay the file-system probe cost.
+                VsCodeLocator.EnsureInitialized();
+
                 await this.SwitchToMainThreadAsync(cancellationToken);
                 _otherWorktreeBranchPaths = otherWorktreeBranchPaths;
                 _gridView.Invalidate();
@@ -2734,7 +2737,10 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             GetLatestSelectedRevision = () => LatestSelectedRevision,
             PerformRefreshRevisions = () => PerformRefreshRevisions(),
             DropStash = DropStashToolStripMenuItemClick,
-            GetWorktreePathForBranch = branchName => otherWorktrees.TryGetValue(branchName, out string? path) ? path : null,
+            GetWorktreePathForBranch = branchName =>
+                otherWorktrees.TryGetValue(branchName, out string? path) ? path
+                : branchName == CurrentBranch.Value ? Module.WorkingDir
+                : null,
             ShowFormDiff = ShowFormDiff,
             IsAncestorOf = IsAncestorOf,
             GoToRevision = commitId => SetSelectedRevision(commitId),

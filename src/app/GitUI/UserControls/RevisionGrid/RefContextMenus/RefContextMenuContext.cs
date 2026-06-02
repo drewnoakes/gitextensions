@@ -27,7 +27,8 @@ internal sealed class RefContextMenuContext
 
     /// <summary>
     ///  Returns the path of the worktree in which the given branch is checked out,
-    ///  or <see langword="null"/> if the branch is not checked out in any other worktree.
+    ///  including the current worktree, or <see langword="null"/> if the branch is
+    ///  not checked out in any worktree.
     /// </summary>
     public required Func<string, string?> GetWorktreePathForBranch { get; init; }
 

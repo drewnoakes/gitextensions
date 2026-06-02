@@ -1,4 +1,6 @@
-﻿using GitExtensions.Extensibility.Git;
+﻿using System.Diagnostics;
+using GitCommands;
+using GitExtensions.Extensibility.Git;
 using GitExtUtils;
 using GitUI.Properties;
 using ResourceManager;
@@ -15,6 +17,8 @@ internal sealed class RefContextMenuComposer : Translate
     private readonly TranslationString _copyTagName = new("Copy &tag name");
     private readonly TranslationString _copyName = new("&Copy name");
     private readonly TranslationString _copyWorktreePath = new("Copy worktree &path");
+    private readonly TranslationString _openInVsCode = new("Open worktree in VS &Code");
+    private readonly TranslationString _openInVsCodeInsiders = new("Open worktree in VS Code &Insiders");
 
     private readonly IReadOnlyList<IRefContextMenuProvider> _providers;
 
@@ -69,6 +73,8 @@ internal sealed class RefContextMenuComposer : Translate
                 ToolStripMenuItem copyPath = new(_copyWorktreePath.Text, Images.CopyToClipboard);
                 copyPath.Click += (_, _) => ClipboardUtil.TrySetText(worktreePath);
                 menu.Items.Add(copyPath);
+
+                AddVsCodeItems(menu, worktreePath);
             }
         }
 
@@ -87,6 +93,44 @@ internal sealed class RefContextMenuComposer : Translate
             }
 
             return _copyName.Text;
+        }
+    }
+
+    private void AddVsCodeItems(ContextMenuStrip menu, string worktreePath)
+    {
+        if (VsCodeLocator.VsCodePath is string vsCodeExe)
+        {
+            ToolStripMenuItem openVsCode = new(_openInVsCode.Text);
+            openVsCode.Click += (_, _) => LaunchVsCode(vsCodeExe, worktreePath);
+            menu.Items.Add(openVsCode);
+        }
+
+        if (VsCodeLocator.VsCodeInsidersPath is string vsCodeInsidersExe)
+        {
+            ToolStripMenuItem openVsCodeInsiders = new(_openInVsCodeInsiders.Text);
+            openVsCodeInsiders.Click += (_, _) => LaunchVsCode(vsCodeInsidersExe, worktreePath);
+            menu.Items.Add(openVsCodeInsiders);
+        }
+
+        return;
+
+        static void LaunchVsCode(string exePath, string folderPath)
+        {
+            ProcessStartInfo psi = new(exePath, $"\"{folderPath}\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            try
+            {
+                Process.Start(psi);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Silently ignore launch failures — the user will notice VS Code didn't open.
+                Trace.WriteLine($"Failed to launch VS Code: {ex.Message}");
+            }
         }
     }
 }

@@ -161,8 +161,9 @@ public class RefContextMenuComposerTests
         ContextMenuStrip? menu = composer.Build(gitRef, stashReflogSelector: null, worktreeContext);
 
         menu.Should().NotBeNull();
-        // Provider item + separator + copy branch name + copy worktree path
-        menu!.Items.Count.Should().Be(4);
+
+        // Provider item + separator + copy branch name + copy worktree path (+ optional VS Code items)
+        menu!.Items.Count.Should().BeGreaterThanOrEqualTo(4);
         menu.Items[2].Text.Should().Contain("branch name");
         menu.Items[3].Text.Should().Contain("worktree");
 
