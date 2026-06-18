@@ -98,16 +98,29 @@ internal sealed class RefContextMenuComposer : Translate
 
     private void AddVsCodeItems(ContextMenuStrip menu, string worktreePath)
     {
+        bool addedSeparator = false;
+
         if (VsCodeLocator.VsCodePath is string vsCodeExe)
         {
-            ToolStripMenuItem openVsCode = new(_openInVsCode.Text);
+            if (!addedSeparator)
+            {
+                menu.Items.Add(new ToolStripSeparator());
+                addedSeparator = true;
+            }
+
+            ToolStripMenuItem openVsCode = new(_openInVsCode.Text, Images.VSCode);
             openVsCode.Click += (_, _) => LaunchVsCode(vsCodeExe, worktreePath);
             menu.Items.Add(openVsCode);
         }
 
         if (VsCodeLocator.VsCodeInsidersPath is string vsCodeInsidersExe)
         {
-            ToolStripMenuItem openVsCodeInsiders = new(_openInVsCodeInsiders.Text);
+            if (!addedSeparator)
+            {
+                menu.Items.Add(new ToolStripSeparator());
+            }
+
+            ToolStripMenuItem openVsCodeInsiders = new(_openInVsCodeInsiders.Text, Images.VSCodeInsiders);
             openVsCodeInsiders.Click += (_, _) => LaunchVsCode(vsCodeInsidersExe, worktreePath);
             menu.Items.Add(openVsCodeInsiders);
         }
