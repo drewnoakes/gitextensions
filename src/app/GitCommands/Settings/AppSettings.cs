@@ -1166,6 +1166,18 @@ public static partial class AppSettings
         set => SetBool("ManageWorktree.SortAscending", value);
     }
 
+    /// <summary>
+    ///  Gets or sets the directory pattern for new worktrees.
+    ///  Supports placeholders: <c>{base}</c> (repo directory without trailing separator)
+    ///  and <c>{branch}</c> (leaf branch name, i.e. last path segment).
+    ///  Default: <c>{base}.worktrees\{branch}</c>.
+    /// </summary>
+    public static string WorktreeDirectoryPattern
+    {
+        get => GetString("Worktree.DirectoryPattern", @"{base}.worktrees\{branch}") ?? @"{base}.worktrees\{branch}";
+        set => SetString("Worktree.DirectoryPattern", value);
+    }
+
     public static bool IncludeUntrackedFilesInAutoStash
     {
         get => GetBool("includeUntrackedFilesInAutoStash", false);

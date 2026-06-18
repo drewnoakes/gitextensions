@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using GitCommands.ExternalLinks;
 using GitCommands.Git.Gpg;
+using GitCommands.Remotes.PullRequests;
 using GitExtensions.Extensibility.Git;
 using GitExtUtils.GitUI.Theming;
 using GitUIPluginInterfaces;
@@ -346,7 +347,7 @@ internal sealed class CommitInfoHtmlBuilder
     /// <summary>
     ///  Builds the inner HTML for the header section (for incremental updates).
     /// </summary>
-    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null, GpgInfo? gpgInfo = null, CommitDiffStats? diffStats = null)
+    public string BuildHeaderInner(CommitData commitData, string? avatarUrl, bool showRevisionsAsLinks, string? commitBody = null, string? remoteUrl = null, GpgInfo? gpgInfo = null, CommitDiffStats? diffStats = null, PullRequestInfo? pullRequest = null)
     {
         bool isArtificial = commitData.ObjectId.IsArtificial;
         bool authorIsCommitter = string.Equals(commitData.Author, commitData.Committer, StringComparison.CurrentCulture);
@@ -455,6 +456,12 @@ internal sealed class CommitInfoHtmlBuilder
                         GitHubSvgIcon);
                 }
             }
+        }
+
+        if (pullRequest is not null)
+        {
+            string pullRequestLink = $"<a href=\"{WebUtility.HtmlEncode(pullRequest.Url)}\" title=\"{WebUtility.HtmlEncode(pullRequest.Title)}\">{WebUtility.HtmlEncode(pullRequest.Title)}</a>";
+            AppendHeaderRow(sb, "Pull request", pullRequestLink);
         }
 
         if (commitData.ChildIds is { Count: > 0 })

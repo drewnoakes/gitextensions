@@ -2724,17 +2724,20 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
 
     private void CreateWorktreeForBranch(string branchName, string? trackingRemote)
     {
-        static char[] GetInvalidPathChars() => Path.GetInvalidFileNameChars();
-
-        string normalizedName = string.Join("_", branchName.Split(GetInvalidPathChars(), StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');
+        string leafName = branchName.Split('/', StringSplitOptions.RemoveEmptyEntries)[^1];
+        string normalizedLeaf = string.Join("_", leafName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');
         string basePath = Module.WorkingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        string worktreePath = $"{basePath}_{normalizedName}";
+
+        string worktreePath = AppSettings.WorktreeDirectoryPattern
+            .Replace("{base}", basePath)
+            .Replace("{branch}", normalizedLeaf);
+
         string relativePath = Path.GetRelativePath(Module.WorkingDir, worktreePath).ToPosixPath().Quote();
 
         GitArgumentBuilder args = new("worktree")
         {
             "add",
-            { trackingRemote is not null, $"-b {branchName}" },
+            { trackingRemote is not null, $"-b {leafName}" },
             relativePath,
             trackingRemote ?? branchName,
         };

@@ -8,6 +8,7 @@ using GitCommands.ExternalLinks;
 using GitCommands.Git;
 using GitCommands.Git.Gpg;
 using GitCommands.Remotes;
+using GitCommands.Remotes.PullRequests;
 using GitCommands.Settings;
 using GitExtensions.Extensibility;
 using GitExtensions.Extensibility.Git;
@@ -65,6 +66,7 @@ public partial class CommitInfo : GitModuleControl
     private readonly IExternalLinkRevisionParser _externalLinkRevisionParser;
     private readonly IConfigFileRemoteSettingsManager _remotesManager;
     private readonly GitDescribeProvider _gitDescribeProvider;
+    private readonly PullRequestProviderRegistry _pullRequestProvider = new();
     private readonly CancellationTokenSequence _asyncLoadCancellation = new();
 
     private readonly IDisposable _revisionInfoResizedSubscription;
@@ -84,6 +86,7 @@ public partial class CommitInfo : GitModuleControl
     private string? _branchInfo;
     private string? _gitDescribeInfo;
     private CommitDiffStats? _diffStats;
+    private PullRequestInfo? _pullRequestInfo;
     private IDictionary<string, int>? _tagsOrderDict;
     private int _revisionInfoHeight;
     private int _commitMessageHeight;
@@ -310,7 +313,7 @@ public partial class CommitInfo : GitModuleControl
         {
             CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
             bool showLinks = CommandClickedEvent is not null;
-            string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), gpgInfo, _diffStats);
+            string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), gpgInfo, _diffStats, _pullRequestInfo);
             unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
         }
     }
@@ -412,6 +415,7 @@ public partial class CommitInfo : GitModuleControl
         _tagInfo = "";
         _gitDescribeInfo = "";
         _diffStats = null;
+        _pullRequestInfo = null;
         _cachedAvatarDataUrl = null;
 
         if (_revision is not null && !_revision.IsArtificial && !_revision.IsAutostash)
@@ -495,7 +499,8 @@ public partial class CommitInfo : GitModuleControl
                 List<Task> tasks = [
                     UpdateCommitMessageAsync(cancellationToken),
                     LoadLinksForRevisionAsync(initialRevision, settings).WithCancellation(cancellationToken),
-                    LoadDiffStatsAsync(initialRevision.ObjectId, cancellationToken)
+                    LoadDiffStatsAsync(initialRevision.ObjectId, cancellationToken),
+                    LoadPullRequestInfoAsync(initialRevision, cancellationToken)
                 ];
 
                 // No branch/tag data for artificial commands
@@ -714,7 +719,47 @@ public partial class CommitInfo : GitModuleControl
                 {
                     CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
                     bool showLinks = CommandClickedEvent is not null;
-                    string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), _gpgInfo, _diffStats);
+                    string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), _gpgInfo, _diffStats, _pullRequestInfo);
+                    unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
+                }
+            }
+
+            async Task LoadPullRequestInfoAsync(GitRevision revision, CancellationToken cancellationToken)
+            {
+                await TaskScheduler.Default;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string? originUrl = GetOriginUrl();
+                if (originUrl is null || !_pullRequestProvider.IsValidRemoteUrl(originUrl))
+                {
+                    return;
+                }
+
+                // Find branch names pointing at this commit
+                string? branchName = revision.Refs?
+                    .Where(r => r.IsHead && !DetachedHeadParser.IsDetachedHead(r.LocalName))
+                    .Select(r => r.LocalName)
+                    .FirstOrDefault();
+
+                if (branchName is null)
+                {
+                    return;
+                }
+
+                PullRequestInfo? pr = await _pullRequestProvider.FindPullRequestForBranchAsync(originUrl, branchName, cancellationToken);
+                if (pr is null)
+                {
+                    return;
+                }
+
+                await this.SwitchToMainThreadAsync(cancellationToken);
+                _pullRequestInfo = pr;
+
+                if (_revision is not null && _htmlBuilder is not null && _unifiedViewerInitialized)
+                {
+                    CommitData data = _commitDataManager.CreateFromRevision(_revision, _children);
+                    bool showLinks = CommandClickedEvent is not null;
+                    string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, _lastRawBody, GetOriginUrl(), _gpgInfo, _diffStats, _pullRequestInfo);
                     unifiedViewer.UpdateElementAsync("header", headerHtml).FileAndForget();
                 }
             }
@@ -1072,7 +1117,7 @@ public partial class CommitInfo : GitModuleControl
             else
             {
                 // Subsequent renders: update DOM sections via JavaScript (no flicker)
-                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl(), _gpgInfo, _diffStats);
+                string headerHtml = _htmlBuilder.BuildHeaderInner(data, _cachedAvatarDataUrl ?? GetAvatarUrl(_revision), showLinks, message.rawBody, GetOriginUrl(), _gpgInfo, _diffStats, _pullRequestInfo);
                 string messageHtml = CommitInfoHtmlBuilder.BuildMessageInner(message.rawBody, renderMarkdown, _externalLinks);
                 string footerHtml = CommitInfoHtmlBuilder.BuildFooterHtml(
                     _annotatedTagsInfo ?? string.Empty,
