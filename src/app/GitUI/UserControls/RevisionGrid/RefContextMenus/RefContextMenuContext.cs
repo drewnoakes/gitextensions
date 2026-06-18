@@ -53,4 +53,11 @@ internal sealed class RefContextMenuContext
     ///  branch that tracks it, or <see langword="null"/> if no local branch tracks it.
     /// </summary>
     public required Func<IGitRef, (string Name, ObjectId ObjectId)?> FindLocalBranchTrackingRemote { get; init; }
+
+    /// <summary>
+    ///  Creates a new worktree for the given branch name, optionally creating a local branch
+    ///  that tracks a remote. The path is computed automatically from the main worktree path
+    ///  and the branch name.
+    /// </summary>
+    public required Action<string, string?> CreateWorktreeForBranch { get; init; }
 }

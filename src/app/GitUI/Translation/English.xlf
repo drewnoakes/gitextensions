@@ -1794,6 +1794,14 @@ Suitable for some config files modified locally.</source>
         <source>Find in &amp;commit files using git-grep...</source>
         <target />
       </trans-unit>
+      <trans-unit id="tsmiOpenInVSCode.Text">
+        <source>Open in VS &amp;Code</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="tsmiOpenInVSCodeInsiders.Text">
+        <source>Open in VS Code &amp;Insiders</source>
+        <target />
+      </trans-unit>
       <trans-unit id="tsmiOpenInVisualStudio.Text">
         <source>Open in &amp;Visual Studio</source>
         <target />
@@ -8596,6 +8604,10 @@ help</source>
         <source>Chec&amp;kout this branch</source>
         <target />
       </trans-unit>
+      <trans-unit id="_createWorktree.Text">
+        <source>Create &amp;worktree for this branch</source>
+        <target />
+      </trans-unit>
       <trans-unit id="_deleteBranch.Text">
         <source>&amp;Delete this branch</source>
         <target />
@@ -8916,6 +8928,10 @@ This will just checkout on the submodule the commit determined by the superproje
     <body>
       <trans-unit id="_checkoutBranch.Text">
         <source>Chec&amp;kout this branch</source>
+        <target />
+      </trans-unit>
+      <trans-unit id="_createWorktree.Text">
+        <source>Create &amp;worktree for this branch</source>
         <target />
       </trans-unit>
       <trans-unit id="_deleteBranch.Text">

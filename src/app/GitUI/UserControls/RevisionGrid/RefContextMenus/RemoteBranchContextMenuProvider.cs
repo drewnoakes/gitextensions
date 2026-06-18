@@ -15,6 +15,7 @@ namespace GitUI.UserControls.RevisionGrid.RefContextMenus;
 internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMenuProvider
 {
     private readonly TranslationString _checkoutBranch = new("Chec&kout this branch");
+    private readonly TranslationString _createWorktree = new("Create &worktree for this branch");
     private readonly TranslationString _fastForwardToThis = new("Fast-&forward current branch to here");
     private readonly TranslationString _goToLocalBranch = new("Go to &local branch");
     private readonly TranslationString _mergeIntoCurrent = new("&Merge into current branch");
@@ -40,6 +41,14 @@ internal sealed class RemoteBranchContextMenuProvider : Translate, IRefContextMe
             ToolStripMenuItem checkout = new(_checkoutBranch.Text, Images.BranchCheckout);
             checkout.Click += (_, _) => context.UICommands.StartCheckoutRemoteBranch(context.ParentForm, gitRef.Name);
             menu.Items.Add(checkout);
+
+            // Offer to create a worktree when no local branch tracks this remote branch.
+            if (context.FindLocalBranchTrackingRemote(gitRef) is null)
+            {
+                ToolStripMenuItem createWorktree = new(_createWorktree.Text, Images.WorkTree);
+                createWorktree.Click += (_, _) => context.CreateWorktreeForBranch(gitRef.LocalName, gitRef.Name);
+                menu.Items.Add(createWorktree);
+            }
 
             if (!isAtCurrentHead)
             {

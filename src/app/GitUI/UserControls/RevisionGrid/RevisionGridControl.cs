@@ -2722,6 +2722,29 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
         return null;
     }
 
+    private void CreateWorktreeForBranch(string branchName, string? trackingRemote)
+    {
+        static char[] GetInvalidPathChars() => Path.GetInvalidFileNameChars();
+
+        string normalizedName = string.Join("_", branchName.Split(GetInvalidPathChars(), StringSplitOptions.RemoveEmptyEntries)).TrimEnd('.');
+        string basePath = Module.WorkingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string worktreePath = $"{basePath}_{normalizedName}";
+        string relativePath = Path.GetRelativePath(Module.WorkingDir, worktreePath).ToPosixPath().Quote();
+
+        GitArgumentBuilder args = new("worktree")
+        {
+            "add",
+            { trackingRemote is not null, $"-b {branchName}" },
+            relativePath,
+            trackingRemote ?? branchName,
+        };
+
+        if (UICommands.StartGitCommandProcessDialog(ParentForm, args))
+        {
+            PerformRefreshRevisions();
+        }
+    }
+
     private void ShowRefSpecificContextMenu(IGitRef? gitRef, string? stashReflogSelector)
     {
         IReadOnlyDictionary<string, string> otherWorktrees = _otherWorktreeBranchPaths;
@@ -2745,6 +2768,7 @@ public sealed partial class RevisionGridControl : GitModuleControl, ICheckRefs, 
             IsAncestorOf = IsAncestorOf,
             GoToRevision = commitId => SetSelectedRevision(commitId),
             FindLocalBranchTrackingRemote = FindLocalBranchTrackingRemote,
+            CreateWorktreeForBranch = (branchName, trackingRemote) => CreateWorktreeForBranch(branchName, trackingRemote),
         };
 
         ContextMenuStrip? menu = _refContextMenuComposer.Build(gitRef, stashReflogSelector, context);

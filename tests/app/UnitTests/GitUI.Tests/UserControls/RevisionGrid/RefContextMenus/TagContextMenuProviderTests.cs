@@ -33,6 +33,7 @@ public class TagContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
     }
 
@@ -134,6 +135,7 @@ public class TagContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         IGitRef gitRef = CreateTagRef("v1.0", ObjectId.Random());

@@ -33,6 +33,7 @@ public class RemoteBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
     }
 
@@ -154,6 +155,7 @@ public class RemoteBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         IGitRef gitRef = CreateRemoteBranchRef("origin/feature", ObjectId.Random());
@@ -222,6 +224,7 @@ public class RemoteBranchContextMenuProviderTests
             IsAncestorOf = (ancestor, descendant) => ancestor == _currentCheckout && descendant == branchObjectId,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, ancestorContext);

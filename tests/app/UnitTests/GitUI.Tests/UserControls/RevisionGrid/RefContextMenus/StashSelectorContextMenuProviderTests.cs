@@ -119,6 +119,7 @@ public class StashSelectorContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
     }
 }

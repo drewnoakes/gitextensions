@@ -33,6 +33,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
     }
 
@@ -262,6 +263,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -296,6 +298,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -318,11 +321,12 @@ public class LocalBranchContextMenuProviderTests
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, _context);
 
-        menu.Items.Cast<ToolStripItem>()
+        IEnumerable<string?> texts = menu.Items.Cast<ToolStripItem>()
             .Where(i => i is not ToolStripSeparator)
-            .Select(i => i.Text?.Replace("&", ""))
-            .Should().Contain(t => t != null && t.Contains("Checkout"))
-            .And.NotContain(t => t != null && t.Contains("worktree"));
+            .Select(i => i.Text?.Replace("&", ""));
+        texts.Should().Contain(t => t != null && t.Contains("Checkout"));
+        texts.Should().Contain(t => t != null && t.Contains("Create worktree"));
+        texts.Should().NotContain(t => t != null && t.Contains("Open") && t.Contains("worktree"));
     }
 
     [Test]
@@ -345,6 +349,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         IGitRef gitRef = CreateLocalBranchRef("feature", ObjectId.Random());
@@ -427,6 +432,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
@@ -466,6 +472,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         _provider.Populate(menu, gitRef, stashReflogSelector: null, context);
@@ -501,6 +508,7 @@ public class LocalBranchContextMenuProviderTests
             IsAncestorOf = isAncestorOf ?? ((_, _) => false),
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
     }
 

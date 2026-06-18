@@ -29,6 +29,7 @@ public class RefContextMenuComposerTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
     }
 
@@ -145,6 +146,7 @@ public class RefContextMenuComposerTests
             IsAncestorOf = (_, _) => false,
             GoToRevision = _ => { },
             FindLocalBranchTrackingRemote = _ => null,
+            CreateWorktreeForBranch = (_, _) => { },
         };
 
         IRefContextMenuProvider provider = Substitute.For<IRefContextMenuProvider>();
