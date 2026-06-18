@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using GitCommands;
 using GitCommands.Git;
@@ -758,6 +759,42 @@ partial class FileStatusList
         }
     }
 
+    private void OpenInVSCode_Click(object sender, EventArgs e)
+    {
+        if (VsCodeLocator.VsCodePath is string exePath && SelectedItemAbsolutePath is string itemName)
+        {
+            LaunchVsCode(exePath, itemName, GetLineNumber());
+        }
+    }
+
+    private void OpenInVSCodeInsiders_Click(object sender, EventArgs e)
+    {
+        if (VsCodeLocator.VsCodeInsidersPath is string exePath && SelectedItemAbsolutePath is string itemName)
+        {
+            LaunchVsCode(exePath, itemName, GetLineNumber());
+        }
+    }
+
+    private static void LaunchVsCode(string exePath, string filePath, int lineNumber)
+    {
+        string args = lineNumber > 0
+            ? $"--reuse-window --goto \"{filePath}\":{lineNumber}"
+            : $"--reuse-window \"{filePath}\"";
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(exePath, args)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Trace.WriteLine($"Failed to launch VS Code: {ex.Message}");
+        }
+    }
+
     private void OpenRevisionFile_Click(object sender, EventArgs e)
     {
         SaveSelectedItemToTempFile(fileName => OsShellUtil.Open(fileName));
@@ -1248,6 +1285,8 @@ partial class FileStatusList
         tsmiShowInFolder.Visible = _revisionDiffController.ShouldShowMenuShowInFolder(selectionInfo);
         tsmiEditWorkingDirectoryFile.Visible = _revisionDiffController.ShouldShowMenuEditWorkingDirectoryFile(selectionInfo);
         tsmiOpenInVisualStudio.Visible = _revisionDiffController.ShouldShowMenuEditWorkingDirectoryFile(selectionInfo) && VisualStudioIntegration.IsVisualStudioInstalled;
+        tsmiOpenInVSCode.Visible = _revisionDiffController.ShouldShowMenuEditWorkingDirectoryFile(selectionInfo) && VsCodeLocator.VsCodePath is not null;
+        tsmiOpenInVSCodeInsiders.Visible = _revisionDiffController.ShouldShowMenuEditWorkingDirectoryFile(selectionInfo) && VsCodeLocator.VsCodeInsidersPath is not null;
         tsmiMove.Visible = _revisionDiffController.ShouldShowMenuMove(selectionInfo);
         tsmiDeleteFile.Text = ResourceManager.TranslatedStrings.GetDeleteFile(selectionInfo.SelectedGitItemCount);
         tsmiDeleteFile.Enabled = _revisionDiffController.ShouldShowMenuDeleteFile(selectionInfo);
