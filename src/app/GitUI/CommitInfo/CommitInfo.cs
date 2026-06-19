@@ -735,25 +735,50 @@ public partial class CommitInfo : GitModuleControl
                     return;
                 }
 
-                // Find branch names pointing at this commit
-                string? branchName = revision.Refs?
-                    .Where(r => r.IsHead && !DetachedHeadParser.IsDetachedHead(r.LocalName))
-                    .Select(r => r.LocalName)
-                    .FirstOrDefault();
+                // Collect branch names pointing at this commit (local preferred, then remote)
+                List<string> branchNames = [];
 
-                if (branchName is null)
+                if (revision.Refs is not null)
+                {
+                    foreach (IGitRef gitRef in revision.Refs)
+                    {
+                        if (gitRef.IsHead && !DetachedHeadParser.IsDetachedHead(gitRef.LocalName))
+                        {
+                            branchNames.Add(gitRef.LocalName);
+                        }
+                    }
+
+                    foreach (IGitRef gitRef in revision.Refs)
+                    {
+                        if (gitRef.IsRemote && !branchNames.Contains(gitRef.LocalName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            branchNames.Add(gitRef.LocalName);
+                        }
+                    }
+                }
+
+                if (branchNames.Count == 0)
                 {
                     return;
                 }
 
-                PullRequestInfo? pr = await _pullRequestProvider.FindPullRequestForBranchAsync(originUrl, branchName, cancellationToken);
-                if (pr is null)
+                PullRequestInfo? pullRequestResult = null;
+                foreach (string branch in branchNames)
+                {
+                    pullRequestResult = await _pullRequestProvider.FindPullRequestForBranchAsync(originUrl, branch, cancellationToken);
+                    if (pullRequestResult is not null)
+                    {
+                        break;
+                    }
+                }
+
+                if (pullRequestResult is null)
                 {
                     return;
                 }
 
                 await this.SwitchToMainThreadAsync(cancellationToken);
-                _pullRequestInfo = pr;
+                _pullRequestInfo = pullRequestResult;
 
                 if (_revision is not null && _htmlBuilder is not null && _unifiedViewerInitialized)
                 {

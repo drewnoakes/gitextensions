@@ -460,7 +460,7 @@ internal sealed class CommitInfoHtmlBuilder
 
         if (pullRequest is not null)
         {
-            string pullRequestLink = $"<a href=\"{WebUtility.HtmlEncode(pullRequest.Url)}\" title=\"{WebUtility.HtmlEncode(pullRequest.Title)}\">{WebUtility.HtmlEncode(pullRequest.Title)}</a>";
+            string pullRequestLink = $"<a href=\"{WebUtility.HtmlEncode(pullRequest.Url)}\" title=\"Click to open: {WebUtility.HtmlEncode(pullRequest.Url)}\">{WebUtility.HtmlEncode(pullRequest.Title)}</a>";
             AppendHeaderRow(sb, "Pull request", pullRequestLink);
         }
 
