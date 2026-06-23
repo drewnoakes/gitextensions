@@ -148,6 +148,7 @@ public partial class FileViewer : GitModuleControl
         automaticContinuousScrollToolStripMenuItem.Text = TranslatedStrings.ContScrollToNextFileOnlyWithAlt;
 
         showGitWordColoringToolStripMenuItem.AdaptImageLightness();
+        markdownPreviewButton.AdaptImageLightness();
 
         IsReadOnly = true;
 
